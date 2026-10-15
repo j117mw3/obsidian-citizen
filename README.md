@@ -19,7 +19,7 @@ A fluid, slowly orbiting 3D map of your notes for [Obsidian](https://obsidian.md
 | Drag a note | It follows your pointer, its linked notes are tugged along, and on release everything springs back into place with a small bounce |
 | Double-click, or Ctrl/Cmd+click | Open the note (Ctrl/Cmd+click opens a new tab) |
 | Click empty space | Deselect |
-| Right-click | Clear selection and target lock |
+| Right-click | Clear selection and target lock, cancel pending double-click/double-shot actions, and close the details panel |
 
 ### Toolbar
 
@@ -76,18 +76,18 @@ The controls are also shown on screen as a small panel of key caps that light up
 
 - **Mouse mode.** *Capture* hides the pointer and steers with its movement. *Cursor* keeps the pointer visible and steers by how far it is from the centre, with a dead zone and two faint rings to show it; over a panel or button it stops steering, so you can click the legend, toolbar and details panel while flying.
 - **Scale.** Cruise speed is set from the size of your vault, so a bigger vault takes longer to cross: about 12 seconds across a 100-note vault at cruise speed, longer for larger ones. The *Flight speed* setting scales it. Warps take time in proportion to the distance.
-- **Wireframes and sound.** The plane has a glowing wireframe outline, and target brackets, impact bursts and faint shells around each group are drawn in wireframe too (they can be turned off). Engine, blaster and warp sounds are synthesised in the plugin with the Web Audio API, nothing is loaded from a file, and they can be turned off or turned down. Sound mutes when the window loses focus.
+- **Wireframes and sound.** The plane has a glowing wireframe outline, and target brackets, impact bursts and faint shells around each group are drawn in wireframe too (they can be turned off). Engine, afterburner, blaster and warp sounds are synthesised in the plugin with the Web Audio API; no audio files are loaded. The Pilot HUD has separate saved **Mute engine** and **Mute afterburner** controls. They do not mute blasters, and the master sound and volume controls still apply. Sound mutes when the window loses focus.
 - Pilot mode needs motion, so it stays off when your system asks for reduced motion (the search, note list and details panel still work). It is not available without WebGL.
 
 ### Multiplayer rooms
 
-Open the **Multiplayer** panel, enter a display name, check the shared-data notice, then create a room or join with its eight-character code. Set the signaling URL in the plugin's **Multiplayer** settings first. A room has up to four pilots, each with a nearby region in one shared flight space. Constellation regions use the same flight scale.
+Open the **Multiplayer** panel, enter a display name, and check the shared-data notice. Create a room to get an eight-character code, then share it with up to three other pilots; or enter a code to join someone else's room. The panel includes **Copy code** and **Leave** controls, participant names, health and state, and connection status. Set the signaling URL in the plugin's **Multiplayer** settings first. Each pilot has a nearby region in the shared flight space, and all constellation regions use the same flight scale.
 
-Joining shares anonymous star positions, connections, and group colors. It never sends note titles, paths, tags, or contents. Remote constellations have no labels, note details, search, selection, dragging, or opening actions. Your own graph retains its normal note actions. Maps update as notes and links change. Warps are disabled while in a room.
+Joining shares anonymous star positions, connections, and group colors. It never sends note titles, paths, tags, or contents. Remote constellations have no labels, note details, search, selection, dragging, or opening actions. Your own graph retains its normal note actions. Maps update as notes and links change. Sharing supports up to 20,000 stars and 100,000 links per vault; larger maps show an error instead of silently omitting notes. Warps are disabled while in a room.
 
 Rooms use WebRTC data channels for maps and flight; room codes and peer setup use the signaling service, and TURN relays traffic when direct peer connections fail. Leave the signaling URL as `ws://localhost:8787` only for local development; deployed rooms should use `wss://` behind HTTPS. See [server/README.md](server/README.md) for the self-hosted Node.js, Caddy, and coturn setup.
 
-Combat is always optional by behavior: pilots can fire at one another or simply fly together. A blaster hit removes 10 of 100 health. Destruction is followed by a five-second respawn with full health and boost, then three seconds of spawn protection; firing ends protection. Boost drains at 28% per second, recharges at 8% per second after 1.5 seconds without boosting, and stays empty for three seconds when depleted. Leaving Pilot mode or hiding the graph makes you a spectator; returning takes five seconds and preserves your health and boost.
+Firing at other pilots is optional: fly together peacefully or choose to engage. A blaster hit removes 10 of 100 health. Destruction is followed by a five-second respawn with full health and boost, then three seconds of spawn protection; firing ends protection. Boost drains at 28% per second, recharges at 8% per second after 1.5 seconds without boosting, and stays empty for three seconds when depleted. Leaving Pilot mode or hiding the game view makes you a spectator; returning takes five seconds and preserves your health and boost.
 
 The signaling service keeps room membership and the latest small combat checkpoint in memory, and does not log gameplay payloads or connection credentials. Room membership disappears when the last player leaves. Outside an active room, the plugin does not connect to the network.
 
