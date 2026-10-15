@@ -4,7 +4,7 @@
 
 .cg-root {
   --cg-bg: #05070c;
-  --cg-panel: rgba(12, 15, 24, 0.82);
+  --cg-panel: rgba(12, 15, 24, 0.92);
   --cg-border: rgba(255, 255, 255, 0.14);
   --cg-ink: #eef1f8;
   --cg-dim: #9aa3b8;
@@ -37,7 +37,7 @@
 .cg-top { position: absolute; top: 12px; left: 12px; display: flex; gap: 6px; align-items: center; z-index: 3; }
 .cg-search {
   width: 210px; height: 30px; padding: 0 10px; border-radius: 8px; color: var(--cg-ink);
-  background: var(--cg-panel); border: 1px solid var(--cg-border); backdrop-filter: blur(6px);
+  background: var(--cg-panel); border: 1px solid var(--cg-border);
 }
 .cg-search::placeholder { color: var(--cg-dim); }
 .cg-btn {
@@ -66,7 +66,7 @@
 /* selected-note panel */
 .cg-detail {
   position: absolute; right: 12px; bottom: 12px; width: 280px; max-height: 55%; overflow: auto; padding: 12px 14px; z-index: 4;
-  background: var(--cg-panel); border: 1px solid var(--cg-border); border-radius: 10px; backdrop-filter: blur(8px);
+  background: var(--cg-panel); border: 1px solid var(--cg-border); border-radius: 10px;
 }
 .cg-detail-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
 .cg-detail-title:focus-visible { outline: 2px solid var(--cg-accent); outline-offset: 3px; }
@@ -86,7 +86,7 @@
 /* note list */
 .cg-list {
   position: absolute; left: 12px; top: 52px; bottom: 12px; width: 260px; padding: 6px; z-index: 5; overflow: auto;
-  background: var(--cg-panel); border: 1px solid var(--cg-border); border-radius: 10px; backdrop-filter: blur(8px);
+  background: var(--cg-panel); border: 1px solid var(--cg-border); border-radius: 10px;
 }
 .cg-list[hidden], .cg-detail[hidden], .cg-help[hidden], .cg-tip[hidden] { display: none; }
 .cg-list-body { margin: 0; padding: 0; list-style: none; }
@@ -168,8 +168,8 @@
 /* Pilot mode: the controls, as key caps in a quiet glass panel */
 .cg-pilot-keys {
   position: absolute; top: 58px; right: 14px; width: 214px; padding: 10px 12px 8px; border-radius: 12px;
-  background: linear-gradient(160deg, rgba(18, 24, 38, 0.72), rgba(10, 13, 22, 0.62)); border: 1px solid var(--cg-border);
-  backdrop-filter: blur(8px); box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35); transition: opacity 0.6s ease;
+  background: linear-gradient(160deg, rgba(18, 24, 38, 0.88), rgba(10, 13, 22, 0.84)); border: 1px solid var(--cg-border);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35); transition: opacity 0.6s ease;
 }
 .cg-pilot-keys[hidden] { display: none; }
 .cg-pilot-keys.cg-quiet { opacity: 0.34; }
@@ -205,7 +205,7 @@
 .cg-label-cluster { font-weight: 700; letter-spacing: 0.02em; }
 
 /* Multiplayer: the Fly together panel (layout adapted from the multiplayer styles in the community pull request by j117mw3) */
-.cg-multiplayer { position: absolute; top: 52px; right: 12px; z-index: 5; width: min(360px, calc(100% - 24px)); max-height: calc(100% - 70px); overflow: auto; padding: 12px; border: 1px solid var(--cg-border); border-radius: 10px; background: var(--cg-panel); backdrop-filter: blur(10px); box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4); }
+.cg-multiplayer { position: absolute; top: 52px; right: 12px; z-index: 5; width: min(360px, calc(100% - 24px)); max-height: calc(100% - 70px); overflow: auto; padding: 12px; border: 1px solid var(--cg-border); border-radius: 10px; background: var(--cg-panel); box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4); }
 .cg-multiplayer[hidden] { display: none; }
 .cg-multiplayer-head { display: flex; align-items: center; justify-content: space-between; }
 .cg-multiplayer h2 { margin: 0 0 6px; font-size: 15px; }
