@@ -1,0 +1,10 @@
+{
+  "name": "constellation-signaling-service",
+  "version": "1.0.0",
+  "private": true,
+  "description": "In-memory WebRTC signaling and host-election service for Constellation Graph rooms.",
+  "license": "MIT",
+  "engines": { "node": ">=20" },
+  "scripts": { "start": "node index.js" },
+  "dependencies": { "ws": "^8.22.0" }
+}

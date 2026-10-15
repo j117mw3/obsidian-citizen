@@ -1,4 +1,6 @@
 import type { ConstellationSettings } from "./settings";
+import type { AnonymousTopology } from "./multiplayer";
+import type { FlightInput, ImpactSnapshot, Pose, ShotSnapshot } from "./multiplayer";
 
 export interface RawNode {
   id: string;
@@ -47,6 +49,7 @@ export interface SimNode extends RawNode {
 /** What the view needs from its host (Obsidian, or the dev harness). */
 export interface Host {
   openNote(id: string, newTab: boolean): void;
+  updateSettings?(patch: Partial<ConstellationSettings>): void;
 }
 
 export interface RendererCallbacks {
@@ -57,6 +60,8 @@ export interface RendererCallbacks {
   onActivity?(kind: "animate" | "supernova" | null, text: string): void;
   /** Pilot mode started or stopped; `text` is a message for the reader (read out by screen readers too). */
   onPilot?(active: boolean, text: string): void;
+  onAudioMute?(which: "engine" | "afterburner", muted: boolean): void;
+  onNetworkFrame?(input: FlightInput): void;
 }
 
 /** The 3D renderer and the list-only fallback expose the same surface, so the UI never has to care which it has. */
@@ -87,5 +92,13 @@ export interface GraphRenderer {
   readonly canPilot: boolean;
   readonly pilotActive: boolean;
   setPilot(on: boolean): void;
+  setWorldOrigin(slot: number): void;
+  setMultiplayer(active: boolean): void;
+  setRemoteTopology(playerId: string, topology: AnonymousTopology): void;
+  setRemotePositions(playerId: string, positions: Float32Array): void;
+  setRemoteShip(playerId: string, pose: Pose): void;
+  setRemoteShots(shots: ShotSnapshot[], impacts: ImpactSnapshot[]): void;
+  setAuthoritativePose(pose: Pose): void;
+  removeRemote(playerId: string): void;
   destroy(): void;
 }

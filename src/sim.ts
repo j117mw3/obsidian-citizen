@@ -51,6 +51,7 @@ export class Simulation {
   private cy = new Float64Array(1);
   private cz = new Float64Array(1);
   private cn = new Float64Array(1);
+  private origin: [number, number, number] = [0, 0, 0];
 
   constructor() {
     this.linkForce = forceLink<SimNode, SimLink>([]).id(d => d.id).distance(26).strength(0.3);
@@ -79,6 +80,16 @@ export class Simulation {
   /** Cheaper repulsion on big vaults: a wider Barnes-Hut opening angle and a shorter reach. */
   setScale(n: number): void {
     this.charge.theta(n > 6000 ? 1.4 : n > 2500 ? 1.15 : 0.9).distanceMax(n > 6000 ? 160 : n > 2500 ? 240 : 340);
+  }
+
+  setOrigin(x: number, y: number, z: number): void {
+    const next: [number, number, number] = [x, y, z];
+    const delta = next.map((v, i) => v - this.origin[i]);
+    this.origin = next;
+    for (const n of this.nodes) {
+      n.x += delta[0]; n.y += delta[1]; n.z += delta[2];
+      if (n.fx != null) n.fx += delta[0]; if (n.fy != null) n.fy += delta[1]; if (n.fz != null) n.fz += delta[2];
+    }
   }
 
   /**
@@ -212,7 +223,7 @@ export class Simulation {
         x = px / found + (hash(h) - 0.5) * 8; y = py / found + (hash(h + 9) - 0.5) * 8; z = pz / found + (hash(h + 19) - 0.5) * 8;
       } else {
         const [fx, fy, fz] = fibonacci(gi, this.groups);
-        x = fx * R + (hash(h) - 0.5) * 2 * spread; y = fy * R + (hash(h + 9) - 0.5) * 2 * spread; z = fz * R + (hash(h + 19) - 0.5) * 2 * spread;
+        x = this.origin[0] + fx * R + (hash(h) - 0.5) * 2 * spread; y = this.origin[1] + fy * R + (hash(h + 9) - 0.5) * 2 * spread; z = this.origin[2] + fz * R + (hash(h + 19) - 0.5) * 2 * spread;
       }
       return { ...r, index, gi, x, y, z, vx: 0, vy: 0, vz: 0, phase: hash(h + 33) * 6.283, speed: 0.7 + hash(h + 51) * 0.6 };
     });

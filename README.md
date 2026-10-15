@@ -19,6 +19,7 @@ A fluid, slowly orbiting 3D map of your notes for [Obsidian](https://obsidian.md
 | Drag a note | It follows your pointer, its linked notes are tugged along, and on release everything springs back into place with a small bounce |
 | Double-click, or Ctrl/Cmd+click | Open the note (Ctrl/Cmd+click opens a new tab) |
 | Click empty space | Deselect |
+| Right-click | Clear selection and target lock |
 
 ### Toolbar
 
@@ -64,8 +65,8 @@ Press **P** in the graph (or the plane button on the toolbar) and fly a small fo
 | Mouse | Steer (see **Mouse mode** below) |
 | Click or F | Fire a blaster bolt at what is under the crosshair |
 | T | Lock or unlock the target |
-| G | Warp to the target |
-| H | Warp back out to see the whole graph |
+| G | Warp to the target (disabled in multiplayer) |
+| H | Warp back out to see the whole graph (disabled in multiplayer) |
 | V | Switch between chase and cockpit view |
 | K | Show or hide the controls panel |
 | Esc | Free the mouse (a second Esc leaves) |
@@ -78,6 +79,18 @@ The controls are also shown on screen as a small panel of key caps that light up
 - **Wireframes and sound.** The plane has a glowing wireframe outline, and target brackets, impact bursts and faint shells around each group are drawn in wireframe too (they can be turned off). Engine, blaster and warp sounds are synthesised in the plugin with the Web Audio API, nothing is loaded from a file, and they can be turned off or turned down. Sound mutes when the window loses focus.
 - Pilot mode needs motion, so it stays off when your system asks for reduced motion (the search, note list and details panel still work). It is not available without WebGL.
 
+### Multiplayer rooms
+
+Open the **Multiplayer** panel, enter a display name, check the shared-data notice, then create a room or join with its eight-character code. Set the signaling URL in the plugin's **Multiplayer** settings first. A room has up to four pilots, each with a nearby region in one shared flight space. Constellation regions use the same flight scale.
+
+Joining shares anonymous star positions, connections, and group colors. It never sends note titles, paths, tags, or contents. Remote constellations have no labels, note details, search, selection, dragging, or opening actions. Your own graph retains its normal note actions. Maps update as notes and links change. Warps are disabled while in a room.
+
+Rooms use WebRTC data channels for maps and flight; room codes and peer setup use the signaling service, and TURN relays traffic when direct peer connections fail. Leave the signaling URL as `ws://localhost:8787` only for local development; deployed rooms should use `wss://` behind HTTPS. See [server/README.md](server/README.md) for the self-hosted Node.js, Caddy, and coturn setup.
+
+Combat is always optional by behavior: pilots can fire at one another or simply fly together. A blaster hit removes 10 of 100 health. Destruction is followed by a five-second respawn with full health and boost, then three seconds of spawn protection; firing ends protection. Boost drains at 28% per second, recharges at 8% per second after 1.5 seconds without boosting, and stays empty for three seconds when depleted. Leaving Pilot mode or hiding the graph makes you a spectator; returning takes five seconds and preserves your health and boost.
+
+The signaling service keeps room membership and the latest small combat checkpoint in memory, and does not log gameplay payloads or connection credentials. Room membership disappears when the last player leaves. Outside an active room, the plugin does not connect to the network.
+
 ### Accessibility
 
 - **Reduced motion.** If your operating system requests reduced motion, flow, orbiting and camera flights are turned off: the layout settles once and stays still, dragged notes return at once instead of bouncing, and Supernova just recomputes the layout instantly without the show. Animate still works because you asked for it, but without the pop-in effects. You can also set motion to *Off* yourself, or pause at any time.
@@ -89,11 +102,11 @@ The controls are also shown on screen as a small panel of key caps that light up
 
 ## Settings
 
-Open on startup (off by default; saved in the vault, so it applies to anyone who opens it), flow (off, calm, lively), camera rotation and speed, glow and bloom, palette, label size and count, grouping (folder, first tag, none), folder depth, excluded folders, whether to show notes with no links, and whether to ring the open note. Pilot mode has its own section: enable, mouse mode (capture or cursor), mouse sensitivity, invert vertical look, flight speed, agility, view (chase or cockpit), wireframe effects, sound and volume.
+Open on startup (off by default; saved in the vault, so it applies to anyone who opens it), flow (off, calm, lively), camera rotation and speed, glow and bloom, palette, label size and count, grouping (folder, first tag, none), folder depth, excluded folders, whether to show notes with no links, and whether to ring the open note. Pilot mode has its own section: enable, mouse mode (capture or cursor), mouse sensitivity, invert vertical look, flight speed, agility, view (chase or cockpit), wireframe effects, sound and volume, and separate saved engine and afterburner mutes. Multiplayer settings include the display name and signaling-service address.
 
 ## Privacy and safety
 
-No network access, no telemetry, no remote code. Everything, including Three.js, is bundled into `main.js`. Note titles are only ever written as text, never as HTML. Pilot mode's sound is generated by the plugin itself; no audio files are loaded or sent anywhere. The plugin reads your notes' names and links (from Obsidian's own index) and, when grouping by tag, their first tag. It does not read note contents or write to your vault.
+Outside an active room, the plugin does not make network connections. When you explicitly join, WebRTC peers receive a lossy anonymous map of star coordinates, connections, and colors. The plugin does not send note names, paths, tags, or contents, and network messages cannot call Obsidian note-opening actions. The signaling service sees room codes, display names, and WebRTC setup messages; it keeps the current membership and latest compact combat checkpoint in memory and does not log these payloads or credentials. Gameplay is sent peer-to-peer, with TURN used as a relay only when needed. Everything, including Three.js, is bundled into `main.js`. Note titles are only ever written as text, never as HTML. Pilot sound is generated by the plugin; no audio files are loaded or sent. The plugin reads note names and links from Obsidian's index and, when grouping by tag, the first tag. It does not read note contents or write to your vault.
 
 ## Performance
 
@@ -109,13 +122,15 @@ Rendering uses point sprites and line segments rather than a mesh per note. A ti
 
 ```bash
 npm install
+npm ci --prefix server # signaling service dependency
 npm run dev          # esbuild watch, writes main.js
 npm run build        # type-check, then minified production main.js
+npm test             # synthetic privacy, protocol, combat, and signaling tests
 npm run harness -- "<path to a vault>"   # builds dev/harness.html, a browser preview using that vault's notes as mock data
 npm run install-local -- "<path to a vault>"   # build and copy into <vault>/.obsidian/plugins/constellation-graph
 ```
 
-Source layout: `src/main.ts` (plugin), `view.ts` (Obsidian view), `data.ts` (vault to graph), `app.ts` (UI, keyboard, accessibility), `renderer.ts` (Three.js), `sim.ts` (layout and flow), `pilot.ts` (Pilot mode: flight, aiming, collisions, HUD), `ship.ts` and `cockpit.ts` (the plane and its cockpit, built from primitives), `sfx.ts` (synthesised sound), `fallback.ts` (no-WebGL mode), `settings.ts`, `palette.ts`.
+Source layout: `src/main.ts` (plugin), `view.ts` (Obsidian view), `data.ts` (vault to graph), `app.ts` (UI, keyboard, accessibility), `renderer.ts` (Three.js), `sim.ts` (layout and flow), `pilot.ts` (Pilot mode: flight, aiming, collisions, HUD), `multiplayer.ts` (anonymous map protocol and WebRTC mesh), `combat.ts` (host-authoritative flight and combat), `server/` (self-hosted signaling, Caddy, and coturn), `ship.ts` and `cockpit.ts` (the plane and its cockpit, built from primitives), `sfx.ts` (synthesised sound), `fallback.ts` (no-WebGL mode), `settings.ts`, `palette.ts`.
 
 ## Licence and third-party notices
 
@@ -123,5 +138,6 @@ MIT, see `LICENSE`. The bundled `main.js` includes:
 
 - [Three.js](https://threejs.org), MIT licence, copyright the Three.js authors.
 - [d3-force-3d](https://github.com/vasturiano/d3-force-3d), MIT licence, copyright Vasco Asturiano; it builds on [d3-force](https://github.com/d3/d3-force) (ISC licence, copyright Mike Bostock) and related d3 modules (ISC, BSD-3-Clause).
+- [ws](https://github.com/websockets/ws), MIT licence, used by the separate signaling service.
 
 Full licence text for each travels with its package under `node_modules` and is preserved at the end of `main.js`.

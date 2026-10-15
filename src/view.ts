@@ -22,6 +22,7 @@ export class ConstellationView extends ItemView {
     this.contentEl.addClass("cg-view");
     this.ca = new ConstellationApp(this.contentEl, {
       openNote: (id, newTab) => this.openNote(id, newTab),
+      updateSettings: patch => this.plugin.update(patch),
     }, this.plugin.settings);
     this.refresh(true);
 

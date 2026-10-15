@@ -2,6 +2,7 @@ import { ConstellationRenderer, webglAvailable } from "./renderer";
 import { FallbackRenderer } from "./fallback";
 import type { GraphData, GraphRenderer, Host, RendererCallbacks } from "./types";
 import { ConstellationSettings, effectiveHighContrast, effectiveMotion, prefersReducedMotion } from "./settings";
+import { MultiplayerSession, type AnonymousPlayer, type GameMessage } from "./multiplayer";
 
 let instances = 0;
 
@@ -18,9 +19,9 @@ const HELP = [
   "Space: pause or resume motion",
   "A: animate, watching notes appear in the order they were created",
   "N: supernova, collapse everything, explode it and let it re-settle",
-  "P: Pilot mode. W A S D fly, mouse looks, Shift boosts, X brakes, click or F fires. T locks the target, G warps to it, H returns to the hub, V switches between chase and cockpit view. Esc frees the mouse, P leaves.",
+  "P: Pilot mode. W A S D fly, mouse looks, Shift boosts, X brakes, click or F fires. T locks the target, G warps to it and H returns to the hub (both disabled in rooms), V switches between chase and cockpit view. Esc frees the mouse, P leaves.",
   "R: reset the view · L: note list · /: search · Esc: clear",
-  "Mouse: drag to orbit, scroll to zoom, click to select, double-click or Ctrl+click to open",
+  "Mouse: drag to orbit, scroll to zoom, click to select, double-click or Ctrl+click to open, right-click to clear selection",
 ];
 
 export class ConstellationApp {
@@ -44,6 +45,16 @@ export class ConstellationApp {
   private animBtn: HTMLButtonElement;
   private novaBtn: HTMLButtonElement;
   private pilotBtn: HTMLButtonElement;
+  private multiplayerBtn: HTMLButtonElement;
+  private multiplayerPanel: HTMLElement;
+  private multiplayerName: HTMLInputElement;
+  private multiplayerConsent: HTMLInputElement;
+  private multiplayerCode: HTMLInputElement;
+  private multiplayerStatus: HTMLElement;
+  private multiplayerPlayers: HTMLUListElement;
+  private network!: MultiplayerSession;
+  private remoteIds = new Set<string>();
+  private playerRows = new Map<string, { row: HTMLLIElement; health: HTMLProgressElement; state: HTMLElement }>();
   private statsText = "";
   private activityKind: "animate" | "supernova" | null = null;
   private motionNote: HTMLElement;
@@ -71,6 +82,8 @@ export class ConstellationApp {
       onOpen: (i, t) => this.openIndex(i, t),
       onActivity: (k, text) => this.onActivity(k, text),
       onPilot: (a, text) => this.onPilot(a, text),
+      onAudioMute: (which, muted) => this.host.updateSettings?.(which === "engine" ? { pilotMuteEngine: muted } : { pilotMuteAfterburner: muted }),
+      onNetworkFrame: input => this.network?.sendInput(input),
     };
     let made: GraphRenderer | null = null;
     if (webglAvailable()) {
@@ -96,9 +109,35 @@ export class ConstellationApp {
     this.helpBtn = this.button("cg-btn", "Keyboard help", "?");
     this.helpBtn.setAttribute("aria-expanded", "false");
     this.helpBtn.setAttribute("aria-controls", this.helpId);
-    top.append(this.search, this.pauseBtn, resetBtn, this.animBtn, this.novaBtn, this.pilotBtn, this.listBtn, this.helpBtn);
+    this.multiplayerBtn = this.button("cg-btn", "Multiplayer rooms", "\u2726");
+    this.multiplayerBtn.setAttribute("aria-expanded", "false");
+    top.append(this.search, this.pauseBtn, resetBtn, this.animBtn, this.novaBtn, this.pilotBtn, this.multiplayerBtn, this.listBtn, this.helpBtn);
     if (this.flat) { this.pauseBtn.hidden = true; resetBtn.hidden = true; this.animBtn.hidden = true; this.novaBtn.hidden = true; this.pilotBtn.hidden = true; }
     this.root.appendChild(top);
+    this.multiplayerPanel = el("aside", "cg-multiplayer", { "aria-label": "Multiplayer room" });
+    this.multiplayerPanel.hidden = true;
+    this.multiplayerPanel.appendChild(el("h2", "", {}, "Fly together"));
+    this.multiplayerPanel.appendChild(el("p", "cg-multiplayer-privacy", {}, "Joining shares anonymous star positions, connections and group colours. Note names, paths, tags and file contents stay on your computer."));
+    const nameLabel = el("label", "cg-multiplayer-name", {}, "Display name");
+    this.multiplayerName = el("input", "", { type: "text", maxlength: "24", autocomplete: "nickname", "aria-label": "Display name", placeholder: "Pilot" });
+    this.multiplayerName.value = settings.multiplayerName;
+    nameLabel.appendChild(this.multiplayerName);
+    this.multiplayerPanel.appendChild(nameLabel);
+    const consentLabel = el("label", "cg-multiplayer-consent");
+    this.multiplayerConsent = el("input", "", { type: "checkbox" });
+    consentLabel.append(this.multiplayerConsent, document.createTextNode("I understand the shared constellation data."));
+    this.multiplayerPanel.appendChild(consentLabel);
+    const roomActions = el("div", "cg-multiplayer-actions");
+    const createRoom = this.button("cg-btn", "Create a room", "Create room");
+    this.multiplayerCode = el("input", "cg-multiplayer-code", { type: "text", placeholder: "8-character code", maxlength: "8", "aria-label": "Room code", autocomplete: "off", spellcheck: "false" });
+    const joinRoom = this.button("cg-btn", "Join a room", "Join");
+    const copyRoom = this.button("cg-btn", "Copy room code", "Copy code");
+    const leaveRoom = this.button("cg-btn", "Leave room", "Leave");
+    roomActions.append(createRoom, this.multiplayerCode, joinRoom, copyRoom, leaveRoom);
+    this.multiplayerStatus = el("p", "cg-multiplayer-status", { role: "status", "aria-live": "polite" }, "Not connected. Set your signaling server in plugin settings.");
+    this.multiplayerPlayers = el("ul", "cg-multiplayer-players", { "aria-label": "Players in this room" });
+    this.multiplayerPanel.append(roomActions, this.multiplayerStatus, this.multiplayerPlayers);
+    this.root.appendChild(this.multiplayerPanel);
     this.stats = el("div", "cg-stats");
     this.motionNote = el("div", "cg-motion-note");
     this.root.append(this.stats, this.motionNote);
@@ -138,6 +177,19 @@ export class ConstellationApp {
     this.animBtn.addEventListener("click", () => this.renderer.animate());
     this.novaBtn.addEventListener("click", () => this.renderer.supernova());
     this.pilotBtn.addEventListener("click", () => this.togglePilot());
+    this.multiplayerBtn.addEventListener("click", () => {
+      this.multiplayerPanel.hidden = !this.multiplayerPanel.hidden;
+      this.multiplayerBtn.setAttribute("aria-expanded", String(!this.multiplayerPanel.hidden));
+      if (!this.multiplayerPanel.hidden) this.multiplayerConsent.focus();
+    });
+    createRoom.addEventListener("click", () => void this.startRoom("create"));
+    joinRoom.addEventListener("click", () => void this.startRoom("join"));
+    copyRoom.addEventListener("click", () => void this.copyRoomCode());
+    leaveRoom.addEventListener("click", () => this.network.leave());
+    this.multiplayerName.addEventListener("change", () => {
+      this.multiplayerName.value = this.multiplayerName.value.trim().slice(0, 24);
+      this.host.updateSettings?.({ multiplayerName: this.multiplayerName.value });
+    });
     this.helpBtn.addEventListener("click", () => this.setHelp(this.help.hidden));
     this.search.addEventListener("input", () => this.runSearch());
     this.search.addEventListener("keydown", e => {
@@ -157,6 +209,26 @@ export class ConstellationApp {
     }
     this.applySettings(settings);
     if (this.flat) this.toggleList(true);
+    this.network = new MultiplayerSession({
+      status: (text, error) => { this.multiplayerStatus.textContent = text; this.multiplayerStatus.classList.toggle("cg-error", !!error); },
+      members: (members, selfId) => this.onMembers(members, selfId),
+      topology: (id, topology) => { this.renderer.setRemoteTopology(id, topology); this.remoteIds.add(id); },
+      positions: (id, positions) => this.renderer.setRemotePositions(id, positions),
+      message: (from, message) => this.onNetworkMessage(from, message),
+      playerState: (id, pose) => {
+        if (id === this.network?.localPlayerId) this.renderer.setAuthoritativePose(pose); else this.renderer.setRemoteShip(id, pose);
+        const player = this.playerRows.get(id);
+        if (player) {
+          const name = player.row.dataset.name ?? "Pilot";
+          player.health.value = Math.max(0, Math.min(100, pose.health));
+          player.health.setAttribute("aria-label", `${name}: ${Math.round(pose.health)} of 100 health`);
+          player.state.textContent = pose.health <= 0 ? `${Math.round(pose.health)} HP · respawn ${Math.ceil(pose.respawnAt / 1000)}s` : `${Math.round(pose.health)} HP${pose.active ? "" : " · spectator"}`;
+        }
+      },
+      shotState: (shots, impacts) => this.renderer.setRemoteShots(shots, impacts),
+      removed: id => { if (id) { this.renderer.removeRemote(id); this.remoteIds.delete(id); } },
+      authority: (_hostId, _epoch, _checkpoint) => { this.multiplayerStatus.textContent = "Room authority transferred. Reconnecting the shared session…"; },
+    }, () => ({ data: this.data, nodes: this.renderer.nodes }), () => this.settings.multiplayerSignalingUrl);
   }
 
   // ----------------------------------------------------------------- public
@@ -181,12 +253,14 @@ export class ConstellationApp {
     r.setSelected(idx, false);
     if (idx >= 0) this.showDetail(idx); else this.detail.hidden = true;
     this.runSearch();
+    this.network?.setLocalGraph(data);
   }
 
   setActive(id: string | null): void { this.renderer.setActive(id ? this.renderer.indexOf(id) : -1); }
 
   applySettings(s: ConstellationSettings): void {
     this.settings = s;
+    if (document.activeElement !== this.multiplayerName) this.multiplayerName.value = s.multiplayerName;
     this.renderer.applySettings(s);
     this.root.classList.toggle("cg-contrast", effectiveHighContrast(s));
     const off = effectiveMotion(s) === "off";
@@ -196,6 +270,7 @@ export class ConstellationApp {
   }
 
   destroy(): void {
+    this.network?.leave("Graph closed; you left the room.");
     this.mqs.forEach(m => m.removeEventListener("change", this.onMq));
     this.renderer.destroy();
     this.root.remove();
@@ -208,6 +283,59 @@ export class ConstellationApp {
   private button(cls: string, label: string, glyph: string): HTMLButtonElement {
     const b = el("button", cls, { type: "button", "aria-label": label, title: label }, glyph);
     return b;
+  }
+
+  private async startRoom(action: "create" | "join"): Promise<void> {
+    if (this.flat) { this.multiplayerStatus.textContent = "Multiplayer needs the 3D WebGL view."; this.multiplayerStatus.classList.add("cg-error"); return; }
+    if (!this.multiplayerConsent.checked) { this.multiplayerStatus.textContent = "Read and check the shared data notice before joining."; this.multiplayerStatus.classList.add("cg-error"); return; }
+    try {
+      this.multiplayerStatus.textContent = "Connecting to the room service…"; this.multiplayerStatus.classList.remove("cg-error");
+      const name = this.multiplayerName.value.trim().slice(0, 24);
+      if (!name) throw new Error("Enter a display name before joining.");
+      this.multiplayerName.value = name;
+      this.host.updateSettings?.({ multiplayerName: name });
+      if (action === "create") await this.network.create(name);
+      else await this.network.join(this.multiplayerCode.value, name);
+      this.multiplayerCode.value = this.network.room;
+      this.network.setLocalGraph(this.data);
+    } catch (e) {
+      this.multiplayerStatus.textContent = e instanceof Error ? e.message : "Could not connect to the room.";
+      this.multiplayerStatus.classList.add("cg-error");
+    }
+  }
+
+  private async copyRoomCode(): Promise<void> {
+    if (!this.network?.room) { this.multiplayerStatus.textContent = "Create or join a room first."; return; }
+    try { await navigator.clipboard.writeText(this.network.room); this.multiplayerStatus.textContent = "Room code copied."; }
+    catch { this.multiplayerCode.value = this.network.room; this.multiplayerCode.select(); this.multiplayerStatus.textContent = "Select and copy the room code."; }
+  }
+
+  private onMembers(members: AnonymousPlayer[], selfId: string): void {
+    this.multiplayerPlayers.replaceChildren();
+    this.playerRows.clear();
+    for (const member of members) {
+      const label = member.id === selfId ? `${member.name} (you)` : member.name;
+      const row = el("li", "cg-player-row"); row.dataset.name = label.slice(0, 32);
+      const name = el("span", "cg-player-name", {}, label.slice(0, 32));
+      const health = el("progress", "cg-player-health", { max: "100", value: "100", "aria-label": `${label}: 100 of 100 health` });
+      const state = el("span", "cg-player-state", {}, "100 HP · spectator");
+      row.append(name, health, state);
+      this.playerRows.set(member.id, { row, health, state }); this.multiplayerPlayers.appendChild(row);
+    }
+    const joined = !!selfId;
+    this.multiplayerCode.disabled = joined; this.multiplayerConsent.disabled = joined;
+    if (!joined) {
+      this.renderer.setMultiplayer(false); this.renderer.setWorldOrigin(0);
+      for (const id of this.remoteIds) this.renderer.removeRemote(id);
+      this.remoteIds.clear(); this.multiplayerConsent.checked = false;
+    } else {
+      const self = members.find(p => p.id === selfId);
+      this.renderer.setMultiplayer(true); this.renderer.setWorldOrigin(self?.slot ?? 0);
+    }
+  }
+
+  private onNetworkMessage(_from: string, message: GameMessage): void {
+    if (message.type === "input") return; // The room host validates flight input before applying combat rules.
   }
 
   private buildLegend(): void {

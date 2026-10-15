@@ -1,5 +1,6 @@
 import type { ConstellationSettings } from "./settings";
 import type { GraphData, GraphRenderer, RendererCallbacks, SimNode } from "./types";
+import type { AnonymousTopology, ImpactSnapshot, Pose, ShotSnapshot } from "./multiplayer";
 
 /**
  * Stands in for the 3D renderer when WebGL is unavailable (blocked GPU, remote desktop, context limit).
@@ -48,5 +49,13 @@ export class FallbackRenderer implements GraphRenderer {
   get canPilot(): boolean { return false; }
   get pilotActive(): boolean { return false; }
   setPilot(_on: boolean): void { /* no canvas to fly in */ }
+  setWorldOrigin(_slot: number): void { /* the list has no world coordinates */ }
+  setMultiplayer(_active: boolean): void { /* no 3D flight */ }
+  setRemoteTopology(_playerId: string, _topology: AnonymousTopology): void { /* no 3D canvas */ }
+  setRemotePositions(_playerId: string, _positions: Float32Array): void { /* no 3D canvas */ }
+  setRemoteShip(_playerId: string, _pose: Pose): void { /* no 3D canvas */ }
+  setRemoteShots(_shots: ShotSnapshot[], _impacts: ImpactSnapshot[]): void { /* no 3D canvas */ }
+  setAuthoritativePose(_pose: Pose): void { /* no 3D canvas */ }
+  removeRemote(_playerId: string): void { /* no 3D canvas */ }
   destroy(): void { this.cb.onHover(-1); }
 }
