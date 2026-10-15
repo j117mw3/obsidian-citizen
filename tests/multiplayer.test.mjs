@@ -69,6 +69,21 @@ test("anonymous topology and all application packets omit local vault metadata",
   session.sendInput({ thrust: 1, strafe: 0, lift: 0, roll: 0, pitch: 0, yaw: 0, boost: false, brake: false, fire: false, active: true });
   session.fire(1, 2, [10, 20, 30]);
   session.requestFastTravel({ ownerId: session.selfId, starId: session.localTopology.nodes[0].id, revision: session.localTopology.revision });
+
+  // Capture actual host round and elimination messages too. These contain only
+  // anonymous player IDs, scores, round timing, and topology revisions.
+  const world = new combat.CombatWorld(4);
+  world.add({ id: self, slot: 0, name: "Synthetic Host", joinedAt: 1 });
+  world.add({ id: peerId, slot: 1, name: "Synthetic Peer", joinedAt: 2 });
+  const shooter = world.players.get(self), victim = world.players.get(peerId);
+  shooter.pos.set(0, 0, 0); shooter.active = true; shooter.input.active = true;
+  victim.pos.set(0, 0, -100); victim.health = 10; victim.active = true; victim.input.active = true;
+  assert.equal(world.fireShot(self, 1, 0, 10_000), true);
+  for (let frame = 1; frame <= 8 && victim.health > 0; frame++) world.step(1 / 60, 10_000 + frame * 17);
+  const elimination = world.drainEliminations()[0];
+  assert.ok(elimination);
+  session.sendReliableAll({ type: "round-state", epoch: 4, state: world.roundSnapshot(10_200) });
+  session.sendReliableAll({ type: "elimination", epoch: 4, event: elimination });
   sent.push(...peer.control.sent, ...peer.live.sent.map(v => v instanceof ArrayBuffer ? Buffer.from(v).toString("base64") : v));
   for (const marker of privateMarkers) assert.equal(JSON.stringify(sent).includes(marker), false);
 });
@@ -144,6 +159,26 @@ test("shot results are accepted only from the current host and authority epoch",
   session.onPeerMessage(otherId, JSON.stringify({ type: "shot-result", epoch: 5, sequence: 3, accepted: false }), "control");
   session.onPeerMessage(hostId, JSON.stringify({ type: "shot-result", epoch: 5, sequence: 3, accepted: false }), "control");
   assert.deepEqual(results, [[3, false]]);
+});
+
+test("round states and elimination announcements require the current host and deduplicate event ids", () => {
+  const hostId = "11111111-1111-4111-8111-111111111111", selfId = "22222222-2222-4222-8222-222222222222", otherId = "33333333-3333-4333-8333-333333333333";
+  const rounds = [], eliminations = [];
+  const session = new network.MultiplayerSession(callbacks({ round: value => rounds.push(value), elimination: value => eliminations.push(value) }), () => ({ data: fixture(), nodes: [] }), () => "wss://rooms.example.test");
+  session.selfId = selfId; session.hostId = hostId; session.epoch = 8;
+  session.peers.set(hostId, peerStub()); session.peers.set(otherId, peerStub());
+  const state = { epoch: 8, roundId: 2, phase: "combat", phaseRemainingMs: 0, winnerId: "", scores: [{ playerId: hostId, kills: 0 }, { playerId: selfId, kills: 0 }], layoutRequirements: [] };
+  session.onPeerMessage(otherId, JSON.stringify({ type: "round-state", epoch: 8, state }), "control");
+  session.onPeerMessage(hostId, JSON.stringify({ type: "round-state", epoch: 7, state: { ...state, epoch: 7 } }), "control");
+  session.onPeerMessage(hostId, JSON.stringify({ type: "round-state", epoch: 8, state }), "control");
+  assert.equal(rounds.length, 1);
+  assert.equal(network.validRoundSnapshot({ ...state, phase: "supernova", winnerId: hostId }), false, "victory phases require a five-kill score");
+  const event = { id: "2:host-shot-1", roundId: 2, attackerId: hostId, victimId: selfId, attackerScore: 1, at: 2000 };
+  session.onPeerMessage(otherId, JSON.stringify({ type: "elimination", epoch: 8, event }), "control");
+  session.onPeerMessage(hostId, JSON.stringify({ type: "elimination", epoch: 7, event }), "control");
+  session.onPeerMessage(hostId, JSON.stringify({ type: "elimination", epoch: 8, event }), "control");
+  session.onPeerMessage(hostId, JSON.stringify({ type: "elimination", epoch: 8, event }), "control");
+  assert.deepEqual(eliminations, [event]);
 });
 
 test("multiplayer map coordinates double around their stable region and restore exactly in solo", () => {
@@ -247,6 +282,45 @@ test("lethal damage respawns at five seconds with full health, boost, and three-
   assert.equal(target.energy, 1);
   assert.equal(target.active, true);
   assert.equal(target.protectedUntil, respawnAt + 3000);
+});
+
+test("first-to-five scores only confirmed lethal hits and checkpoints victory progress", () => {
+  const world = new combat.CombatWorld(9), { attacker, target } = addPair(world);
+  let now = 40_000;
+  for (let kill = 1; kill <= 5; kill++) {
+    target.health = 10; target.active = true; target.protectedUntil = 0;
+    attacker.active = true;
+    assert.equal(world.fireShot("attacker", kill, 0, now), true);
+    for (let frame = 1; frame <= 8 && target.health > 0; frame++) world.step(1 / 60, now + frame * 17);
+    const events = world.drainEliminations();
+    assert.equal(events.length, 1, "one elimination is emitted for each actual alive-to-destroyed transition");
+    assert.equal(events[0].attackerScore, kill);
+    assert.equal(world.fireShot("attacker", kill, 0, now + 200), false, "duplicate shot sequences cannot score twice");
+    now += 250;
+  }
+  assert.equal(attacker.kills, 5);
+  assert.equal(world.roundPhase, "supernova");
+  assert.equal(world.fireShot("attacker", 6, 0, now), false, "combat pauses immediately at the winning hit");
+  assert.equal(world.startTravel("attacker", [0, 0, -500], 1, now), false);
+
+  const checkpoint = world.snapshot(now), transferred = new combat.CombatWorld(10);
+  assert.equal(checkpoint.version, 4);
+  assert.equal(transferred.restore(checkpoint, now + 100, 1200), true);
+  assert.equal(transferred.currentRoundId, 1);
+  assert.equal(transferred.roundSnapshot(now + 100).phaseRemainingMs, checkpoint.round.phaseRemainingMs - 1200);
+  assert.equal(transferred.players.get("attacker").kills, 5);
+
+  transferred.step(1 / 60, now + 7000);
+  assert.equal(transferred.roundPhase, "waiting");
+  transferred.setInput("attacker", { ...emptyInput, active: false }, now + 7001);
+  transferred.startCountdown(now + 7001);
+  transferred.step(1 / 60, now + 10_002);
+  assert.equal(transferred.currentRoundId, 2);
+  assert.equal(transferred.roundPhase, "combat");
+  assert.equal(transferred.players.get("attacker").kills, 0);
+  assert.equal(transferred.players.get("attacker").health, 100);
+  assert.equal(transferred.players.get("attacker").energy, 1);
+  assert.equal(transferred.players.get("attacker").active, false, "spectators remain spectators after round reset");
 });
 
 test("boost drains at the shared rate and spectators resume after five seconds without refilling", () => {

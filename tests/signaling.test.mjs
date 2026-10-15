@@ -57,7 +57,7 @@ test("signaling supports four members, temporary TURN credentials, and determini
     assert.equal(ready, true, "signaling service did not start");
     const url = `ws://127.0.0.1:${port}`;
     const connect = async () => { const client = socketClient(url); clients.push(client); await client.opened; return client; };
-    const host = await connect(); host.ws.send(JSON.stringify({ type: "create", protocol: 3, name: "Host", profile }));
+    const host = await connect(); host.ws.send(JSON.stringify({ type: "create", protocol: 4, name: "Host", profile }));
     const created = await host.wait(m => m.type === "created");
     const oldClient = await connect(); oldClient.ws.send(JSON.stringify({ type: "join", protocol: 1, code: created.code, name: "Old Client" }));
     assert.equal((await oldClient.wait(m => m.type === "error")).code, "update-required");
@@ -71,21 +71,21 @@ test("signaling supports four members, temporary TURN credentials, and determini
     const members = [created];
     for (const [index, name] of ["Pilot 2", "Pilot 3", "Pilot 4"].entries()) {
       const pilotProfile = { ...profile, ship: ["vector", "dart", "bulwark"][index] };
-      const client = await connect(); client.ws.send(JSON.stringify({ type: "join", protocol: 3, code: created.code, name, profile: pilotProfile }));
+      const client = await connect(); client.ws.send(JSON.stringify({ type: "join", protocol: 4, code: created.code, name, profile: pilotProfile }));
       const joined = await client.wait(m => m.type === "joined");
       if (index === 0) {
         assert.equal(joined.members[0].profile.ship, "classic", "the room roster carries the host's chosen profile");
-        const updated = { revision: 2, ship: "crescent", engine: "ion", afterburner: "plasma", laser: "pulse", privateTitle: "must-not-be-shared" };
+        const updated = { revision: 2, ship: "revenant", engine: "turbine", afterburner: "fusion", laser: "arc", privateTitle: "must-not-be-shared" };
         host.ws.send(JSON.stringify({ type: "profile", profile: updated }));
         const propagated = await client.wait(m => m.type === "member-profile" && m.id === created.selfId);
-        assert.deepEqual(propagated.profile, { revision: 2, ship: "crescent", engine: "ion", afterburner: "plasma", laser: "pulse" });
+        assert.deepEqual(propagated.profile, { revision: 2, ship: "revenant", engine: "turbine", afterburner: "fusion", laser: "arc" });
       }
       members.push(joined);
     }
     assert.equal(members[3].members.length, 4);
     assert.deepEqual(members[3].members.map(m => m.slot), [0, 1, 2, 3]);
 
-    const tooMany = await connect(); tooMany.ws.send(JSON.stringify({ type: "join", protocol: 3, code: created.code, name: "Fifth", profile }));
+    const tooMany = await connect(); tooMany.ws.send(JSON.stringify({ type: "join", protocol: 4, code: created.code, name: "Fifth", profile }));
     const capacity = await tooMany.wait(m => m.type === "error");
     assert.equal(capacity.code, "full");
     tooMany.ws.close();

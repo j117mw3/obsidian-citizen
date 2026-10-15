@@ -16,11 +16,11 @@ THREE.ColorManagement.enabled = false; // we feed sRGB values straight to the sc
 
 const VERT = /* glsl */ `
 attribute vec3 aColor; attribute float aSize; attribute float aAlpha; attribute float aEmph;
-uniform float uScale; uniform float uPulse;
+uniform float uScale; uniform float uPulse; uniform float uCollapse;
 varying vec3 vColor; varying float vAlpha; varying float vEmph;
 void main() {
   vColor = aColor; vAlpha = aAlpha; vEmph = aEmph;
-  vec4 mv = modelViewMatrix * vec4(position, 1.0);
+  vec4 mv = modelViewMatrix * vec4(position * (1.0 - uCollapse), 1.0);
   gl_PointSize = clamp(aSize * uPulse * uScale / max(0.001, -mv.z), 7.0, 190.0);
   gl_Position = projectionMatrix * mv;
 }`;
@@ -93,7 +93,7 @@ export class ConstellationRenderer implements GraphRenderer {
   private stars: THREE.Points;
   private nodePoints: THREE.Points | null = null;
   private lines: THREE.LineSegments | null = null;
-  private uniforms = { uScale: { value: 500 }, uGlow: { value: 1 }, uContrast: { value: 0 }, uPulse: { value: 1 }, uNova: { value: 0 } };
+  private uniforms = { uScale: { value: 500 }, uGlow: { value: 1 }, uContrast: { value: 0 }, uPulse: { value: 1 }, uNova: { value: 0 }, uCollapse: { value: 0 } };
 
   private pos = new Float32Array(0);
   private col = new Float32Array(0);
@@ -154,6 +154,8 @@ export class ConstellationRenderer implements GraphRenderer {
   private birth = new Float32Array(0); // when each note appeared during an animation (renderer age, seconds)
   private nova: { stage: "collapse" | "settle" | "trace"; t0: number; blastAt: number; traceT0: number; depth: Int16Array; maxDepth: number } | null = null;
   private novaBloom = 0;
+  private sharedNova: { startedAt: number; duration: number } | null = null;
+  private soloLayout: Map<string, [number, number, number, number, number, number]> | null = null;
   private linkAt = new Map<number, number>(); // pair of note indices -> link index
   private treeLink = new Uint8Array(0); // links on the shortest-path tree during the trace
   private flashEl: HTMLDivElement;
@@ -235,6 +237,7 @@ export class ConstellationRenderer implements GraphRenderer {
       leave: () => this.setPilot(false),
       onAudioMute: (which, muted) => this.cb.onAudioMute?.(which, muted),
       onHangar: () => this.cb.onHangar?.(),
+      onToggleGroups: () => this.cb.onToggleGroups?.(),
       onNetworkFrame: input => this.cb.onNetworkFrame?.(input),
       onFire: (sequence, gun, aimPoint) => this.cb.onFire?.(sequence, gun, aimPoint),
     }, pilotOptions(settings));
@@ -355,6 +358,21 @@ export class ConstellationRenderer implements GraphRenderer {
 
   setMultiplayer(active: boolean): void {
     if (!active && this.pilot.active) this.pilot.exit();
+    if (active && !this.multiplayer) {
+      if (this.nova) this.novaStop(false);
+      if (this.reveal) this.endAnimation(false);
+      this.soloLayout = new Map(this.sim.nodes.map(node => [node.id, [node.x, node.y, node.z, node.vx, node.vy, node.vz]]));
+    } else if (!active && this.multiplayer && this.soloLayout) {
+      for (const node of this.sim.nodes) {
+        const saved = this.soloLayout.get(node.id); if (saved) [node.x, node.y, node.z, node.vx, node.vy, node.vz] = saved;
+      }
+      this.soloLayout = null;
+    }
+    if (!active) {
+      this.sharedNova = null; this.novaBloom = 0;
+      this.uniforms.uNova.value = 0; this.uniforms.uPulse.value = 1; this.uniforms.uCollapse.value = 0;
+      this.bloom.strength = effectiveHighContrast(this.settings) ? 0 : 0.35 * this.settings.glow;
+    }
     this.multiplayer = active;
     if (active) {
       if (this.drag) this.dragEnd();
@@ -368,6 +386,28 @@ export class ConstellationRenderer implements GraphRenderer {
     this.remoteShips.forEach(remote => remote.ship.group.scale.setScalar(active ? 0.68 : 0.34));
     if (!active) { this.localPlayerId = ""; this.localTopology = null; this.indicatorLayer.replaceChildren(); }
     this.stale = true; this.dirty = true;
+  }
+
+  regenerateRoomLayout(remainingMs: number): void {
+    if (!this.multiplayer || !this.sim.nodes.length) return;
+    this.setNavigationTarget(null);
+    if (this.reveal) this.endAnimation(false);
+    if (this.nova) this.novaStop(false);
+    this.sim.relayout();
+    this.applyMapTransform(); this.refreshWorldNodes(true);
+    this.dirty = true; this.stale = true; this.autoFrame = true;
+    this.sharedNova = { startedAt: performance.now(), duration: 8000 };
+    this.syncRoomNova(remainingMs);
+  }
+
+  syncRoomNova(remainingMs: number): void {
+    if (!this.multiplayer || !this.sharedNova) return;
+    const duration = 8000, remaining = Math.max(0, Math.min(duration, remainingMs));
+    this.sharedNova = { startedAt: performance.now() - (duration - remaining), duration };
+  }
+
+  setRoundDisplay(kills: number, leader: number, phase: string, remainingMs: number): void {
+    this.pilot.setRoundDisplay(kills, leader, phase, remainingMs);
   }
 
   setLocalTopology(playerId: string, topology: AnonymousTopology | null): void {
@@ -784,6 +824,7 @@ export class ConstellationRenderer implements GraphRenderer {
    * the main hub outward. With motion off there is no show: the layout is simply recomputed at once.
    */
   supernova(): void {
+    if (this.multiplayer) { this.cb.onActivity?.(null, "Manual supernova is disabled while you are in a room"); return; }
     if (this.nova) { this.novaStop(false); return; }
     if (this.reveal) this.endAnimation(false);
     if (this.drag || !this.sim.nodes.length) return;
@@ -1154,9 +1195,24 @@ export class ConstellationRenderer implements GraphRenderer {
       this.stale = true;
       if (p >= 1) this.endAnimation(true);
     }
+    const hc = effectiveHighContrast(this.settings), base = hc ? 0 : 0.35 * this.settings.glow;
+    if (this.sharedNova) {
+      // Keep frames flowing through the final collapse reset as well; the
+      // shared effect is driven by wall time, not by node motion.
+      this.stale = true;
+      const p = Math.max(0, Math.min(1, (performance.now() - this.sharedNova.startedAt) / this.sharedNova.duration));
+      const pulse = Math.sin(Math.PI * p);
+      const smooth = (x: number) => { const t = Math.max(0, Math.min(1, x)); return t * t * (3 - 2 * t); };
+      this.uniforms.uCollapse.value = p < 0.28 ? smooth(p / 0.28) : p < 0.42 ? 1 : 1 - smooth((p - 0.42) / 0.58);
+      this.uniforms.uNova.value = pulse * 1.15; this.uniforms.uPulse.value = 1 + pulse * 0.42; this.novaBloom = hc ? 0 : pulse * 1.0;
+      this.bloom.strength = base + this.novaBloom;
+      const detonation = p >= 0.28 && p <= 0.42 ? Math.sin(Math.PI * (p - 0.28) / 0.14) : 0;
+      this.flashEl.setCssProps({ opacity: hc ? "0" : String(0.28 * detonation) });
+      if (p >= 1) { this.sharedNova = null; this.uniforms.uNova.value = 0; this.uniforms.uPulse.value = 1; this.uniforms.uCollapse.value = 0; this.novaBloom = 0; this.bloom.strength = base; this.flashEl.setCssProps({ opacity: "0" }); }
+    } else this.uniforms.uCollapse.value = 0;
     const nv = this.nova; if (!nv) return;
     this.stale = true;
-    const phase = this.sim.novaPhase, hc = effectiveHighContrast(this.settings), base = hc ? 0 : 0.35 * this.settings.glow;
+    const phase = this.sim.novaPhase;
     if (nv.stage === "collapse") {
       if (phase === "settle") { nv.stage = "settle"; nv.blastAt = now; this.cb.onActivity?.("supernova", "Supernova: detonation"); }
       else {
@@ -1217,7 +1273,7 @@ export class ConstellationRenderer implements GraphRenderer {
   /** Returns true while any fade or size change is still in progress. */
   private updateBuffers(dt: number, positionsChanged: boolean): boolean {
     const nodes = this.sim.nodes, k = this.still ? 1 : Math.min(1, dt * 9);
-    let animating = false;
+    let animating = !!this.sharedNova;
     for (let i = 0; i < nodes.length; i++) {
       const da = this.tAlpha[i] - this.alpha[i], ds = this.tSize[i] - this.size[i], de = this.tEmph[i] - this.emph[i];
       if (Math.abs(da) > 0.002 || Math.abs(ds) > 0.01 || Math.abs(de) > 0.002) {
@@ -1234,13 +1290,13 @@ export class ConstellationRenderer implements GraphRenderer {
     (geo.getAttribute("aAlpha") as THREE.BufferAttribute).needsUpdate = true;
     (geo.getAttribute("aEmph") as THREE.BufferAttribute).needsUpdate = true;
 
-    const src = this.sim.srcs, dst = this.sim.dsts, hc = effectiveHighContrast(this.settings);
+    const src = this.sim.srcs, dst = this.sim.dsts, hc = effectiveHighContrast(this.settings), visibleScale = 1 - this.uniforms.uCollapse.value;
     const base = hc ? 0.55 : 0.2, boost = hc ? 1.6 : 2.6;
     const primary = this.hover >= 0 ? this.hover : this.selected;
     for (let l = 0; l < src.length; l++) {
       const s = src[l], d = dst[l], a = s.index, b = d.index, o = l * 6;
-      this.linePos[o] = s.x; this.linePos[o + 1] = s.y; this.linePos[o + 2] = s.z;
-      this.linePos[o + 3] = d.x; this.linePos[o + 4] = d.y; this.linePos[o + 5] = d.z;
+      this.linePos[o] = s.x * visibleScale; this.linePos[o + 1] = s.y * visibleScale; this.linePos[o + 2] = s.z * visibleScale;
+      this.linePos[o + 3] = d.x * visibleScale; this.linePos[o + 4] = d.y * visibleScale; this.linePos[o + 5] = d.z * visibleScale;
       let f = base * Math.min(this.alpha[a], this.alpha[b]);
       if (primary >= 0 && (a === primary || b === primary)) f = Math.min(1, base * boost) * Math.min(1, this.alpha[a] + this.alpha[b]);
       if (this.reveal || this.age - Math.max(this.birth[a], this.birth[b]) < 1) { // a link flashes the moment both ends exist

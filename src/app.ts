@@ -3,6 +3,7 @@ import { FallbackRenderer } from "./fallback";
 import type { GraphData, GraphRenderer, Host, RendererCallbacks } from "./types";
 import { ConstellationSettings, effectiveHighContrast, effectiveMotion, prefersReducedMotion } from "./settings";
 import { HOSTED_SIGNALING_URL, MultiplayerSession, type AnonymousPlayer, type GameMessage, type Pose } from "./multiplayer";
+import type { EliminationEvent, RoundSnapshot } from "./rounds";
 import { version as CLIENT_VERSION } from "../manifest.json";
 import { PilotHangar } from "./hangar";
 import type { PilotProfile } from "./pilotProfile";
@@ -65,6 +66,13 @@ export class ConstellationApp {
   private statsText = "";
   private activityKind: "animate" | "supernova" | null = null;
   private motionNote: HTMLElement;
+  private killFeed: HTMLElement;
+  private roundNotice: HTMLElement;
+  private roundState: RoundSnapshot | null = null;
+  private roundReceivedAt = 0;
+  private lastNovaRound = 0;
+  private roundRefreshTimer = 0;
+  private killFeedTimers = new Set<number>();
   private data: GraphData = { nodes: [], links: [], groups: [] };
   private order: number[] = [];
   private mqs: MediaQueryList[] = [];
@@ -93,6 +101,7 @@ export class ConstellationApp {
       onActivity: (k, text) => this.onActivity(k, text),
       onPilot: (a, text) => this.onPilot(a, text),
       onHangar: () => this.openHangar(),
+      onToggleGroups: () => this.toggleGroups(),
       onAudioMute: (which, muted) => this.host.updateSettings?.(which === "engine" ? { pilotMuteEngine: muted } : { pilotMuteAfterburner: muted }),
       onNetworkFrame: input => this.network?.sendInput(input),
       onNavigationTarget: target => { if (this.inRoom) this.multiplayerStatus.textContent = target ? `Star marked. ${this.renderer.pilotActive ? "Press G to travel there." : "Enter Pilot mode (P), then press G to travel."}` : "Navigation target cleared."; },
@@ -162,9 +171,15 @@ export class ConstellationApp {
     this.stats = el("div", "cg-stats");
     this.motionNote = el("div", "cg-motion-note");
     this.root.append(this.stats, this.motionNote);
+    this.killFeed = el("div", "cg-killfeed", { "aria-hidden": "true" }); this.killFeed.hidden = true;
+    this.roundNotice = el("div", "cg-round-notice", { role: "status", "aria-live": "off" }); this.roundNotice.hidden = true;
+    this.root.append(this.killFeed, this.roundNotice);
 
     this.legend = el("ul", "cg-legend", { "aria-label": "Groups. Toggle to show or hide." });
     this.root.appendChild(this.legend);
+    const groupsToggle = el("button", "cg-legend-toggle", { type: "button", "aria-label": "Show or hide cluster filters", "aria-expanded": "true" }, "Clusters");
+    groupsToggle.addEventListener("click", () => this.toggleGroups());
+    this.root.appendChild(groupsToggle);
 
     this.detail = el("aside", "cg-detail", { "aria-label": "Selected note" });
     this.detail.hidden = true;
@@ -245,9 +260,12 @@ export class ConstellationApp {
       },
       shotState: (shots, impacts) => this.renderer.setRemoteShots(shots, impacts, this.network?.localPlayerId),
       shotResult: (sequence, accepted) => this.renderer.reconcileLocalShot(sequence, accepted),
+      round: state => this.onRoundState(state),
+      elimination: event => this.onElimination(event),
       removed: id => { if (id) { this.renderer.removeRemote(id); this.remoteIds.delete(id); } },
       authority: (_hostId, _epoch, _checkpoint) => { this.multiplayerStatus.textContent = "Room authority transferred. Reconnecting the shared session…"; },
     }, () => ({ data: this.data, nodes: this.renderer.nodes }), () => this.roomServiceUrl());
+    this.roundRefreshTimer = window.setInterval(() => this.refreshRoundDisplay(), 250);
   }
 
   // ----------------------------------------------------------------- public
@@ -291,6 +309,9 @@ export class ConstellationApp {
   }
 
   destroy(): void {
+    window.clearInterval(this.roundRefreshTimer);
+    for (const timer of this.killFeedTimers) window.clearTimeout(timer);
+    this.killFeedTimers.clear();
     this.network?.leave("Graph closed; you left the room.");
     this.hangar.destroy();
     this.mqs.forEach(m => m.removeEventListener("change", this.onMq));
@@ -369,12 +390,16 @@ export class ConstellationApp {
     this.multiplayerCode.disabled = joined; this.multiplayerConsent.disabled = joined;
     this.search.disabled = joined; this.listBtn.disabled = joined;
     this.search.hidden = joined; this.listBtn.hidden = joined; this.legend.hidden = joined;
+    this.novaBtn.hidden = joined;
     if (joined) {
       this.renderer.clearSelection(); this.renderer.setSearch(null);
       this.search.value = ""; this.list.hidden = true; this.detail.hidden = true; this.tip.hidden = true;
       this.listBtn.setAttribute("aria-expanded", "false");
     }
     if (!joined) {
+      this.legend.hidden = false;
+      this.roundState = null; this.lastNovaRound = 0; this.killFeed.replaceChildren(); this.killFeed.hidden = true; this.roundNotice.hidden = true;
+      this.renderer.setRoundDisplay(0, 0, "SOLO", 0);
       this.renderer.setMultiplayer(false); this.renderer.setWorldOrigin(0);
       this.renderer.setLocalTopology("", null);
       for (const id of this.remoteIds) this.renderer.removeRemote(id);
@@ -390,8 +415,53 @@ export class ConstellationApp {
     const name = player.row.dataset.name ?? "Pilot";
     player.health.value = Math.max(0, Math.min(100, pose.health));
     player.health.setAttribute("aria-label", `${name}: ${Math.round(pose.health)} of 100 health`);
-    player.state.textContent = pose.health <= 0 ? `${Math.round(pose.health)} HP · respawn ${Math.ceil(pose.respawnAt / 1000)}s`
-      : `${Math.round(pose.health)} HP · ${pose.active ? "flying" : "spectator"}`;
+    const kills = this.roundState?.scores.find(score => score.playerId === id)?.kills ?? 0;
+    player.state.textContent = pose.health <= 0 ? `${Math.round(pose.health)} HP · respawn ${Math.ceil(pose.respawnAt / 1000)}s · ${kills}/5 kills`
+      : `${Math.round(pose.health)} HP · ${pose.active ? "flying" : "spectator"} · ${kills}/5 kills`;
+  }
+
+  private onRoundState(state: RoundSnapshot): void {
+    const old = this.roundState;
+    this.roundState = state; this.roundReceivedAt = performance.now();
+    if (state.phase === "supernova") {
+      if (this.lastNovaRound !== state.roundId) {
+        this.lastNovaRound = state.roundId;
+        this.renderer.regenerateRoomLayout(state.phaseRemainingMs);
+        this.network?.republishLocalLayout();
+        this.announce(`${this.memberName(state.winnerId)} reached five kills. Supernova in progress.`);
+      } else this.renderer.syncRoomNova(state.phaseRemainingMs);
+    } else if (state.phase === "countdown" && old?.phase !== "countdown") this.announce("The next round is starting.");
+    else if (state.phase === "combat" && old?.roundId !== undefined && state.roundId > old.roundId) this.announce(`Round ${state.roundId} started.`);
+    for (const [id, row] of this.playerRows) { const pose = this.playerStates.get(id); if (pose) this.updatePlayerRow(id, pose); }
+    this.refreshRoundDisplay();
+  }
+
+  private onElimination(event: EliminationEvent): void {
+    if (!this.network?.active || (this.roundState && event.roundId !== this.roundState.roundId)) return;
+    const item = el("div", "cg-killfeed-item", {}, `${this.memberName(event.attackerId)} eliminated ${this.memberName(event.victimId)}`);
+    this.killFeed.appendChild(item); this.killFeed.hidden = false;
+    while (this.killFeed.children.length > 3) this.killFeed.firstElementChild?.remove();
+    const timer = window.setTimeout(() => { this.killFeedTimers.delete(timer); item.remove(); if (!this.killFeed.children.length) this.killFeed.hidden = true; }, 4200);
+    this.killFeedTimers.add(timer);
+    this.announce(`${item.textContent}. ${event.attackerScore} kills.`);
+  }
+
+  private memberName(id: string): string { return this.network?.members.find(member => member.id === id)?.name ?? "Pilot"; }
+
+  private refreshRoundDisplay(): void {
+    const state = this.roundState;
+    if (!state || !this.network?.active) return;
+    const elapsed = performance.now() - this.roundReceivedAt, remaining = Math.max(0, state.phaseRemainingMs - elapsed);
+    const scores = [...state.scores].sort((a, b) => b.kills - a.kills).map(score => `${this.memberName(score.playerId)} ${score.kills}`).join("  ·  ");
+    const winner = state.winnerId ? this.memberName(state.winnerId) : "";
+    if (state.phase === "supernova") this.roundNotice.textContent = `${winner} wins · Supernova ${Math.ceil(remaining / 1000)}s · ${scores}`;
+    else if (state.phase === "waiting") this.roundNotice.textContent = `New constellations syncing · ${Math.ceil(remaining / 1000)}s · ${winner} won · ${scores}`;
+    else if (state.phase === "countdown") this.roundNotice.textContent = `Next round in ${Math.ceil(remaining / 1000)} · ${winner} won · ${scores}`;
+    else this.roundNotice.textContent = `Round ${state.roundId} · first to 5 · ${scores}`;
+    this.roundNotice.hidden = false;
+    const own = state.scores.find(score => score.playerId === this.network.localPlayerId)?.kills ?? 0;
+    const leader = Math.max(0, ...state.scores.map(score => score.kills));
+    this.renderer.setRoundDisplay(own, leader, state.phase, remaining);
   }
 
   private onNetworkMessage(_from: string, message: GameMessage): void {
@@ -418,6 +488,16 @@ export class ConstellationApp {
       li.appendChild(b); this.legend.appendChild(li);
     });
     if (focused >= 0) (this.legend.querySelectorAll("button")[focused] as HTMLButtonElement | undefined)?.focus({ preventScroll: true });
+  }
+
+  private toggleGroups(): void {
+    if (this.network?.active) return;
+    this.legend.hidden = !this.legend.hidden;
+    const expanded = !this.legend.hidden;
+    for (const button of this.root.querySelectorAll<HTMLButtonElement>(".cg-legend-toggle, .cg-pilot-audio-groups")) {
+      button.setAttribute("aria-expanded", String(expanded));
+      button.textContent = expanded ? "Clusters" : "Clusters +";
+    }
   }
 
   private setHelp(show: boolean): void {
@@ -463,6 +543,7 @@ export class ConstellationApp {
 
   /** Pilot mode started or stopped (or could not start): mirror it on the button and tell screen readers. */
   private onPilot(active: boolean, text: string): void {
+    this.root.classList.toggle("cg-piloting", active);
     this.hangar.setFlightActive(active);
     this.pilotBtn.setAttribute("aria-pressed", String(active));
     this.pilotBtn.classList.toggle("cg-on", active);

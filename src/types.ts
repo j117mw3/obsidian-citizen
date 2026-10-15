@@ -64,6 +64,7 @@ export interface RendererCallbacks {
   onPilot?(active: boolean, text: string): void;
   onAudioMute?(which: "engine" | "afterburner", muted: boolean): void;
   onHangar?(): void;
+  onToggleGroups?(): void;
   onPilotChoice?(patch: Partial<Pick<ConstellationSettings, "pilotShip" | "pilotEngineSound" | "pilotAfterburnerSound" | "pilotLaserSound" | "pilotNearbyAudio">>): void;
   onNetworkFrame?(input: FlightInput): void;
   onNavigationTarget?(target: NavigationTarget | null): void;
@@ -94,6 +95,11 @@ export interface GraphRenderer {
   animate(): void;
   /** Collapse, explode, re-settle, then trace the shortest paths from the main hub. Calling again stops it. */
   supernova(): void;
+  /** Generate the owner's next anonymous room layout and show the shared-round detonation. */
+  regenerateRoomLayout(remainingMs: number): void;
+  /** Align the visible victory pulse to the host's replicated phase timer. */
+  syncRoomNova(remainingMs: number): void;
+  setRoundDisplay(kills: number, leader: number, phase: string, remainingMs: number): void;
   readonly activity: "animate" | "supernova" | null;
   readonly canShow: boolean;
   /** Free flight through the constellation. Not available without WebGL. */

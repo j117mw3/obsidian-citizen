@@ -4,10 +4,10 @@ import { buildShip, type Ship } from "./ship";
 import type { AfterburnerSoundId, EngineSoundId, LaserSoundId, ShipId } from "./pilotProfile";
 
 type ChoicePatch = Partial<Pick<ConstellationSettings, "pilotShip" | "pilotEngineSound" | "pilotAfterburnerSound" | "pilotLaserSound" | "pilotNearbyAudio">>;
-const SHIPS: [ShipId, string][] = [["classic", "Classic fighter"], ["vector", "Vector interceptor"], ["dart", "Dart scout"], ["bulwark", "Bulwark gunship"], ["crescent", "Crescent spacecraft"]];
-const ENGINES: [EngineSoundId, string][] = [["classic", "Classic rumble"], ["ion", "Ion pulse"]];
-const BOOSTS: [AfterburnerSoundId, string][] = [["classic", "Classic whoosh"], ["plasma", "Plasma surge"]];
-const LASERS: [LaserSoundId, string][] = [["classic", "Classic blaster"], ["pulse", "Pulse bolt"]];
+const SHIPS: [ShipId, string][] = [["classic", "Classic fighter"], ["vector", "Vector interceptor"], ["dart", "Dart freighter"], ["bulwark", "Bulwark cruiser"], ["crescent", "Crescent spacecraft"], ["revenant", "Revenant explorer"]];
+const ENGINES: [EngineSoundId, string][] = [["classic", "Classic rumble"], ["ion", "Ion reactor"], ["turbine", "Turbine drive"]];
+const BOOSTS: [AfterburnerSoundId, string][] = [["classic", "Classic whoosh"], ["plasma", "Plasma surge"], ["fusion", "Fusion roar"]];
+const LASERS: [LaserSoundId, string][] = [["classic", "Classic blaster"], ["pulse", "Pulse bolt"], ["arc", "Arc snap"]];
 
 export class PilotHangar {
   readonly panel: HTMLElement;
@@ -25,9 +25,11 @@ export class PilotHangar {
   constructor(parent: HTMLElement, initial: ConstellationSettings, private onChange: (patch: ChoicePatch) => void, private onPreview: (kind: "engine" | "afterburner" | "laser") => void, private onResume: () => void) {
     this.panel = document.createElement("aside"); this.panel.className = "cg-hangar"; this.panel.hidden = true;
     this.panel.setAttribute("aria-label", "Spacecraft hangar"); this.panel.setAttribute("role", "dialog"); this.panel.setAttribute("aria-modal", "false");
-    const heading = document.createElement("h2"); heading.textContent = "Spacecraft Hangar"; this.panel.appendChild(heading);
+    const header = document.createElement("header"); header.className = "cg-hangar-header";
+    const heading = document.createElement("h2"); heading.textContent = "Spacecraft Hangar"; header.appendChild(heading); this.panel.appendChild(header);
+    const content = document.createElement("div"); content.className = "cg-hangar-content";
     const previewWrap = document.createElement("div"); previewWrap.className = "cg-hangar-preview";
-    this.canvas = document.createElement("canvas"); this.canvas.setAttribute("aria-label", "Rotating spacecraft preview"); previewWrap.appendChild(this.canvas); this.panel.appendChild(previewWrap);
+    this.canvas = document.createElement("canvas"); this.canvas.setAttribute("aria-label", "Rotating spacecraft preview"); previewWrap.appendChild(this.canvas); content.appendChild(previewWrap);
     this.scene.background = new THREE.Color(0x080b13);
     this.camera.position.set(0, 1.7, 8); this.camera.lookAt(0, 0, 0);
     this.scene.add(new THREE.AmbientLight(0xb8c8ee, 1.6));
@@ -44,8 +46,8 @@ export class PilotHangar {
     const nearby = document.createElement("input"); nearby.type = "checkbox"; nearby.checked = initial.pilotNearbyAudio;
     nearby.addEventListener("change", () => this.onChange({ pilotNearbyAudio: nearby.checked }));
     nearbyLabel.append(nearby, document.createTextNode("Nearby ship audio")); controls.appendChild(nearbyLabel);
-    this.panel.appendChild(controls);
-    const actions = document.createElement("div"); actions.className = "cg-hangar-actions";
+    content.appendChild(controls); this.panel.appendChild(content);
+    const actions = document.createElement("footer"); actions.className = "cg-hangar-actions";
     this.close = document.createElement("button"); this.close.type = "button"; this.close.className = "cg-btn"; this.close.textContent = "Close"; this.close.addEventListener("click", () => this.hide());
     this.resume = document.createElement("button"); this.resume.type = "button"; this.resume.className = "cg-btn cg-primary"; this.resume.hidden = true; this.resume.textContent = "Resume flight"; this.resume.addEventListener("click", () => { this.hide(); this.onResume(); });
     actions.append(this.close, this.resume); this.panel.appendChild(actions); parent.appendChild(this.panel);
@@ -70,7 +72,15 @@ export class PilotHangar {
 
   private setShip(id: ShipId): void {
     if (this.ship) { this.scene.remove(this.ship.group); this.ship.dispose(); }
-    this.ship = buildShip(id); this.ship.group.scale.setScalar(1.35); this.ship.group.position.set(0, 0, 0); this.scene.add(this.ship.group);
+    this.ship = buildShip(id);
+    this.ship.group.scale.setScalar(1.35);
+    this.ship.group.position.set(0, 0, 0);
+    this.scene.add(this.ship.group);
+    const bounds = new THREE.Box3().setFromObject(this.ship.group), center = bounds.getCenter(new THREE.Vector3()), sphere = bounds.getBoundingSphere(new THREE.Sphere());
+    this.ship.group.position.sub(center);
+    const distance = Math.max(5.5, sphere.radius / Math.sin(THREE.MathUtils.degToRad(this.camera.fov / 2)) * 1.13);
+    this.camera.position.set(0, sphere.radius * 0.17, distance);
+    this.camera.lookAt(0, 0, 0);
     this.resize();
   }
 

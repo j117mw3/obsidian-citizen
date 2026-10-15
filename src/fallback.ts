@@ -45,6 +45,9 @@ export class FallbackRenderer implements GraphRenderer {
   resetView(): void { /* no camera */ }
   animate(): void { /* nothing to draw */ }
   supernova(): void { /* nothing to draw */ }
+  regenerateRoomLayout(_remainingMs: number): void { /* no 3D map to rebuild */ }
+  syncRoomNova(_remainingMs: number): void { /* no 3D map to pulse */ }
+  setRoundDisplay(_kills: number, _leader: number, _phase: string, _remainingMs: number): void { /* no flight HUD */ }
   get activity(): null { return null; }
   get canShow(): boolean { return false; }
   get canPilot(): boolean { return false; }

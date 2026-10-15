@@ -12,8 +12,19 @@ interface Engine {
   whine: OscillatorNode; whineGain: GainNode; // the high ion-engine whine over the rumble
 }
 
-interface RemoteVoice { profile: PilotProfile; engine: OscillatorNode; engineFilter: BiquadFilterNode; engineGain: GainNode; enginePan: PannerNode; boost: OscillatorNode; boostGain: GainNode; boostPan: PannerNode }
+interface RemoteVoice { profile: PilotProfile; engine: OscillatorNode; engineSub: OscillatorNode; engineFilter: BiquadFilterNode; engineGain: GainNode; enginePan: PannerNode; boost: OscillatorNode; boostGain: GainNode; boostPan: PannerNode }
 export interface RemoteAudioState { id: string; profile: PilotProfile; position: [number, number, number]; active: boolean; speed: number; thrust: number; boosting: boolean }
+
+const ENGINE_CHARACTER: Record<EngineSoundId, { wave: OscillatorType; sub: OscillatorType; base: number; range: number; subBase: number; subRange: number; filter: number; filterRange: number; hiss: number; whine: number }> = {
+  classic: { wave: "sawtooth", sub: "square", base: 48, range: 70, subBase: 24, subRange: 35, filter: 180, filterRange: 900, hiss: 0.05, whine: 0.018 },
+  ion: { wave: "triangle", sub: "sine", base: 38, range: 42, subBase: 19, subRange: 21, filter: 145, filterRange: 330, hiss: 0.014, whine: 0.001 },
+  turbine: { wave: "sawtooth", sub: "triangle", base: 62, range: 82, subBase: 31, subRange: 41, filter: 230, filterRange: 720, hiss: 0.024, whine: 0.003 },
+};
+const AFTERBURNER_CHARACTER: Record<AfterburnerSoundId, { wave: OscillatorType; holdHz: number; peak: number }> = {
+  classic: { wave: "sawtooth", holdHz: 190, peak: 0.12 },
+  plasma: { wave: "triangle", holdHz: 82, peak: 0.1 },
+  fusion: { wave: "square", holdHz: 56, peak: 0.11 },
+};
 
 export class PilotAudio {
   private ctx: AudioContext | null = null;
@@ -156,16 +167,16 @@ export class PilotAudio {
     const e = this.engine, c = this.ctx; if (!e || !c) return;
     this.lastUpdate = performance.now();
     const t = c.currentTime;
-    e.saw.type = this.engineSound === "classic" ? "sawtooth" : "triangle";
-    e.sub.type = this.engineSound === "classic" ? "square" : "sine";
-    e.saw.frequency.setTargetAtTime((this.engineSound === "classic" ? 48 : 105) + speed * (this.engineSound === "classic" ? 70 : 125) + (boost ? 22 : 0), t, 0.1);
-    e.sub.frequency.setTargetAtTime(24 + speed * 35, t, 0.1);
-    e.lowpass.frequency.setTargetAtTime((this.engineSound === "classic" ? 180 : 600) + speed * (this.engineSound === "classic" ? 900 : 1500) + (boost ? 500 : 0), t, 0.12);
+    const character = ENGINE_CHARACTER[this.engineSound];
+    e.saw.type = character.wave; e.sub.type = character.sub;
+    e.saw.frequency.setTargetAtTime(character.base + speed * character.range + (boost ? 12 : 0), t, 0.1);
+    e.sub.frequency.setTargetAtTime(character.subBase + speed * character.subRange, t, 0.1);
+    e.lowpass.frequency.setTargetAtTime(character.filter + speed * character.filterRange + (boost ? 260 : 0), t, 0.12);
     e.gain.gain.setTargetAtTime(0.025 + speed * 0.09 + (thrust ? 0.015 : 0), t, 0.12);
     e.hissFilter.frequency.setTargetAtTime(500 + speed * 2500, t, 0.15);
-    e.hissGain.gain.setTargetAtTime(speed * 0.05 + (boost ? 0.06 : 0), t, 0.12);
-    e.whine.frequency.setTargetAtTime(700 + speed * 900 + (boost ? 400 : 0), t, 0.15);
-    e.whineGain.gain.setTargetAtTime(0.006 + speed * 0.012, t, 0.15);
+    e.hissGain.gain.setTargetAtTime(speed * character.hiss + (boost ? character.hiss * 0.55 : 0), t, 0.12);
+    e.whine.frequency.setTargetAtTime(210 + speed * 250 + (boost ? 60 : 0), t, 0.15);
+    e.whineGain.gain.setTargetAtTime(character.whine * (0.35 + speed * 0.65), t, 0.15);
   }
 
   /** Fade the engine to nothing right now (it comes back the next time the flight loop updates it). */
@@ -209,8 +220,15 @@ export class PilotAudio {
   /** A blaster bolt: a fast downward chirp with a crack of noise at the start. `i` varies the pitch a little from gun to gun. */
   /** The afterburner lighting: a rising whoosh. */
   afterburner(destination: AudioNode | null = this.afterburnerBus): void {
-    if (this.afterburnerSound === "classic") { this.burst(0.6, 250, 3000, 0.13, 0, destination); this.sweep(90, 220, 0.5, "sawtooth", 0.07, 0, destination); }
-    else { this.sweep(520, 140, 0.32, "triangle", 0.12, 0, destination); this.sweep(190, 850, 0.28, "sine", 0.07, 0.03, destination); }
+    if (this.afterburnerSound === "classic") {
+      this.burst(0.6, 250, 3000, 0.13, 0, destination); this.sweep(90, 220, 0.5, "sawtooth", 0.07, 0, destination);
+    } else if (this.afterburnerSound === "plasma") {
+      this.burst(0.42, 380, 115, 0.065, 0, destination); this.sweep(74, 42, 0.48, "sine", 0.09, 0, destination);
+      this.sweep(128, 76, 0.4, "triangle", 0.065, 0.015, destination);
+    } else {
+      this.burst(0.5, 260, 90, 0.075, 0, destination); this.sweep(62, 38, 0.55, "square", 0.085, 0, destination);
+      this.sweep(108, 64, 0.46, "triangle", 0.052, 0.025, destination);
+    }
   }
 
   laser(i = 0, sound: LaserSoundId = this.laserSound, destination: AudioNode | null = this.laserBus): void {
@@ -219,9 +237,13 @@ export class PilotAudio {
       this.sweep(2600 * k, 260 * k, 0.2, "sawtooth", 0.1, 0, destination);
       this.sweep(1300 * k, 130 * k, 0.16, "square", 0.045, 0, destination);
       this.burst(0.05, 5000, 1500, 0.06, 0, destination);
-    } else {
+    } else if (sound === "pulse") {
       this.sweep(1500 * k, 320 * k, 0.12, "triangle", 0.085, 0, destination);
       this.sweep(220 * k, 90 * k, 0.18, "sine", 0.05, 0, destination);
+    } else {
+      this.burst(0.07, 4200, 500, 0.072, 0, destination);
+      this.sweep(1850 * k, 260 * k, 0.15, "sawtooth", 0.075, 0, destination);
+      this.sweep(620 * k, 110 * k, 0.22, "sine", 0.055, 0, destination);
     }
   }
 
@@ -229,9 +251,11 @@ export class PilotAudio {
     if (!this.enabled || !this.initialize()) return;
     void this.ctx!.resume();
     if (kind === "engine") {
-      if (this.engineSound === "classic") { this.sweep(150, 62, 0.45, "sawtooth", 0.12); this.burst(0.32, 500, 180, 0.035); }
-      else { this.sweep(440, 110, 0.42, "triangle", 0.1); this.sweep(780, 370, 0.28, "sine", 0.04); }
-    } else if (kind === "afterburner") this.afterburner(this.master);
+      const character = ENGINE_CHARACTER[this.engineSound];
+      this.sweep(character.base * 2.3, character.base * 0.85, 0.42, character.wave, 0.1, 0, this.engineBus);
+      this.sweep(character.subBase * 2, character.subBase, 0.38, character.sub, 0.07, 0, this.engineBus);
+      this.burst(0.32, 360, 100, character.hiss * 0.55, 0, this.engineBus);
+    } else if (kind === "afterburner") this.afterburner(this.afterburnerBus);
     else this.laser(0);
   }
 
@@ -249,16 +273,18 @@ export class PilotAudio {
       let voice: RemoteVoice | null = this.remoteVoices.get(player.id) ?? null;
       if (!voice) { voice = this.createRemoteVoice(player); if (!voice) continue; this.remoteVoices.set(player.id, voice); }
       voice.profile = player.profile;
-      voice.engine.type = player.profile.engine === "classic" ? "sawtooth" : "triangle";
-      voice.engine.frequency.setTargetAtTime((player.profile.engine === "classic" ? 42 : 115) + Math.min(1, player.speed / 300) * (player.profile.engine === "classic" ? 42 : 95), ctx.currentTime, 0.14);
-      voice.engineFilter.frequency.setTargetAtTime(player.profile.engine === "classic" ? 280 + Math.min(1, player.speed / 300) * 900 : 700 + Math.min(1, player.speed / 300) * 1100, ctx.currentTime, 0.14);
-      voice.boost.type = player.profile.afterburner === "classic" ? "sawtooth" : "triangle";
-      voice.boost.frequency.setTargetAtTime(player.profile.afterburner === "classic" ? 190 : 620, ctx.currentTime, 0.06);
+      const engine = ENGINE_CHARACTER[player.profile.engine], boost = AFTERBURNER_CHARACTER[player.profile.afterburner], speed = Math.min(1, player.speed / 300);
+      voice.engine.type = engine.wave; voice.engineSub.type = engine.sub;
+      voice.engine.frequency.setTargetAtTime(engine.base + speed * engine.range, ctx.currentTime, 0.14);
+      voice.engineSub.frequency.setTargetAtTime(engine.subBase + speed * engine.subRange, ctx.currentTime, 0.14);
+      voice.engineFilter.frequency.setTargetAtTime(engine.filter + speed * engine.filterRange, ctx.currentTime, 0.14);
+      voice.boost.type = boost.wave;
+      voice.boost.frequency.setTargetAtTime(boost.holdHz, ctx.currentTime, 0.06);
       this.place(voice.enginePan, player.position); this.place(voice.boostPan, player.position);
       const distance = Math.hypot(player.position[0] - listener.position[0], player.position[1] - listener.position[1], player.position[2] - listener.position[2]);
       const fade = Math.max(0, Math.min(1, (800 - distance) / 760));
       voice.engineGain.gain.setTargetAtTime(player.thrust ? (0.012 + Math.min(1, player.speed / 300) * 0.025) * fade : 0, ctx.currentTime, 0.08);
-      voice.boostGain.gain.setTargetAtTime(player.boosting ? 0.035 * fade : 0, ctx.currentTime, 0.04);
+      voice.boostGain.gain.setTargetAtTime(player.boosting ? boost.peak * 0.22 * fade : 0, ctx.currentTime, 0.04);
     }
     for (const id of this.remoteVoices.keys()) if (!live.has(id)) this.removeRemoteVoice(id);
   }
@@ -274,21 +300,23 @@ export class PilotAudio {
   private place(panner: PannerNode, p: [number, number, number]): void { panner.setPosition(p[0], p[1], p[2]); }
   private createRemoteVoice(player: RemoteAudioState): RemoteVoice | null {
     const ctx = this.ctx, engineBus = this.remoteEngineBus, boostBus = this.remoteAfterburnerBus; if (!ctx || !engineBus || !boostBus) return null;
-    const engine = ctx.createOscillator(), engineFilter = ctx.createBiquadFilter(), engineGain = ctx.createGain(), enginePan = ctx.createPanner();
-    engine.type = player.profile.engine === "classic" ? "sawtooth" : "triangle"; engine.frequency.value = 48;
+    const engine = ctx.createOscillator(), engineSub = ctx.createOscillator(), engineFilter = ctx.createBiquadFilter(), engineGain = ctx.createGain(), enginePan = ctx.createPanner();
+    const character = ENGINE_CHARACTER[player.profile.engine];
+    engine.type = character.wave; engine.frequency.value = character.base; engineSub.type = character.sub; engineSub.frequency.value = character.subBase;
     engineFilter.type = "lowpass"; engineFilter.frequency.value = 300; engineGain.gain.value = 0;
     enginePan.panningModel = "HRTF"; enginePan.distanceModel = "inverse"; enginePan.refDistance = 40; enginePan.maxDistance = 800; enginePan.rolloffFactor = 1.2;
-    engine.connect(engineFilter); engineFilter.connect(engineGain); engineGain.connect(enginePan); enginePan.connect(engineBus); engine.start();
+    engine.connect(engineFilter); engineSub.connect(engineFilter); engineFilter.connect(engineGain); engineGain.connect(enginePan); enginePan.connect(engineBus); engine.start(); engineSub.start();
     const boost = ctx.createOscillator(), boostGain = ctx.createGain(), boostPan = ctx.createPanner();
-    boost.type = "sawtooth"; boost.frequency.value = 190; boostGain.gain.value = 0;
+    const boostCharacter = AFTERBURNER_CHARACTER[player.profile.afterburner];
+    boost.type = boostCharacter.wave; boost.frequency.value = boostCharacter.holdHz; boostGain.gain.value = 0;
     boostPan.panningModel = "HRTF"; boostPan.distanceModel = "inverse"; boostPan.refDistance = 40; boostPan.maxDistance = 800; boostPan.rolloffFactor = 1.2;
     boost.connect(boostGain); boostGain.connect(boostPan); boostPan.connect(boostBus); boost.start();
-    return { profile: player.profile, engine, engineFilter, engineGain, enginePan, boost, boostGain, boostPan };
+    return { profile: player.profile, engine, engineSub, engineFilter, engineGain, enginePan, boost, boostGain, boostPan };
   }
   private removeRemoteVoice(id: string): void {
     const voice = this.remoteVoices.get(id); if (!voice) return; this.remoteVoices.delete(id);
-    try { voice.engine.stop(); voice.boost.stop(); } catch { /* already stopped */ }
-    for (const node of [voice.engine, voice.engineFilter, voice.engineGain, voice.enginePan, voice.boost, voice.boostGain, voice.boostPan]) try { node.disconnect(); } catch { /* already disconnected */ }
+    try { voice.engine.stop(); voice.engineSub.stop(); voice.boost.stop(); } catch { /* already stopped */ }
+    for (const node of [voice.engine, voice.engineSub, voice.engineFilter, voice.engineGain, voice.enginePan, voice.boost, voice.boostGain, voice.boostPan]) try { node.disconnect(); } catch { /* already disconnected */ }
   }
   private clearRemoteVoices(): void { for (const id of this.remoteVoices.keys()) this.removeRemoteVoice(id); }
   setRemoteAudioActive(active: boolean): void {

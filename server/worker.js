@@ -28,9 +28,9 @@ function publicRoom(room) {
 
 function validProfile(value) {
   return value && Number.isSafeInteger(value.revision) && value.revision > 0
-    && ["classic", "vector", "dart", "bulwark", "crescent"].includes(value.ship)
-    && ["classic", "ion"].includes(value.engine) && ["classic", "plasma"].includes(value.afterburner)
-    && ["classic", "pulse"].includes(value.laser);
+    && ["classic", "vector", "dart", "bulwark", "crescent", "revenant"].includes(value.ship)
+    && ["classic", "ion", "turbine"].includes(value.engine) && ["classic", "plasma", "fusion"].includes(value.afterburner)
+    && ["classic", "pulse", "arc"].includes(value.laser);
 }
 function cleanProfile(value) { return { revision: value.revision, ship: value.ship, engine: value.engine, afterburner: value.afterburner, laser: value.laser }; }
 
@@ -228,7 +228,7 @@ export class RoomCoordinator extends DurableObject {
     if (message.type === "create" || message.type === "join") {
       if (!this.consume(`room:${connection.ip}`, 20)) { this.fail(ws, "rate-limited", "Too many room requests. Wait a minute and try again."); return; }
       if (connection.member) { this.fail(ws, "already-joined", "This connection already joined a room."); return; }
-      if (message.protocol !== 3) { this.fail(ws, "update-required", "Update the plugin to version 0.3.3 or newer to use this room service."); return; }
+      if (message.protocol !== 4) { this.fail(ws, "update-required", "Update the plugin to version 0.3.4 or newer to use this room service."); return; }
       const name = typeof message.name === "string" ? message.name.trim().slice(0, 24) : "";
       if (!name) { this.fail(ws, "bad-name", "Enter a display name (up to 24 characters)."); return; }
       if (!validProfile(message.profile)) { this.fail(ws, "bad-profile", "Choose a valid ship and sound profile before joining."); return; }
@@ -243,7 +243,7 @@ export class RoomCoordinator extends DurableObject {
         const code = typeof message.code === "string" ? message.code.toUpperCase() : "";
         room = this.rooms.get(code);
         if (!room) { this.fail(ws, "room-not-found", "That room code is invalid or the room has closed."); return; }
-        if (room.protocol !== message.protocol) { this.fail(ws, "update-required", "Everyone in the room must install plugin version 0.3.3 or newer."); return; }
+        if (room.protocol !== message.protocol) { this.fail(ws, "update-required", "Everyone in the room must install plugin version 0.3.4 or newer."); return; }
         if (room.members.size >= ROOM_CAPACITY) { this.fail(ws, "full", "This room already has four players."); return; }
         connection.roomCode = code;
       }

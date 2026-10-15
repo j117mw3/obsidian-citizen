@@ -29,7 +29,7 @@ A fluid, slowly orbiting 3D map of your notes for [Obsidian](https://obsidian.md
 | Pause / play | Stops or resumes all motion |
 | Reset view | Frames the whole graph again |
 | **Animate** | A timelapse: every note disappears, then returns in the order it was created, and each link flashes as it forms. Press again to stop |
-| **Supernova** | Everything is crushed into a point, detonates in one soft flash, re-forms from scratch, and a wave of light then runs outward along the shortest paths from the most-connected note (or the note you have selected). Press again to stop |
+| **Supernova** | Solo only: everything is crushed into a point, detonates in one soft flash, re-forms from scratch, and a wave of light runs outward along the shortest paths from the most-connected note (or the note you have selected). Disabled while you are in a multiplayer room |
 | Note list | A searchable list of notes, an alternative to the canvas |
 | Hangar | Choose a spacecraft, engine, afterburner and blaster sound, and nearby-ship audio |
 | Help | Keyboard shortcuts |
@@ -45,7 +45,7 @@ The graph area is focusable. Press **?** for this list in the app.
 | Enter (Shift+Enter) | Open the selected note (in a new tab) |
 | Space | Pause or resume motion |
 | A | Animate (timelapse) |
-| N | Supernova |
+| N | Supernova (solo only) |
 | R | Reset the view |
 | L | Show or hide the note list |
 | / | Focus search |
@@ -53,7 +53,7 @@ The graph area is focusable. Press **?** for this list in the app.
 
 ### Pilot mode
 
-Press **P** in the graph (or the plane button on the toolbar) and fly a small four-winged fighter through your notes. The **Hangar** offers five cosmetic ships—Classic, Vector, Dart, Bulwark and Crescent—and two synthesized sound choices for each of the engine, afterburner and blaster. Every ship keeps the same flight and combat behavior. You can preview sounds and enable or silence nearby ships there. In solo play, shoot a note to select it and shoot it again to open it. The plane has weight: it takes a moment to start and stop a turn, it coasts when you let go of the throttle, sharp turns cost a little speed, and a trailing camera follows it. Notes are solid, so you bounce off them. Pilot mode never edits a note; shooting and opening do what a click already does.
+Press **P** in the graph (or the plane button on the toolbar) and fly through your notes. The **Hangar** offers six cosmetic ships—Classic, Vector, Dart, Bulwark, Crescent and Revenant—and three synthesized sound choices per category: Classic rumble, Ion reactor or Turbine drive; Classic whoosh, Plasma surge or Fusion roar; and Classic blaster, Pulse bolt or Arc snap. Every ship keeps the same flight and combat behavior. You can preview sounds and enable or silence nearby ships there. In solo play, shoot a note to select it and shoot it again to open it. The plane has weight: it takes a moment to start and stop a turn, it coasts when you let go of the throttle, sharp turns cost a little speed, and a trailing camera follows it. Notes are solid, so you bounce off them. Pilot mode never edits a note; shooting and opening do what a click already does.
 
 | Key | Action |
 |---|---|
@@ -64,7 +64,7 @@ Press **P** in the graph (or the plane button on the toolbar) and fly a small fo
 | Shift | Afterburner (uses an energy tank; when it runs dry it stays empty for a few seconds before it refills) |
 | X | Brake |
 | Mouse | Steer (see **Mouse mode** below) |
-| Click or F | Fire a blaster bolt at what is under the crosshair |
+| Click or F | Fire a blaster bolt at what is under the crosshair (6.25 shots per second) |
 | T | Lock or unlock the target |
 | G | Warp to the target (travel to the marked shared star in multiplayer) |
 | H | Warp back out to see the whole graph (disabled in multiplayer) |
@@ -78,6 +78,7 @@ The controls are also shown on screen as a small panel of key caps that light up
 - **Mouse mode.** *Capture* hides the pointer and steers with its movement. *Cursor* keeps the pointer visible and steers by how far it is from the centre, with a dead zone and two faint rings to show it; over a panel or button it stops steering, so you can click the legend, toolbar and details panel while flying.
 - **Scale.** Cruise speed is set from the size of your vault, so a bigger vault takes longer to cross: about 12 seconds across a 100-note vault at cruise speed, longer for larger ones. The *Flight speed* setting scales it. Warps take time in proportion to the distance.
 - **Wireframes and sound.** The plane has a glowing wireframe outline, and target brackets, impact bursts and faint shells around each group are drawn in wireframe too (they can be turned off). Engine, afterburner, blaster and warp sounds are synthesised in the plugin with the Web Audio API; no audio files are loaded. The Pilot HUD has separate saved **Mute engine**, **Mute afterburner** and **Hangar** controls. The two mutes do not affect blasters, and the master sound and volume controls still apply. Sound mutes when the window loses focus.
+- **Cockpit instruments.** The cockpit displays live hull, boost, recharge/lock, speed, weapon readiness, firing rate, protection or respawn time, and multiplayer score. A screen-reader text equivalent is available while cockpit view is active.
 - Pilot mode needs motion, so it stays off when your system asks for reduced motion (the search, note list and details panel still work). It is not available without WebGL.
 
 ### Multiplayer rooms
@@ -92,7 +93,7 @@ Joining shares anonymous star positions, connections, group colors and a restric
 
 Rooms use WebRTC data channels for maps and flight. The hosted room service passes room codes and peer setup messages, and automatically supplies temporary TURN relay credentials when direct connections fail. Its Metered relay allowance is shared by all players; the current deployment uses a 500 MB monthly free trial with a hard stop and no automatic reload. Direct connections may still work after the relay allowance is used, while players who require TURN may be unable to connect until it resets. To use another deployment, choose **Custom server** in the plugin's Multiplayer settings. See [server/README.md](server/README.md) for the hosted-service limits and self-hosted deployment guides.
 
-Firing at other pilots is optional: fly together peacefully or choose to engage. Blasters use four physical cannon positions and their hits are resolved by the room host. A blaster hit removes 10 of 100 health. Destruction is followed by a five-second respawn with full health and boost, then three seconds of spawn protection; firing ends protection. Boost drains at 28% per second, recharges at 8% per second after 1.5 seconds without boosting, and stays empty for three seconds when depleted. Leaving Pilot mode or hiding the game view makes you a spectator; returning takes five seconds and preserves your health and boost. All players in a room must use protocol-compatible plugin version 0.3.3 or newer.
+Firing at other pilots is optional: fly together peacefully or choose to engage. Blasters use four physical cannon positions and their hits are resolved by the room host. A blaster hit removes 10 of 100 health. Destruction is followed by a five-second respawn with full health and boost, then three seconds of spawn protection; firing ends protection. The first pilot to five confirmed eliminations wins. A short kill feed announces eliminations, then the room pauses for a shared eight-second supernova that regenerates the participants' constellation layouts, waits up to 15 seconds for flying players' maps to synchronize, and starts the next round after a three-second countdown. Scores reset, and active pilots return at their region with full health, boost and spawn protection. Manual supernova is disabled in a room. Boost drains at 28% per second, recharges at 8% per second after 1.5 seconds without boosting, and stays empty for three seconds when depleted. Leaving Pilot mode or hiding the game view makes you a spectator; returning takes five seconds and preserves your health and boost. All players in a room must use protocol-compatible plugin version 0.3.4 or newer.
 
 The hosted service keeps room membership, short-lived relay configuration, and the latest small combat checkpoint in memory, and does not log gameplay payloads or credentials. The relay provider carries only WebRTC-encrypted peer traffic and can observe connection metadata. Room membership disappears when the last player leaves. Outside an active room, the plugin does not connect to the network.
 

@@ -1,10 +1,11 @@
 import type { GraphData, RawLink, RawNode, SimNode } from "./types";
 import { CombatWorld, type RoomCheckpoint } from "./combat";
 import { DEFAULT_PILOT_PROFILE, LASER_SOUND_IDS, validPilotProfile, type PilotProfile, type LaserSoundId } from "./pilotProfile";
+import type { EliminationEvent, RoundSnapshot } from "./rounds";
 
 export const MAX_SHARED_NODES = 20_000;
 export const MAX_SHARED_LINKS = 100_000;
-export const ROOM_PROTOCOL = 3;
+export const ROOM_PROTOCOL = 4;
 export const HOSTED_SIGNALING_URL = "wss://constellation-rooms.mrassetto.workers.dev";
 const MAX_COORDINATE = 1_000_000;
 const MAGIC = 0x43475031; // CGP1
@@ -93,7 +94,9 @@ export type GameMessage = { type: "input"; epoch: number; input: FlightInput }
   | { type: "fire"; epoch: number; sequence: number; gun: number; aimPoint: [number, number, number] }
   | { type: "shot-result"; epoch: number; sequence: number; accepted: boolean }
   | { type: "ship"; epoch: number; sequence: number; playerId: string; pose: Pose }
-  | { type: "shots"; epoch: number; sequence: number; shots: ShotSnapshot[]; impacts: ImpactSnapshot[] };
+  | { type: "shots"; epoch: number; sequence: number; shots: ShotSnapshot[]; impacts: ImpactSnapshot[] }
+  | { type: "round-state"; epoch: number; state: RoundSnapshot }
+  | { type: "elimination"; epoch: number; event: EliminationEvent };
 export interface FlightInput { thrust: number; strafe: number; lift: number; roll: number; pitch: number; yaw: number; boost: boolean; brake: boolean; fire: boolean; active: boolean }
 
 export interface MultiplayerCallbacks {
@@ -108,6 +111,41 @@ export interface MultiplayerCallbacks {
   shotState(shots: ShotSnapshot[], impacts: ImpactSnapshot[]): void;
   shotResult?(sequence: number, accepted: boolean): void;
   navigation?(target: NavigationTarget | null, state?: "selected" | "travelling" | "cancelled"): void;
+  round?(state: RoundSnapshot): void;
+  elimination?(event: EliminationEvent): void;
+}
+
+export function validRoundSnapshot(value: unknown, epoch?: number): value is RoundSnapshot {
+  if (!value || typeof value !== "object") return false;
+  const state = value as RoundSnapshot;
+  if (!Number.isSafeInteger(state.epoch) || (epoch !== undefined && state.epoch !== epoch) || !Number.isSafeInteger(state.roundId) || state.roundId < 1
+    || !["combat", "supernova", "waiting", "countdown"].includes(state.phase) || !Number.isFinite(state.phaseRemainingMs) || state.phaseRemainingMs < 0
+    || typeof state.winnerId !== "string" || (state.winnerId !== "" && !/^[0-9a-f-]{36}$/i.test(state.winnerId))
+    || !Array.isArray(state.scores) || state.scores.length > 4 || !Array.isArray(state.layoutRequirements) || state.layoutRequirements.length > 4) return false;
+  const phaseLimit = state.phase === "supernova" ? 8000 : state.phase === "waiting" ? 15_000 : state.phase === "countdown" ? 3000 : 0;
+  if (state.phaseRemainingMs > phaseLimit) return false;
+  const players = new Set<string>();
+  for (const score of state.scores) {
+    if (!score || typeof score.playerId !== "string" || !/^[0-9a-f-]{36}$/i.test(score.playerId) || players.has(score.playerId) || !Number.isInteger(score.kills) || score.kills < 0 || score.kills > 5) return false;
+    players.add(score.playerId);
+  }
+  const required = new Set<string>();
+  for (const item of state.layoutRequirements) {
+    if (!item || typeof item.playerId !== "string" || !players.has(item.playerId) || required.has(item.playerId) || !Number.isSafeInteger(item.revision) || item.revision < 1) return false;
+    required.add(item.playerId);
+  }
+  if (state.phase === "combat" && state.winnerId) return false;
+  if (state.phase !== "combat" && (!state.winnerId || !players.has(state.winnerId) || state.scores.find(score => score.playerId === state.winnerId)?.kills !== 5)) return false;
+  return true;
+}
+
+export function validEliminationEvent(value: unknown, roundId?: number): value is EliminationEvent {
+  if (!value || typeof value !== "object") return false;
+  const event = value as EliminationEvent;
+  return typeof event.id === "string" && event.id.length > 0 && event.id.length <= 128 && Number.isSafeInteger(event.roundId) && event.roundId > 0
+    && (roundId === undefined || event.roundId === roundId) && typeof event.attackerId === "string" && /^[0-9a-f-]{36}$/i.test(event.attackerId)
+    && typeof event.victimId === "string" && /^[0-9a-f-]{36}$/i.test(event.victimId) && event.attackerId !== event.victimId
+    && Number.isInteger(event.attackerScore) && event.attackerScore >= 1 && event.attackerScore <= 5 && Number.isSafeInteger(event.at);
 }
 
 interface PositionAssembly { revision: number; sequence: number; totalBytes: number; chunks: Array<Uint8Array | undefined>; received: number; createdAt: number }
@@ -184,6 +222,10 @@ export class MultiplayerSession {
   private positionSequence = 0;
   private lastShipSequence = new Map<string, number>();
   private lastShotSequence = 0;
+  private lastRoundWireKey = "";
+  private lastRoundId = 0;
+  private lastRoundSendAt = 0;
+  private readonly seenEliminations = new Set<string>();
   private relay: RTCIceServer[] = [];
   private iceExpiresAt = 0;
   private iceRefreshTimer = 0;
@@ -329,6 +371,7 @@ export class MultiplayerSession {
     dc.onopen = () => {
       if (this.closed || this.peers.get(id) !== peer) return;
       if (dc.label === "constellation-control" && this.topology) this.queueTopology(id, this.topology);
+      if (dc.label === "constellation-control" && this.isHost && this.world) this.sendReliable(id, { type: "round-state", epoch: this.epoch, state: this.world.roundSnapshot(Date.now()) });
       if (dc.label === "constellation-live") this.sendPositionsTo(id);
       this.updatePeerStatus();
     };
@@ -382,10 +425,11 @@ export class MultiplayerSession {
       this.hostId = String(msg.hostId || ""); this.epoch = Number(msg.epoch) || this.epoch;
       this.gameResumeAt = Date.now() + 700;
       this.lastShipSequence.clear(); this.lastShotSequence = 0;
+      this.lastRoundId = 0; this.lastRoundWireKey = ""; this.lastRoundSendAt = 0; this.seenEliminations.clear();
       this.world = this.isHost ? new CombatWorld(this.epoch) : null;
       if (this.world) {
         const checkpoint = msg.checkpoint as { state?: unknown; ageMs?: number } | null;
-        if (checkpoint?.state && Number.isFinite(checkpoint.ageMs) && (checkpoint.ageMs as number) <= 15_000) this.world.restore(checkpoint.state, Date.now());
+        if (checkpoint?.state && Number.isFinite(checkpoint.ageMs) && (checkpoint.ageMs as number) >= 0 && (checkpoint.ageMs as number) <= 15_000) this.world.restore(checkpoint.state, Date.now(), checkpoint.ageMs as number);
         this.world.epoch = this.epoch;
         for (const member of this.roster) { this.world.add(member); this.world.setProfile(member.id, member.profile); }
         this.startGameLoop();
@@ -432,6 +476,18 @@ export class MultiplayerSession {
       let msg: unknown; try { msg = JSON.parse(data); } catch { return; }
       if (!msg || typeof msg !== "object") return;
       const m = msg as Record<string, unknown>;
+      if (m.type === "round-state" && id === this.hostId && m.epoch === this.epoch && validRoundSnapshot(m.state, this.epoch)) {
+        const state = m.state;
+        if (state.roundId < this.lastRoundId) return;
+        this.lastRoundId = state.roundId;
+        this.callbacks.round?.(state); return;
+      }
+      if (m.type === "elimination" && id === this.hostId && m.epoch === this.epoch && validEliminationEvent(m.event, this.lastRoundId)) {
+        const event = m.event;
+        if (this.seenEliminations.has(event.id)) return;
+        this.seenEliminations.add(event.id); if (this.seenEliminations.size > 256) this.seenEliminations.delete(this.seenEliminations.values().next().value!);
+        this.callbacks.elimination?.(event); return;
+      }
       if (m.type === "shot-result" && id === this.hostId && m.epoch === this.epoch && Number.isSafeInteger(m.sequence)
         && (m.sequence as number) > 0 && typeof m.accepted === "boolean") {
         this.callbacks.shotResult?.(m.sequence as number, m.accepted); return;
@@ -577,6 +633,7 @@ export class MultiplayerSession {
   private createWorldIfHost(): void {
     if (!this.isHost) { this.world = null; return; }
     this.world = new CombatWorld(this.epoch);
+    this.lastRoundWireKey = ""; this.lastRoundId = 0; this.lastRoundSendAt = 0; this.seenEliminations.clear();
     for (const member of this.roster) { this.world.add(member); this.world.setProfile(member.id, member.profile); }
     this.startGameLoop();
   }
@@ -683,6 +740,7 @@ export class MultiplayerSession {
       if (now < this.gameResumeAt) { this.lastGameStep = now; return; }
       const dt = Math.max(0.001, Math.min(0.05, (now - this.lastGameStep) / 1000)); this.lastGameStep = now;
       this.world.step(dt, now);
+      this.updateRound(now);
       if (now - lastObstacleUpdate >= 100) {
         lastObstacleUpdate = now;
         const nodes = this.graph().nodes, positions = new Float32Array(nodes.length * 3);
@@ -694,6 +752,74 @@ export class MultiplayerSession {
         this.publishWorldState(now);
       }
     }, 16);
+  }
+
+  private updateRound(now: number): void {
+    const world = this.world; if (!world || !this.isHost) return;
+    if (world.roundPhase === "supernova") {
+      const state = world.roundSnapshot(now), requirements = state.layoutRequirements.slice();
+      for (const member of this.roster) {
+          if (!world.players.has(member.id)) continue;
+        if (!requirements.some(item => item.playerId === member.id)) requirements.push({ playerId: member.id, revision: this.currentTopologyRevision(member.id) + 1 });
+      }
+      if (requirements.length !== state.layoutRequirements.length) world.requireLayouts(requirements);
+    }
+      // Release a late-layout spectator as soon as its current anonymous map and positions arrive,
+      // even if the room has already started the next round.
+      for (const requirement of world.roundSnapshot(now).layoutRequirements) {
+        if (this.layoutPublished(requirement.playerId, requirement.revision)) world.markLayoutReady(requirement.playerId);
+      }
+    if (world.roundPhase === "waiting") {
+      const state = world.roundSnapshot(now), pending: string[] = [];
+      for (const requirement of state.layoutRequirements) {
+        if (!world.isFlying(requirement.playerId)) continue;
+          if (!this.layoutPublished(requirement.playerId, requirement.revision)) pending.push(requirement.playerId);
+      }
+      if (!pending.length) world.startCountdown(now);
+      else if (state.phaseRemainingMs <= 100) {
+        for (const id of pending) world.demoteForLateLayout(id, now);
+        world.startCountdown(now);
+      }
+    }
+    for (const event of world.drainEliminations()) {
+      this.callbacks.elimination?.(event);
+      this.sendReliableAll({ type: "elimination", epoch: this.epoch, event });
+    }
+    const state = world.roundSnapshot(now);
+    const key = JSON.stringify([state.epoch, state.roundId, state.phase, state.winnerId, state.scores, state.layoutRequirements]);
+    const changed = key !== this.lastRoundWireKey;
+    if (changed) {
+      this.lastRoundWireKey = key; this.lastRoundId = state.roundId;
+      this.callbacks.round?.(state);
+    }
+    if (changed || now - this.lastRoundSendAt >= 200) {
+      this.lastRoundSendAt = now;
+      this.sendReliableAll({ type: "round-state", epoch: this.epoch, state });
+    }
+  }
+
+  private currentTopologyRevision(id: string): number {
+    return id === this.selfId ? this.topology?.revision ?? 0 : this.peers.get(id)?.topology?.revision ?? 0;
+  }
+
+  private controlReady(id: string): boolean {
+    const peer = this.peers.get(id);
+    return !!peer && peer.control?.readyState === "open" && peer.live?.readyState === "open";
+  }
+
+  private layoutPublished(id: string, revision: number): boolean {
+    if (id === this.selfId) return (this.topology?.revision ?? 0) >= revision;
+    const peer = this.peers.get(id);
+    return !!peer?.topology && peer.topology.revision >= revision && peer.positionsRevision === peer.topology.revision;
+  }
+
+  private sendReliableAll(message: GameMessage): void {
+    const json = JSON.stringify(message);
+    for (const peer of this.peers.values()) {
+      const channel = peer.control;
+      if (!channel || channel.readyState !== "open" || channel.bufferedAmount > 128_000) continue;
+      try { channel.send(json); } catch { /* a peer may close while a reliable round event is queued */ }
+    }
   }
 
   private publishWorldState(now: number): void {
@@ -717,6 +843,7 @@ export class MultiplayerSession {
       this.callbacks.status(e instanceof Error ? e.message : "Could not share this constellation.", true);
     }
   }
+  republishLocalLayout(): void { if (this.active) this.setLocalGraph(this.graph().data); }
   private sendPositions(): void { if (this.topology) for (const id of this.peers.keys()) this.sendPositionsTo(id); }
   private sendPositionsTo(id: string): void {
     const peer = this.peers.get(id), topology = this.topology, channel = peer?.live;
@@ -826,6 +953,7 @@ export class MultiplayerSession {
     const self = this.selfId; this.roomCode = ""; this.selfId = ""; this.hostId = ""; this.roster = []; this.topology = null; this.ids.clear(); this.revision = 0;
     this.relay = []; this.iceExpiresAt = 0; this.relayStatus = "pending"; this.lastIceRequestAt = 0;
     this.lastShipSequence.clear(); this.lastShotSequence = 0; this.stateSequence = 0; this.positionSequence = 0;
+    this.lastRoundId = 0; this.lastRoundWireKey = ""; this.lastRoundSendAt = 0; this.seenEliminations.clear();
     this.callbacks.shotState([], []);
     this.callbacks.removed(self); this.callbacks.members([], "", "", 0); this.callbacks.status(message);
   }

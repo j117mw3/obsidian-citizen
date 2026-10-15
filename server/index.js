@@ -37,9 +37,9 @@ function publicRoom(room) {
 }
 function validProfile(value) {
   return value && Number.isSafeInteger(value.revision) && value.revision > 0
-    && ["classic", "vector", "dart", "bulwark", "crescent"].includes(value.ship)
-    && ["classic", "ion"].includes(value.engine) && ["classic", "plasma"].includes(value.afterburner)
-    && ["classic", "pulse"].includes(value.laser);
+    && ["classic", "vector", "dart", "bulwark", "crescent", "revenant"].includes(value.ship)
+    && ["classic", "ion", "turbine"].includes(value.engine) && ["classic", "plasma", "fusion"].includes(value.afterburner)
+    && ["classic", "pulse", "arc"].includes(value.laser);
 }
 function cleanProfile(value) { return { revision: value.revision, ship: value.ship, engine: value.engine, afterburner: value.afterburner, laser: value.laser }; }
 function cleanPeerSignal(value) {
@@ -109,7 +109,7 @@ wss.on("connection", (ws, req) => {
     if (msg.type === "create" || msg.type === "join") {
       if (!consume(`room:${ip}`, 20)) { fail(ws, "rate-limited", "Too many room requests. Wait a minute and try again."); return; }
       if (member) { fail(ws, "already-joined", "This connection already joined a room."); return; }
-      if (msg.protocol !== 3) { fail(ws, "update-required", "Update the plugin to version 0.3.3 or newer to use this room service."); return; }
+      if (msg.protocol !== 4) { fail(ws, "update-required", "Update the plugin to version 0.3.4 or newer to use this room service."); return; }
       const name = typeof msg.name === "string" ? msg.name.trim().slice(0, 24) : "";
       if (!name) { fail(ws, "bad-name", "Enter a display name (up to 24 characters)."); return; }
       if (!validProfile(msg.profile)) { fail(ws, "bad-profile", "Choose a valid ship and sound profile before joining."); return; }
@@ -124,7 +124,7 @@ wss.on("connection", (ws, req) => {
         roomCode = typeof msg.code === "string" ? msg.code.toUpperCase() : "";
         room = rooms.get(roomCode);
         if (!room) { fail(ws, "room-not-found", "That room code is invalid or the room has closed."); return; }
-        if (room.protocol !== msg.protocol) { fail(ws, "update-required", "Everyone in the room must install plugin version 0.3.3 or newer."); return; }
+        if (room.protocol !== msg.protocol) { fail(ws, "update-required", "Everyone in the room must install plugin version 0.3.4 or newer."); return; }
         if (room.members.size >= 4) { fail(ws, "full", "This room already has four players."); return; }
       }
       const usedSlots = new Set([...room.members.values()].map(m => m.slot));

@@ -2,7 +2,7 @@ import * as THREE from "three";
 import type { SimNode } from "./types";
 import { PilotAudio } from "./sfx";
 import { buildShip, type Ship } from "./ship";
-import { buildCockpit, type Cockpit } from "./cockpit";
+import { buildCockpit, cockpitScreenLayout, type Cockpit } from "./cockpit";
 import type { FlightInput, NavigationTarget, Pose, ShotSnapshot } from "./multiplayer";
 import type { PilotProfile, ShipId } from "./pilotProfile";
 import { stepPresentation } from "./pilotProfile";
@@ -35,6 +35,7 @@ export interface PilotHost {
   /** The reader pressed Esc with the mouse already free: leave Pilot mode. */
   leave(): void;
   onHangar?(): void;
+  onToggleGroups?(): void;
   onAudioMute(which: "engine" | "afterburner", muted: boolean): void;
   onNetworkFrame(input: FlightInput): void;
   onFire(sequence: number, gun: number, aimPoint: [number, number, number]): void;
@@ -232,6 +233,15 @@ export class PilotController {
   private hangarOpen = false;
   private bank = 0; private tilt = 0;          // how far the plane's model leans, for looks only
   private flagsText = "";
+  private roundKills = 0;
+  private roundLeader = 0;
+  private roundPhase = "SOLO";
+  private roundRemaining = 0;
+  private roundUpdatedAt = 0;
+  private dashboardAccumulator = 0;
+  private accessibleInstruments: HTMLDivElement;
+  private accessibleDashboardText = "";
+  private accessibleDashboardAt = 0;
 
   private audio = new PilotAudio();
   private ship: Ship;
@@ -323,6 +333,8 @@ export class PilotController {
     // the HUD is plain DOM, hidden from screen readers (the live region carries what matters)
     this.hud = container.createDiv({ cls: "cg-pilot", attr: { "aria-hidden": "true" } });
     this.hud.hidden = true;
+    this.accessibleInstruments = container.createDiv({ cls: "cg-sr", attr: { role: "status", "aria-live": "polite", "aria-atomic": "true", "aria-label": "Live flight instruments" } });
+    this.accessibleInstruments.hidden = true;
     this.ringOuter = this.hud.createDiv({ cls: "cg-pilot-steer cg-pilot-steer-outer" });
     this.ringInner = this.hud.createDiv({ cls: "cg-pilot-steer cg-pilot-steer-inner" });
     this.cross = this.hud.createDiv({ cls: "cg-pilot-cross" });
@@ -338,6 +350,8 @@ export class PilotController {
     this.muteAfterburnerButton.addEventListener("click", () => this.host.onAudioMute("afterburner", !this.opts.muteAfterburner));
     const hangarButton = audioControls.createEl("button", { cls: "cg-pilot-audio-btn", text: "Hangar", attr: { type: "button", "aria-label": "Open spacecraft hangar" } });
     hangarButton.addEventListener("click", () => this.host.onHangar?.());
+    const groupsButton = audioControls.createEl("button", { cls: "cg-pilot-audio-btn cg-pilot-audio-groups", text: "Clusters", attr: { type: "button", "aria-label": "Show or hide cluster filters", "aria-expanded": "true" } });
+    groupsButton.addEventListener("click", () => this.host.onToggleGroups?.());
     const speed = this.hud.createDiv({ cls: "cg-pilot-speed" });
     this.speedFill = speed.createDiv({ cls: "cg-pilot-speed-fill" });
     const energy = this.hud.createDiv({ cls: "cg-pilot-energy" });
@@ -437,6 +451,14 @@ export class PilotController {
     } else if (this.active && this.opts.mouse === "capture") this.requestLock();
   }
 
+  setRoundDisplay(kills: number, leader: number, phase: string, remainingMs: number): void {
+    this.roundKills = Math.max(0, Math.min(5, Math.floor(kills)));
+    this.roundLeader = Math.max(0, Math.min(5, Math.floor(leader)));
+    this.roundPhase = phase.slice(0, 24).toUpperCase();
+    this.roundRemaining = Math.max(0, remainingMs);
+    this.roundUpdatedAt = performance.now();
+  }
+
   previewSound(kind: "engine" | "afterburner" | "laser"): void { this.audio.preview(kind); }
 
   updateNearbyAudio(players: RemoteAudioState[], enabled: boolean): void {
@@ -469,6 +491,7 @@ export class PilotController {
     this.ship.group.visible = on && this.opts.view === "chase";
     this.ship.lights.forEach(l => { l.visible = on && this.opts.view === "chase"; });
     this.cockpit.group.visible = on && this.opts.view === "cockpit";
+    this.accessibleInstruments.hidden = !on;
     this.ringOuter.hidden = this.ringInner.hidden = !(on && this.opts.mouse === "cursor");
     this.refreshKeyLabels();
     this.container.classList.toggle("cg-cursor", on && this.opts.mouse === "cursor");
@@ -624,6 +647,7 @@ export class PilotController {
   destroy(): void {
     this.exit(false);
     this.audio.destroy();
+    this.accessibleInstruments.remove();
     const dispose = (o: THREE.Object3D) => {
       this.scene.remove(o);
       const l = o as THREE.LineSegments;
@@ -1043,7 +1067,8 @@ export class PilotController {
       const c = this.cockpit.group;
       c.position.copy(cam.position); c.quaternion.copy(cam.quaternion);
       // scaled up so it sits beyond the camera's near plane (1 unit); the same angles on screen, just further away
-      c.scale.set(COCKPIT_SCALE * Math.max(0.55, cam.aspect / 1.78), COCKPIT_SCALE, COCKPIT_SCALE);
+      const screenLayout = cockpitScreenLayout(cam.aspect);
+      c.scale.set(COCKPIT_SCALE * screenLayout.horizontalScale, COCKPIT_SCALE, COCKPIT_SCALE);
       c.updateMatrixWorld(true);
     }
     cam.updateMatrixWorld(); // so aiming and firing use where the ship is now, not where it was last frame
@@ -1102,6 +1127,19 @@ export class PilotController {
     if (this.health <= 0) this.destruction.textContent = `SHIP DESTROYED · RESPAWNING IN ${Math.ceil(this.respawnLeft / 1000)}s`;
     const text = this.health <= 0 ? "DESTROYED" : this.protectionLeft > 0 ? "SPAWN PROTECTED" : this.boosting ? "AFTERBURNER" : this.boostLocked ? (this.holdLeft > 0 ? `EMPTY ${this.holdLeft.toFixed(1)}s` : "RECHARGING") : "";
     if (text !== this.flagsText) { this.flagsText = text; this.flags.textContent = text; }
+    this.dashboardAccumulator += this.dtS || 0.016;
+    if (this.dashboardAccumulator >= 0.1) {
+      this.dashboardAccumulator %= 0.1;
+      const left = Math.max(0, this.roundRemaining - (performance.now() - this.roundUpdatedAt));
+      const phase = this.opts.multiplayer ? `${this.roundPhase}${left > 0 ? ` ${Math.ceil(left / 1000)}s` : ""}` : "SOLO";
+      this.cockpit.updateDashboard({ health: this.health, boost: this.energy, speed: this.vel.length(), boostLocked: this.boostLocked,
+        regenDelay: this.regenDelay, emptyHold: this.holdLeft, weaponReady: this.cooldown <= 0, weaponCooldown: this.cooldown, kills: this.roundKills, leader: this.roundLeader,
+        protectedFor: this.protectionLeft, respawnIn: this.respawnLeft, phase });
+      const accessible = this.cockpit.dashboardText;
+      if (accessible !== this.accessibleDashboardText && performance.now() - this.accessibleDashboardAt >= 1000) {
+        this.accessibleDashboardText = accessible; this.accessibleDashboardAt = performance.now(); this.accessibleInstruments.textContent = accessible;
+      }
+    }
   }
 
   // ----------------------------------------------------------------- aim and fire

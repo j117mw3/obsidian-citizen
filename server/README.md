@@ -2,7 +2,7 @@
 
 ## Hosted rooms (normal player install)
 
-The plugin's **Hosted rooms** mode connects to `wss://constellation-rooms.mrassetto.workers.dev`. Release 0.3.3 uses room protocol 3, which shares a validated ship and sound profile containing only enumerated IDs. Older clients receive an update-required response. Players only install the plugin, choose a name, and share an eight-character room code. This endpoint is tied to the maintainer's Cloudflare `workers.dev` subdomain.
+The plugin's **Hosted rooms** mode connects to `wss://constellation-rooms.mrassetto.workers.dev`. Release 0.3.4 uses room protocol 4, which shares validated ship and sound IDs and carries authoritative round scores, phase timing, elimination IDs, and layout revisions. Older clients receive an update-required response. Players only install the plugin, choose a name, and share an eight-character room code. This endpoint is tied to the maintainer's Cloudflare `workers.dev` subdomain.
 
 The hosted service runs the room protocol in one Cloudflare Durable Object. Membership, host authority, and combat checkpoints stay in memory. The server uses WebRTC signaling only for setup; game traffic remains peer-to-peer or travels through TURN when NAT/firewall rules require a relay.
 

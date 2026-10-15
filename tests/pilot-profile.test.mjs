@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { build } from "esbuild";
 import { basename } from "node:path";
 
-const built = await build({ entryPoints: ["src/pilotProfile.ts", "src/ship.ts"], bundle: true, platform: "node", format: "esm", target: "node22", outdir: "test-bundles", write: false });
+const built = await build({ entryPoints: ["src/pilotProfile.ts", "src/ship.ts", "src/cockpit.ts"], bundle: true, platform: "node", format: "esm", target: "node22", outdir: "test-bundles", write: false });
 async function load(name) {
   const file = built.outputFiles.find(item => basename(item.path) === `${name}.js`);
   assert.ok(file, `missing bundled ${name} module`);
@@ -11,18 +11,19 @@ async function load(name) {
 }
 const profile = await load("pilotProfile");
 const shipModule = await load("ship");
+const cockpit = await load("cockpit");
 
-test("pilot profiles accept only five ships and two sounds per category", () => {
-  assert.deepEqual(profile.SHIP_IDS, ["classic", "vector", "dart", "bulwark", "crescent"]);
-  assert.deepEqual(profile.ENGINE_SOUND_IDS, ["classic", "ion"]);
-  assert.deepEqual(profile.AFTERBURNER_SOUND_IDS, ["classic", "plasma"]);
-  assert.deepEqual(profile.LASER_SOUND_IDS, ["classic", "pulse"]);
+test("pilot profiles accept six ships and three sounds per category", () => {
+  assert.deepEqual(profile.SHIP_IDS, ["classic", "vector", "dart", "bulwark", "crescent", "revenant"]);
+  assert.deepEqual(profile.ENGINE_SOUND_IDS, ["classic", "ion", "turbine"]);
+  assert.deepEqual(profile.AFTERBURNER_SOUND_IDS, ["classic", "plasma", "fusion"]);
+  assert.deepEqual(profile.LASER_SOUND_IDS, ["classic", "pulse", "arc"]);
   assert.equal(profile.validPilotProfile(profile.DEFAULT_PILOT_PROFILE), true);
   assert.equal(profile.validPilotProfile({ ...profile.DEFAULT_PILOT_PROFILE, ship: "unknown" }), false);
   assert.equal(profile.validPilotProfile({ ...profile.DEFAULT_PILOT_PROFILE, engine: "private-id" }), false);
 });
 
-test("all five procedural ship models share the same four cannon mounts", () => {
+test("all six procedural ship models share the same four cannon mounts", () => {
   const signatures = new Set();
   for (const id of profile.SHIP_IDS) {
     const ship = shipModule.buildShip(id);
@@ -32,7 +33,16 @@ test("all five procedural ship models share the same four cannon mounts", () => 
     signatures.add(JSON.stringify(geometries));
     ship.dispose();
   }
-  assert.equal(signatures.size, 5, "each hangar choice has a distinct procedural silhouette");
+  assert.equal(signatures.size, 6, "each hangar choice has a distinct procedural silhouette");
+});
+
+test("cockpit screens remain inside the camera at narrow and wide aspect ratios", () => {
+  for (const aspect of [0.5, 0.75, 1, 16 / 9, 2.4]) {
+    const layout = cockpit.cockpitScreenLayout(aspect), scaleX = 2.2 * layout.horizontalScale;
+    const displayOuter = (layout.centerX + 0.38) * scaleX;
+    const cameraHalfWidth = Math.tan(55 * Math.PI / 360) * 0.975 * 2.2 * aspect;
+    assert.ok(displayOuter < cameraHalfWidth, `screens fit at aspect ${aspect}`);
+  }
 });
 
 test("multiplayer presentation lean is bounded and eases consistently", () => {
