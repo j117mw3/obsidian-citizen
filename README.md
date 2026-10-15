@@ -1,8 +1,15 @@
-# Constellation Graph
+# Obsidian Citizen
 
-A fluid, slowly orbiting 3D map of your notes for [Obsidian](https://obsidian.md), with a **Pilot mode** that lets you fly a small starfighter through it. Notes glow as points of light, coloured by folder (or tag). Clusters swirl around their own centres and drift past one another, like a screensaver for your vault, while the camera slowly circles. Everything is built to stay usable: full keyboard control, screen-reader announcements, a searchable note list, a colour-blind-safe palette, a high-contrast mode, and no motion at all if your system asks for reduced motion.
+A 3D constellation of your Obsidian notes that you can explore on foot or fly through in Pilot mode. Notes appear as glowing stars coloured by folder or tag; clusters drift around their own centres as the camera moves through the graph. Obsidian Citizen keeps the existing `constellation-graph` plugin ID, so upgrades preserve saved settings.
 
-> Early release. Listing and install details: [Constellation Graph on the Obsidian community site](https://community.obsidian.md/plugins/constellation-graph).
+**Release 0.5.0** combines the constellation renderer and multiplayer systems from both project histories. Multiplayer rooms share anonymous constellation geometry while note names, paths, tags and contents remain on each owner's computer.
+
+## Screenshots
+
+These views use a synthetic vault with four fictional notes; no personal vault names or paths are shown.
+
+![Obsidian Citizen graph in a synthetic vault](docs/screenshots/synthetic-graph.png)
+
 
 ## Use
 
@@ -53,7 +60,7 @@ The graph area is focusable. Press **?** for this list in the app.
 
 ### Pilot mode
 
-Press **P** in the graph (or the plane button on the toolbar) and fly through your notes. The **Hangar** offers six cosmetic ships—Classic, Vector, Dart, Bulwark, Crescent and Revenant—and three synthesized sound choices per category: Classic rumble, Ion reactor or Turbine drive; Classic whoosh, Plasma surge or Fusion roar; and Classic blaster, Pulse bolt or Arc snap. Every ship keeps the same flight and combat behavior. You can preview sounds and enable or silence nearby ships there. In solo play, shoot a note to select it and shoot it again to open it. The plane has weight: it takes a moment to start and stop a turn, it coasts when you let go of the throttle, sharp turns cost a little speed, and a trailing camera follows it. Notes are solid, so you bounce off them. Pilot mode never edits a note; shooting and opening do what a click already does.
+Press **P** in the graph (or the plane button on the toolbar) and fly through your constellation. The **Hangar** offers eight fixed-size ships: Classic, Vector, Dart Freighter, Bulwark Cruiser, Crescent, Revenant, Dart Interceptor and Bulwark Gunship. Each keeps the same gameplay scale, collision size and four-gun firing order. Choose among four synthesized engine, afterburner and laser sounds, preview them, and toggle nearby-ship audio. The cockpit has live health, shields, boost, speed, weapon status and score instruments. Solo fire still selects a note and a second shot opens it; in a room, all notes are navigation targets only.
 
 | Key | Action |
 |---|---|
@@ -69,6 +76,8 @@ Press **P** in the graph (or the plane button on the toolbar) and fly through yo
 | G | Warp to the target (travel to the marked shared star in multiplayer) |
 | H | Warp back out to see the whole graph (disabled in multiplayer) |
 | V | Switch between chase and cockpit view |
+| R | Switch between blaster and cannon |
+| Tab | Open or close the multiplayer scores |
 | K | Show or hide the controls panel |
 | Esc | Free the mouse (a second Esc leaves) |
 | P | Leave Pilot mode |
@@ -87,15 +96,15 @@ The panel shows the version of the loaded plugin code, the selected connection m
 
 Player rows say **Waiting for flight state** until their first authoritative update, then show **flying** or **spectator**. A timeout from one STUN or TURN endpoint is informational while other connection paths are still being tried; an actual peer-connection failure is shown separately.
 
-Open the **Multiplayer** panel, enter a display name, and check the shared-data notice. Create a room to get an eight-character code, then share it with up to three other pilots; or enter a code to join someone else's room. The panel includes **Copy code** and **Leave** controls, participant names, health and state, and connection status. Hosted rooms are the default, so players do not set up a server. Each pilot has a nearby region in the shared flight space, and all constellation regions use the same flight scale.
+Open the **Multiplayer** panel, enter a display name, and check the shared-data notice. Create a room to get a ten-character code, then share it with up to three other pilots; or enter a code to join. The panel includes **Copy code** and **Leave**, participant health and state, and connection status. The default ntfy relay carries only encrypted room discovery and WebRTC setup. Players do not need accounts or server setup. The Worker provides temporary TURN credentials after direct connection attempts fail.
 
 Joining shares anonymous star positions, connections, group colors and a restricted pilot profile containing only the chosen ship and sound IDs. It never sends note titles, paths, tags, or contents. Remote constellations have circular stars and no labels, note details, search, selection, dragging, or opening actions. In a room, all note selection and opening is disabled, including for your own notes. Click a star in the shared map, or aim at one and press **T**, to mark it for navigation. Enter Pilot mode and press **G** to fast travel there; destinations may be any participant's anonymous stars. Press **T** again while aiming to change the target. Right-click clears it. **H** remains disabled in a room. Maps update as notes and links change. Each map spreads to twice its solo size around its region center, and ships appear twice as large. A subtle red marker points toward each other flying player and shows their name and distance. Sharing supports up to 20,000 stars and 100,000 links per vault; larger maps show an error instead of silently omitting notes.
 
-Rooms use WebRTC data channels for maps and flight. The hosted room service passes room codes and peer setup messages, and automatically supplies temporary TURN relay credentials when direct connections fail. Its Metered relay allowance is shared by all players; the current deployment uses a 500 MB monthly free trial with a hard stop and no automatic reload. Direct connections may still work after the relay allowance is used, while players who require TURN may be unable to connect until it resets. To use another deployment, choose **Custom server** in the plugin's Multiplayer settings. See [server/README.md](server/README.md) for the hosted-service limits and self-hosted deployment guides.
+Maps, inputs, flight state, combat and checkpoints travel over WebRTC data channels. ntfy is used for encrypted room discovery and peer setup only. If direct connectivity fails, the hosted Worker can issue short-lived TURN credentials; its free relay allowance is shared by all players and may be unavailable after provider limits are reached. Direct connectivity can continue when TURN is unavailable. Choose **Custom server** to use another compatible ntfy relay. See [server/README.md](server/README.md) for deployment notes and service limits.
 
-Firing at other pilots is optional: fly together peacefully or choose to engage. Blasters use four physical cannon positions and their hits are resolved by the room host. A blaster hit removes 10 of 100 health. Destruction is followed by a five-second respawn with full health and boost, then three seconds of spawn protection; firing ends protection. The first pilot to five confirmed eliminations wins. A short kill feed announces eliminations, then the room pauses for a shared eight-second supernova that regenerates the participants' constellation layouts, waits up to 15 seconds for flying players' maps to synchronize, and starts the next round after a three-second countdown. Scores reset, and active pilots return at their region with full health, boost and spawn protection. Manual supernova is disabled in a room. Boost drains at 28% per second, recharges at 8% per second after 1.5 seconds without boosting, and stays empty for three seconds when depleted. Leaving Pilot mode or hiding the game view makes you a spectator; returning takes five seconds and preserves your health and boost. All players in a room must use protocol-compatible plugin version 0.3.4 or newer.
+Firing at other pilots is optional. The host resolves shields, hull damage, weapon heat and cannon ammunition. Destruction gives a five-second respawn and three seconds of protection; firing ends protection. A discreet kill feed and the leaderboard show kills and deaths. The first pilot to five confirmed eliminations wins, then the room pauses for an eight-second shared supernova, regenerates each owner's constellation, waits for maps to synchronize, and starts the next round after a three-second countdown. Manual supernova is disabled in a room. Boost drains at 28% per second, recharges at 8% after 1.5 seconds without boosting, and stays empty for three seconds when depleted. Leaving Pilot mode or hiding the game view makes you a spectator; returning takes five seconds and preserves health and boost. Public-relay rooms use protocol 5 and require version 0.5.0 or newer.
 
-The hosted service keeps room membership, short-lived relay configuration, and the latest small combat checkpoint in memory, and does not log gameplay payloads or credentials. The relay provider carries only WebRTC-encrypted peer traffic and can observe connection metadata. Room membership disappears when the last player leaves. Outside an active room, the plugin does not connect to the network.
+The Worker keeps temporary TURN credentials and refresh-token sessions in memory, and does not log credentials or gameplay payloads. ntfy can observe room-topic traffic and connection metadata but cannot read room messages without the code. The TURN provider can observe peer IP addresses and traffic volume. Outside an active room, the plugin makes no network connections.
 
 ### Accessibility
 
@@ -108,11 +117,11 @@ The hosted service keeps room membership, short-lived relay configuration, and t
 
 ## Settings
 
-Open on startup (off by default; saved in the vault, so it applies to anyone who opens it), flow (off, calm, lively), camera rotation and speed, glow and bloom, palette, label size and count, grouping (folder, first tag, none), folder depth, excluded folders, whether to show notes with no links, and whether to ring the open note. Pilot mode has its own section: enable, mouse mode (capture or cursor), mouse sensitivity, invert vertical look, flight speed, agility, view (chase or cockpit), wireframe effects, sound and volume, and separate saved engine and afterburner mutes. The Hangar saves ship, engine, afterburner and blaster choices plus the nearby-ship audio toggle. Multiplayer settings include the display name and Hosted or Custom server selection; the saved `ws://localhost:8787` development address migrates to Hosted.
+Open on startup (off by default), motion, camera, glow, palette, labels and grouping can be configured in plugin settings. Pilot mode adds mouse mode, sensitivity, flight speed and agility, view, sound, volume and separate engine and afterburner mutes. The Hangar saves ship and sound choices plus nearby-ship audio. Multiplayer settings include display name and Public or Custom relay. Earlier localhost WebSocket addresses are preserved as inactive legacy values; new installations use the public relay.
 
 ## Privacy and safety
 
-Outside an active room, the plugin does not make network connections. When you explicitly join, WebRTC peers receive a lossy anonymous map of star coordinates, connections, and colors. The plugin does not send note names, paths, tags, or contents, and network messages cannot call Obsidian note-opening actions. The room service sees room codes, display names, peer setup messages, and compact host checkpoints; it keeps membership and checkpoints in memory and does not log payloads or credentials. Gameplay normally travels peer-to-peer. If TURN is needed, the relay provider can see IP addresses and traffic volume, while WebRTC encrypts the payloads. Everything, including Three.js, is bundled into `main.js`. Note titles are only ever written as text, never as HTML. Pilot sound is generated by the plugin; no audio files are loaded or sent. The plugin reads note names and links from Obsidian's index and, when grouping by tag, the first tag. It does not read note contents or write to your vault.
+When you explicitly join, peers receive anonymous star positions, links, colors, player IDs, display names, flight and combat state. Note names, paths, tags, file contents and Obsidian vault objects are excluded from network types. Remote stars cannot be selected or opened; a local application boundary also blocks note opening while joined. Map IDs are random for the session and the real file mapping stays local. Audio is synthesized in the plugin. The graph reads Obsidian's index and does not write to note files.
 
 ## Performance
 
@@ -137,7 +146,7 @@ npm run harness -- "<path to a vault>"   # builds dev/harness.html, a browser pr
 npm run install-local -- "<path to a vault>"   # build and copy into <vault>/.obsidian/plugins/constellation-graph
 ```
 
-Source layout: `src/main.ts` (plugin), `view.ts` (Obsidian view), `data.ts` (vault to graph), `app.ts` (UI, keyboard, accessibility), `renderer.ts` (Three.js), `sim.ts` (layout and flow), `pilot.ts` (Pilot mode: flight, aiming, collisions, HUD), `hangar.ts` (ship and sound choices with a rotating preview), `pilotProfile.ts` (validated session-only profile IDs), `multiplayer.ts` (anonymous map protocol and WebRTC mesh), `combat.ts` (host-authoritative flight and combat), `server/worker.js` (hosted Durable Object service), `server/index.js` (self-hosted Node signaling), `server/` (deployment files), `ship.ts` and `cockpit.ts` (procedural spacecraft and cockpit), `sfx.ts` (synthesised sound), `fallback.ts` (no-WebGL mode), `settings.ts`, `palette.ts`.
+Source layout: `src/main.ts` (plugin), `view.ts` (Obsidian view), `data.ts` (vault-to-graph conversion), `app.ts` (UI and accessibility), `renderer.ts` and `sim.ts` (constellation rendering and motion), `pilot.ts` and `flight.ts` (shared flight simulation), `hangar.ts`, `ship.ts`, `importedShipModels.ts` and `cockpit.ts` (spacecraft), `sfx.ts` (synthesized audio), `room.ts` and `netcrypto.ts` (encrypted room discovery), `multiplayer.ts` (WebRTC mesh and anonymous map protocol), `combat.ts` (authoritative flight, weapons, rounds and checkpoints), `server/worker.js` (hosted TURN configuration endpoint), and `server/` (deployment files).
 
 ## Licence and third-party notices
 

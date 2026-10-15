@@ -2,11 +2,14 @@ import type { GraphData, RawLink, RawNode, SimNode } from "./types";
 import { CombatWorld, type RoomCheckpoint } from "./combat";
 import { DEFAULT_PILOT_PROFILE, LASER_SOUND_IDS, validPilotProfile, type PilotProfile, type LaserSoundId } from "./pilotProfile";
 import type { EliminationEvent, RoundSnapshot } from "./rounds";
+import { DEFAULT_RELAY, type PostFn } from "./relay";
+import { RelayRoom, ROOM_PROTOCOL, type RoomMember } from "./room";
 
 export const MAX_SHARED_NODES = 20_000;
 export const MAX_SHARED_LINKS = 100_000;
-export const ROOM_PROTOCOL = 4;
-export const HOSTED_SIGNALING_URL = "wss://constellation-rooms.mrassetto.workers.dev";
+export { ROOM_PROTOCOL };
+export const TURN_CONFIGURATION_URL = "https://constellation-rooms.mrassetto.workers.dev/turn";
+export const TURN_SESSION_URL = "https://constellation-rooms.mrassetto.workers.dev/turn/session";
 const MAX_COORDINATE = 1_000_000;
 const MAGIC = 0x43475031; // CGP1
 const POSITION_HEADER_BYTES = 16;
@@ -21,8 +24,8 @@ export interface AnonymousNode { id: string; group: number; degree: number }
 export interface AnonymousTopology { revision: number; nodes: AnonymousNode[]; groups: AnonymousGroup[]; links: [string, string][] }
 export interface AnonymousPlayer { id: string; name: string; joinedAt: number; slot: number; profile: PilotProfile }
 export interface NavigationTarget { ownerId: string; starId: string; revision: number }
-export interface Pose { position: [number, number, number]; rotation: [number, number, number, number]; velocity: [number, number, number]; health: number; energy: number; boostLocked: boolean; boostHold: number; regenDelay: number; active: boolean; respawnAt: number; protectedUntil: number; thrust: number; boosting: boolean; bank: number; tilt: number }
-export interface ShotSnapshot { id: string; ownerId: string; gun: number; origin: [number, number, number]; position: [number, number, number]; direction: [number, number, number]; sound: LaserSoundId; startedAt: number }
+export interface Pose { position: [number, number, number]; rotation: [number, number, number, number]; velocity: [number, number, number]; health: number; shields: number; energy: number; boostLocked: boolean; boostHold: number; regenDelay: number; damagePause: number; weapon: 0 | 1; heat: number; overheated: boolean; ammunition: number; weaponCooldown: number; deaths: number; active: boolean; respawnAt: number; protectedUntil: number; thrust: number; boosting: boolean; bank: number; tilt: number }
+export interface ShotSnapshot { id: string; ownerId: string; gun: number; weapon: 0 | 1; origin: [number, number, number]; position: [number, number, number]; direction: [number, number, number]; sound: LaserSoundId; startedAt: number }
 export interface ImpactSnapshot { id: string; position: [number, number, number]; kind: "star" | "ship" }
 
 /** Build a deliberately lossy network representation. File IDs and all note labels stop here. */
@@ -91,13 +94,17 @@ export function encodePositionChunks(nodes: readonly SimNode[], topology: Anonym
 type SignalMessage = { type: string; [key: string]: unknown };
 export type GameMessage = { type: "input"; epoch: number; input: FlightInput }
   | { type: "navigate"; epoch: number; target: NavigationTarget }
-  | { type: "fire"; epoch: number; sequence: number; gun: number; aimPoint: [number, number, number] }
+  | { type: "fire"; epoch: number; sequence: number; gun: number; weapon: 0 | 1; aimPoint: [number, number, number] }
   | { type: "shot-result"; epoch: number; sequence: number; accepted: boolean }
   | { type: "ship"; epoch: number; sequence: number; playerId: string; pose: Pose }
   | { type: "shots"; epoch: number; sequence: number; shots: ShotSnapshot[]; impacts: ImpactSnapshot[] }
   | { type: "round-state"; epoch: number; state: RoundSnapshot }
-  | { type: "elimination"; epoch: number; event: EliminationEvent };
-export interface FlightInput { thrust: number; strafe: number; lift: number; roll: number; pitch: number; yaw: number; boost: boolean; brake: boolean; fire: boolean; active: boolean }
+  | { type: "elimination"; epoch: number; event: EliminationEvent }
+  | { type: "checkpoint"; epoch: number; sentAt: number; state: unknown }
+  | { type: "authority-proposal"; epoch: number; hostId: string; members: string[]; failure?: boolean; baseEpoch?: number }
+  | { type: "authority-vote"; epoch: number; hostId: string; voterId: string; members: string[] }
+  | { type: "authority-commit"; epoch: number; hostId: string; members: string[] };
+export interface FlightInput { thrust: number; strafe: number; lift: number; roll: number; pitch: number; yaw: number; boost: boolean; brake: boolean; fire: boolean; active: boolean; weapon: 0 | 1 }
 
 export interface MultiplayerCallbacks {
   status(text: string, error?: boolean): void;
@@ -121,12 +128,12 @@ export function validRoundSnapshot(value: unknown, epoch?: number): value is Rou
   if (!Number.isSafeInteger(state.epoch) || (epoch !== undefined && state.epoch !== epoch) || !Number.isSafeInteger(state.roundId) || state.roundId < 1
     || !["combat", "supernova", "waiting", "countdown"].includes(state.phase) || !Number.isFinite(state.phaseRemainingMs) || state.phaseRemainingMs < 0
     || typeof state.winnerId !== "string" || (state.winnerId !== "" && !/^[0-9a-f-]{36}$/i.test(state.winnerId))
-    || !Array.isArray(state.scores) || state.scores.length > 4 || !Array.isArray(state.layoutRequirements) || state.layoutRequirements.length > 4) return false;
+    || !Array.isArray(state.scores) || state.scores.length > 64 || !Array.isArray(state.layoutRequirements) || state.layoutRequirements.length > 4) return false;
   const phaseLimit = state.phase === "supernova" ? 8000 : state.phase === "waiting" ? 15_000 : state.phase === "countdown" ? 3000 : 0;
   if (state.phaseRemainingMs > phaseLimit) return false;
   const players = new Set<string>();
   for (const score of state.scores) {
-    if (!score || typeof score.playerId !== "string" || !/^[0-9a-f-]{36}$/i.test(score.playerId) || players.has(score.playerId) || !Number.isInteger(score.kills) || score.kills < 0 || score.kills > 5) return false;
+    if (!score || typeof score.playerId !== "string" || !/^[0-9a-f-]{36}$/i.test(score.playerId) || players.has(score.playerId) || !Number.isInteger(score.kills) || score.kills < 0 || score.kills > 5 || !Number.isInteger(score.deaths) || score.deaths < 0 || score.deaths > 999) return false;
     players.add(score.playerId);
   }
   const required = new Set<string>();
@@ -196,16 +203,21 @@ function validIceServers(value: unknown): RTCIceServer[] {
 /** WebRTC mesh plus a small signaling connection. Only anonymous graph messages pass through this class. */
 export class MultiplayerSession {
   private socket: WebSocket | null = null;
+  private publicRoom: RelayRoom | null = null;
+  private readonly post: PostFn;
+  private readonly request?: (url: string, token?: string) => Promise<{ status: number; body: unknown }>;
   private roomCode = "";
   private selfId = "";
   private hostId = "";
   private epoch = 0;
+  private authorityReady = false;
+  private authorityVotes = new Set<string>();
   private roster: AnonymousPlayer[] = [];
   private readonly peers = new Map<string, { pc: RTCPeerConnection; control?: RTCDataChannel; live?: RTCDataChannel; topology?: AnonymousTopology; positions?: Float32Array; positionsRevision?: number;
     signalChain: Promise<void>; pendingCandidates: RTCIceCandidateInit[];
     positionSequence: number; lastPositionSequence: number; topologySend: { revision: number; json: string; next: number; total: number } | null;
     topologyReceive: { revision: number; total: number; parts: string[]; bytes: number; received: number } | null;
-    positionReceive: Map<number, PositionAssembly> }>();
+    positionReceive: Map<number, PositionAssembly>; restartAfterStable?: boolean; iceRestarting?: boolean }>();
   private readonly retryTimers = new Map<string, number>();
   private readonly ids = new Map<string, string>();
   private topology: AnonymousTopology | null = null;
@@ -214,6 +226,7 @@ export class MultiplayerSession {
   private checkpointTimer = 0;
   private gameTimer = 0;
   private topologyTimer = 0;
+  private authorityMonitorTimer = 0;
   private world: CombatWorld | null = null;
   private lastGameStep = 0;
   private lastStateSend = 0;
@@ -229,15 +242,27 @@ export class MultiplayerSession {
   private relay: RTCIceServer[] = [];
   private iceExpiresAt = 0;
   private iceRefreshTimer = 0;
+  private iceFallbackTimer = 0;
+  private iceRefreshToken = "";
+  private iceRefreshTokenExpiresAt = 0;
+  private iceRequesting = false;
   private authorityTimer = 0;
+  private lastHostPacketAt = 0;
+  private pendingAuthorityCommit: { epoch: number; hostId: string; members: string[] } | null = null;
   private relayStatus: "ready" | "pending" | "unavailable" | "quota" | "direct-only" = "pending";
   private lastIceErrorAt = 0;
   private readonly iceFailures = new Map<string, { kind: "STUN" | "TURN" | "ICE"; code: number }>();
   private lastIceRequestAt = 0;
+  private directStartedAt = 0;
+  private lastCheckpoint: { state: unknown; sentAt: number } | null = null;
   private closed = false;
   private opening = false;
 
-  constructor(private callbacks: MultiplayerCallbacks, private graph: () => { data: GraphData; nodes: readonly SimNode[] }, private signalingUrl: () => string) {}
+  constructor(private callbacks: MultiplayerCallbacks, private graph: () => { data: GraphData; nodes: readonly SimNode[] }, private signalingUrl: () => string, post?: PostFn,
+    request?: (url: string, token?: string) => Promise<{ status: number; body: unknown }>) {
+    this.post = post ?? (async (url, body) => (await fetch(url, { method: "POST", body, headers: { "Content-Type": "text/plain" } })).status);
+    this.request = request;
+  }
   get active(): boolean { return !!this.selfId && !this.closed; }
   get isHost(): boolean { return this.active && this.selfId === this.hostId; }
   get room(): string { return this.roomCode; }
@@ -249,7 +274,7 @@ export class MultiplayerSession {
     this.roster = this.roster.map(member => member.id === this.selfId ? { ...member, profile } : member);
     this.world?.setProfile(this.selfId, profile);
     this.callbacks.members(this.roster, this.selfId, this.hostId, this.epoch);
-    this.socket?.send(JSON.stringify({ type: "profile", profile }));
+    this.publicRoom?.updateProfile(profile);
   }
 
   async create(name: string, profile: PilotProfile = DEFAULT_PILOT_PROFILE): Promise<void> { await this.open("create", name, "", profile); }
@@ -259,85 +284,72 @@ export class MultiplayerSession {
     if (this.active) throw new Error("Leave the current room before joining another.");
     if (!validPilotProfile(profile)) throw new Error("The selected ship or sound profile is invalid.");
     if (this.opening) throw new Error("A room connection is already in progress.");
-    if (!globalThis.RTCPeerConnection || !globalThis.WebSocket) throw new Error("This Obsidian WebView does not provide WebRTC.");
-    const url = this.signalingUrl().trim();
-    if (!/^wss?:\/\//i.test(url)) throw new Error("Choose Hosted rooms or enter a custom address that starts with ws:// or wss://.");
+    if (!globalThis.RTCPeerConnection || !globalThis.EventSource) throw new Error("This Obsidian WebView does not provide the browser features multiplayer needs.");
+    const url = this.signalingUrl().trim() || DEFAULT_RELAY;
     const cleanName = name.trim().slice(0, 24);
     if (!cleanName) throw new Error("Enter a display name in plugin settings.");
-    if (action === "join" && !/^[A-HJ-NP-Z2-9]{8}$/i.test(code.trim())) throw new Error("Enter the eight-character room code.");
+    if (action === "join" && code.trim().length === 0) throw new Error("Enter the room code.");
     this.topology = makeAnonymousTopology(this.graph().data, this.ids, ++this.revision);
     this.closed = false;
     this.opening = true;
-    try { await new Promise<void>((resolve, reject) => {
-      const ws = this.socket = new WebSocket(url);
-      const host = (() => { try { return new URL(url).host; } catch { return "the selected server"; } })();
-      let settled = false;
-      let timeout = 0;
-      const fail = (error: Error) => {
-        if (settled) return;
-        settled = true; window.clearTimeout(timeout); reject(error);
-      };
-      timeout = window.setTimeout(() => fail(new Error(`The room service at ${host} did not respond within 15 seconds.`)), 15_000);
-      ws.addEventListener("open", () => {
-        if (this.socket !== ws || this.closed) return;
-        ws.send(JSON.stringify(action === "create" ? { type: "create", protocol: ROOM_PROTOCOL, name: cleanName, profile } : { type: "join", protocol: ROOM_PROTOCOL, code: code.trim().toUpperCase(), name: cleanName, profile }));
-      });
-      ws.addEventListener("message", event => {
-        if (this.socket !== ws || this.closed) return;
-        let msg: SignalMessage;
-        try { msg = JSON.parse(String(event.data)) as SignalMessage; } catch { this.callbacks.status("The signaling service sent invalid data.", true); return; }
-        if (msg.type === "error") {
-          window.clearTimeout(timeout);
-          const error = this.roomServiceError(msg);
-          if (this.active) {
-            this.callbacks.status(error, true);
-            if (msg.code === "rate-limited") {
-              window.clearTimeout(this.iceRefreshTimer);
-              this.iceRefreshTimer = window.setTimeout(() => this.requestIceConfiguration(), 60_000);
-            }
-            return;
-          }
-          fail(new Error(error)); return;
-        }
-        if (msg.type === "created" || msg.type === "joined") {
-          if (settled) return;
-          const selfId = String(msg.selfId || ""), hostId = String(msg.hostId || ""), members = msg.members;
-          if (!/^[0-9a-f-]{36}$/i.test(selfId) || !/^[0-9a-f-]{36}$/i.test(hostId) || !validMembers(members)
-            || !members.some(p => p.id === selfId) || !members.some(p => p.id === hostId) || !Number.isSafeInteger(msg.epoch) || (msg.epoch as number) < 1
-            || typeof msg.code !== "string" || !/^[A-HJ-NP-Z2-9]{8}$/.test(msg.code)) {
-            fail(new Error("The signaling service returned invalid room details.")); return;
-          }
-          settled = true;
-          window.clearTimeout(timeout); this.selfId = selfId; this.hostId = hostId; this.roomCode = msg.code; this.epoch = msg.epoch as number;
-          this.relay = validIceServers(msg.iceServers);
-          this.iceExpiresAt = Number.isSafeInteger(msg.iceExpiresAt) ? Number(msg.iceExpiresAt) : 0;
-          this.relayStatus = this.readRelayStatus(msg.relayStatus, this.relay);
-          this.roster = members;
-          this.callbacks.members(this.roster, this.selfId, this.hostId, this.epoch);
-          this.createWorldIfHost();
-          for (const p of this.roster) if (p.id !== this.selfId) void this.connectPeer(p.id, true);
-          this.startLoops(); this.updatePeerStatus(); resolve();
-          return;
-        }
-        void this.onSignal(msg);
-      });
-      ws.addEventListener("error", () => {
-        const error = new Error(`Could not reach the room service at ${host}. Check your internet connection or try again later.`);
-        if (!settled) fail(error);
-        else if (this.socket === ws && this.active) this.callbacks.status(error.message, true);
-      });
-      ws.addEventListener("close", event => {
-        if (!settled) {
-          fail(new Error(this.closed ? `Connection to ${host} was canceled.`
-            : `The room service at ${host} closed the connection before joining (WebSocket code ${event.code}).`));
-        } else if (this.socket === ws && !this.closed && this.selfId) {
-          this.leave(`Signaling connection to ${host} closed (WebSocket code ${event.code}); you left the room.`);
-        }
-      });
-    }); } catch (error) {
+    this.directStartedAt = Date.now();
+    const room = this.publicRoom = new RelayRoom(url, {
+      roster: (members, selfId) => this.onRelayRoster(members, selfId),
+      signal: (from, data) => void this.onSignal({ type: "signal", from, data }),
+      status: (text, error) => this.callbacks.status(text, error),
+    }, undefined, this.post);
+    this.relay = [{ urls: "stun:stun.l.google.com:19302" }, { urls: "stun:stun.cloudflare.com:3478" }];
+    this.relayStatus = "direct-only";
+    try {
+      if (action === "create") await room.create(cleanName, profile);
+      else await room.join(code, cleanName, profile);
+      this.roomCode = room.code;
+      this.startLoops(); this.updatePeerStatus();
+    } catch (error) {
       this.leave(error instanceof Error ? error.message : "Room connection failed.");
       throw error;
     } finally { this.opening = false; }
+  }
+
+  private onRelayRoster(members: RoomMember[], selfId: string): void {
+    if (this.closed || !members.some(member => member.id === selfId)) return;
+    const oldIds = new Set(this.roster.map(member => member.id));
+    const oldHost = this.hostId;
+    const next = members.map(member => ({ ...member }));
+    const nextHost = [...next].sort((a, b) => a.joinedAt - b.joinedAt || a.id.localeCompare(b.id))[0]?.id ?? "";
+    this.selfId = selfId; this.roomCode = this.publicRoom?.code ?? this.roomCode;
+    this.roster = next;
+    if (!this.epoch) { this.epoch = 1; this.hostId = nextHost; this.authorityReady = true; }
+    else if (oldHost && nextHost !== oldHost) { this.hostId = nextHost; this.epoch++; this.authorityReady = false; this.authorityVotes.clear(); this.pendingAuthorityCommit = null; this.gameResumeAt = Date.now() + 700; }
+    else this.hostId = nextHost;
+    if (!oldHost || nextHost !== oldHost) this.lastHostPacketAt = Date.now();
+
+    for (const old of oldIds) if (!next.some(member => member.id === old)) {
+      this.removePeer(old); this.world?.remove(old); this.callbacks.removed(old);
+    }
+    if (this.isHost) {
+      for (const member of next) if (!this.world?.players.has(member.id)) { this.world?.add(member); this.world?.setProfile(member.id, member.profile); }
+      if (!this.world) this.restoreAuthority();
+    } else if (oldHost && this.hostId !== oldHost) this.world = null;
+    this.callbacks.members(this.roster, this.selfId, this.hostId, this.epoch);
+    for (const member of next) if (member.id !== selfId && !this.peers.has(member.id)) void this.connectPeer(member.id, selfId.localeCompare(member.id) < 0);
+    this.maybeStartAuthorityTransfer();
+    if (oldHost && this.hostId !== oldHost) this.callbacks.authority(this.hostId, this.epoch, this.lastCheckpoint?.state ?? null);
+    this.updatePeerStatus();
+  }
+
+  private restoreAuthority(): void {
+    if (!this.isHost) return;
+    const checkpoint = this.lastCheckpoint;
+    const oldEpoch = checkpoint?.state && typeof checkpoint.state === "object" && Number.isSafeInteger((checkpoint.state as { epoch?: unknown }).epoch)
+      ? Number((checkpoint.state as { epoch: number }).epoch) : this.epoch;
+    const restored = new CombatWorld(oldEpoch);
+    if (checkpoint && Date.now() - checkpoint.sentAt <= 15_000) restored.restore(checkpoint.state, Date.now(), Date.now() - checkpoint.sentAt);
+    for (const id of [...restored.players.keys()]) if (!this.roster.some(member => member.id === id)) restored.remove(id);
+    restored.epoch = this.epoch;
+    this.world = restored;
+    for (const member of this.roster) { this.world.add(member); this.world.setProfile(member.id, member.profile); }
+    this.startGameLoop();
   }
 
   private async connectPeer(id: string, offer: boolean): Promise<void> {
@@ -352,6 +364,9 @@ export class MultiplayerSession {
       if (pc.connectionState === "connected") { this.iceFailures.delete(id); this.updatePeerStatus(); }
       else if (pc.connectionState === "failed") { this.updatePeerStatus(); this.requestIceConfiguration(); this.schedulePeerRetry(id); }
       else if (pc.connectionState === "disconnected") this.schedulePeerRetry(id, 5000);
+    };
+    pc.onsignalingstatechange = () => {
+      if (state.restartAfterStable && pc.signalingState === "stable") void this.restartPeerIce(id, state);
     };
     if (offer) {
       this.bindChannel(id, pc.createDataChannel("constellation-control", { ordered: true }));
@@ -373,6 +388,7 @@ export class MultiplayerSession {
       if (dc.label === "constellation-control" && this.topology) this.queueTopology(id, this.topology);
       if (dc.label === "constellation-control" && this.isHost && this.world) this.sendReliable(id, { type: "round-state", epoch: this.epoch, state: this.world.roundSnapshot(Date.now()) });
       if (dc.label === "constellation-live") this.sendPositionsTo(id);
+      this.maybeStartAuthorityTransfer();
       this.updatePeerStatus();
     };
     dc.onmessage = event => {
@@ -472,10 +488,50 @@ export class MultiplayerSession {
   private onPeerMessage(id: string, data: unknown, lane: "control" | "live"): void {
     const peer = this.peers.get(id); if (!peer) return;
     if (lane === "control") {
-      if (typeof data !== "string" || data.length > 20_000) return;
+      if (typeof data !== "string" || data.length > 128_000) return;
       let msg: unknown; try { msg = JSON.parse(data); } catch { return; }
       if (!msg || typeof msg !== "object") return;
       const m = msg as Record<string, unknown>;
+      if (id === this.hostId && m.epoch === this.epoch) this.lastHostPacketAt = Date.now();
+      if (m.type === "authority-proposal" && id === m.hostId && this.validAuthorityMembers(m.members)) {
+        if (m.epoch === this.epoch && m.hostId === this.hostId && m.failure !== true) {
+          this.sendAuthorityVote(); return;
+        }
+        if (m.failure === true && m.baseEpoch === this.epoch && m.epoch === this.epoch + 1 && m.hostId === this.nextAuthorityCandidate()
+          && !this.controlReady(this.hostId) && Date.now() - this.lastHostPacketAt >= 6000) {
+          const previousHost = this.hostId;
+          this.hostId = String(m.hostId); this.epoch = Number(m.epoch); this.authorityReady = false; this.authorityVotes.clear(); this.pendingAuthorityCommit = null;
+          this.gameResumeAt = Date.now() + 700; this.lastHostPacketAt = Date.now();
+          if (this.isHost) this.restoreAuthority(); else this.world = null;
+          this.callbacks.members(this.roster, this.selfId, this.hostId, this.epoch);
+          this.callbacks.authority(this.hostId, this.epoch, this.lastCheckpoint?.state ?? null);
+          this.sendAuthorityVote();
+          this.callbacks.status(`The previous host (${this.memberName(previousHost)}) is unreachable. Confirming the next host with the room majority.`);
+          return;
+        }
+      }
+      if (m.type === "authority-vote" && !this.authorityReady && m.epoch === this.epoch && m.hostId === this.hostId
+        && m.voterId === id && this.roster.some(member => member.id === id) && this.validAuthorityMembers(m.members)
+        && this.sameAuthorityMembers(m.members)) {
+        this.authorityVotes.add(id);
+        this.tryCommitAuthority();
+        this.tryAcceptAuthorityCommit();
+        return;
+      }
+      if (m.type === "authority-commit" && id === this.hostId && m.epoch === this.epoch && this.validAuthorityMembers(m.members) && this.sameAuthorityMembers(m.members)) {
+        this.pendingAuthorityCommit = { epoch: this.epoch, hostId: this.hostId, members: [...m.members as string[]] };
+        this.tryAcceptAuthorityCommit(); return;
+      }
+      if (m.type === "checkpoint" && id === this.hostId && m.epoch === this.epoch && Number.isSafeInteger(m.sentAt)
+        && m.state && typeof m.state === "object") {
+        const sentAt = Number(m.sentAt), age = Date.now() - sentAt;
+        if (age < 0 || age > 15_000) return;
+        const checkEpoch = Number((m.state as { epoch?: unknown }).epoch);
+        if (!Number.isSafeInteger(checkEpoch) || checkEpoch < 1) return;
+        const probe = new CombatWorld(checkEpoch);
+        if (probe.restore(m.state, Date.now(), age)) this.lastCheckpoint = { state: m.state, sentAt };
+        return;
+      }
       if (m.type === "round-state" && id === this.hostId && m.epoch === this.epoch && validRoundSnapshot(m.state, this.epoch)) {
         const state = m.state;
         if (state.roundId < this.lastRoundId) return;
@@ -493,10 +549,10 @@ export class MultiplayerSession {
         this.callbacks.shotResult?.(m.sequence as number, m.accepted); return;
       }
       if (m.type === "navigate" && this.isHost && m.epoch === this.epoch && this.validNavigationTarget(m.target)) { this.startRequestedTravel(id, m.target); return; }
-      if (m.type === "fire" && this.isHost && m.epoch === this.epoch && Number.isSafeInteger(m.sequence) && Number.isInteger(m.gun)
+      if (m.type === "fire" && this.isHost && m.epoch === this.epoch && Number.isSafeInteger(m.sequence) && Number.isInteger(m.gun) && (m.weapon === 0 || m.weapon === 1)
         && Array.isArray(m.aimPoint) && m.aimPoint.length === 3 && m.aimPoint.every(v => typeof v === "number" && Number.isFinite(v))) {
         const sequence = m.sequence as number;
-        const accepted = this.world?.fireShot(id, sequence, m.gun as number, Date.now(), m.aimPoint as [number, number, number]) ?? false;
+        const accepted = this.world?.fireShot(id, sequence, m.gun as number, Date.now(), m.aimPoint as [number, number, number], m.weapon) ?? false;
         this.sendReliable(id, { type: "shot-result", epoch: this.epoch, sequence, accepted }); return;
       }
       if (m.type !== "topology-chunk" || !Number.isSafeInteger(m.revision) || (m.revision as number) < 1
@@ -588,7 +644,7 @@ export class MultiplayerSession {
     if (!value || typeof value !== "object") return false;
     const s = value as ShotSnapshot;
     return typeof s.id === "string" && s.id.length <= 64 && typeof s.ownerId === "string" && s.ownerId.length <= 64
-      && Number.isInteger(s.gun) && s.gun >= 0 && s.gun <= 3
+      && Number.isInteger(s.gun) && s.gun >= 0 && s.gun <= 3 && (s.weapon === 0 || s.weapon === 1)
       && Array.isArray(s.origin) && s.origin.length === 3 && s.origin.every(v => Number.isFinite(v) && Math.abs(v) <= MAX_COORDINATE)
       && Array.isArray(s.position) && s.position.length === 3 && s.position.every(v => Number.isFinite(v) && Math.abs(v) <= MAX_COORDINATE)
       && Array.isArray(s.direction) && s.direction.length === 3 && s.direction.every(v => Number.isFinite(v) && Math.abs(v) <= 1.01)
@@ -604,7 +660,7 @@ export class MultiplayerSession {
   private validInput(value: unknown): value is FlightInput {
     if (!value || typeof value !== "object") return false;
     const x = value as FlightInput;
-    return [x.thrust, x.strafe, x.lift, x.roll, x.pitch, x.yaw].every(v => Number.isFinite(v) && Math.abs(v) <= 1) && [x.boost, x.brake, x.fire, x.active].every(v => typeof v === "boolean");
+    return [x.thrust, x.strafe, x.lift, x.roll, x.pitch, x.yaw].every(v => Number.isFinite(v) && Math.abs(v) <= 1) && [x.boost, x.brake, x.fire, x.active].every(v => typeof v === "boolean") && (x.weapon === 0 || x.weapon === 1);
   }
   private validPose(value: unknown): value is Pose {
     if (!value || typeof value !== "object") return false;
@@ -612,26 +668,40 @@ export class MultiplayerSession {
     return Array.isArray(p.position) && p.position.length === 3 && p.position.every(v => Number.isFinite(v) && Math.abs(v) <= MAX_COORDINATE)
       && Array.isArray(p.rotation) && p.rotation.length === 4 && p.rotation.every(Number.isFinite)
       && Array.isArray(p.velocity) && p.velocity.length === 3 && p.velocity.every(v => Number.isFinite(v) && Math.abs(v) <= 20_000)
-      && Number.isFinite(p.health) && p.health >= 0 && p.health <= 100 && Number.isFinite(p.energy) && p.energy >= 0 && p.energy <= 1 && typeof p.boostLocked === "boolean"
+      && Number.isFinite(p.health) && p.health >= 0 && p.health <= 100 && Number.isFinite(p.shields) && p.shields >= 0 && p.shields <= 40
+      && Number.isFinite(p.energy) && p.energy >= 0 && p.energy <= 1 && typeof p.boostLocked === "boolean"
       && Number.isFinite(p.boostHold) && p.boostHold >= 0 && p.boostHold <= 3 && Number.isFinite(p.regenDelay) && p.regenDelay >= 0 && p.regenDelay <= 1.5
+      && Number.isFinite(p.damagePause) && p.damagePause >= 0 && p.damagePause <= 2
+      && (p.weapon === 0 || p.weapon === 1) && Number.isFinite(p.heat) && p.heat >= 0 && p.heat <= 1 && typeof p.overheated === "boolean"
+      && Number.isInteger(p.ammunition) && p.ammunition >= 0 && p.ammunition <= 36 && Number.isFinite(p.weaponCooldown) && p.weaponCooldown >= 0 && p.weaponCooldown <= 500
+      && Number.isInteger(p.deaths) && p.deaths >= 0
       && typeof p.active === "boolean" && Number.isFinite(p.respawnAt) && Number.isFinite(p.protectedUntil)
       && Number.isFinite(p.thrust) && p.thrust >= 0 && p.thrust <= 3 && typeof p.boosting === "boolean"
       && Number.isFinite(p.bank) && Math.abs(p.bank) <= 0.56 && Number.isFinite(p.tilt) && Math.abs(p.tilt) <= 0.41;
   }
 
   private startLoops(): void {
-    window.clearInterval(this.sendTimer); window.clearInterval(this.checkpointTimer); window.clearInterval(this.topologyTimer); window.clearTimeout(this.iceRefreshTimer);
+    window.clearInterval(this.sendTimer); window.clearInterval(this.checkpointTimer); window.clearInterval(this.topologyTimer); window.clearInterval(this.authorityMonitorTimer); window.clearTimeout(this.iceRefreshTimer);
     this.sendTimer = window.setInterval(() => this.sendPositions(), 100);
     this.topologyTimer = window.setInterval(() => this.pumpTopologies(), 8);
+    this.authorityMonitorTimer = window.setInterval(() => this.monitorAuthority(), 1000);
     this.checkpointTimer = window.setInterval(() => {
-      if (this.isHost && this.world && this.socket?.readyState === WebSocket.OPEN) this.socket.send(JSON.stringify({ type: "checkpoint", epoch: this.epoch, state: this.world.snapshot(Date.now()) }));
+      if (this.isHost && this.world) {
+        const sentAt = Date.now(), state = this.world.snapshot(sentAt);
+        this.lastCheckpoint = { state, sentAt };
+        this.sendReliableAll({ type: "checkpoint", epoch: this.epoch, sentAt, state });
+      }
     }, 200);
-    this.scheduleIceRefresh();
+    window.clearTimeout(this.iceFallbackTimer);
+    this.iceFallbackTimer = window.setTimeout(() => {
+      if (this.active && [...this.peers.values()].some(peer => peer.pc.connectionState !== "connected")) this.requestIceConfiguration();
+    }, 8000);
     this.createWorldIfHost();
   }
 
   private createWorldIfHost(): void {
     if (!this.isHost) { this.world = null; return; }
+    if (this.world?.epoch === this.epoch) return;
     this.world = new CombatWorld(this.epoch);
     this.lastRoundWireKey = ""; this.lastRoundId = 0; this.lastRoundSendAt = 0; this.seenEliminations.clear();
     for (const member of this.roster) { this.world.add(member); this.world.setProfile(member.id, member.profile); }
@@ -672,12 +742,57 @@ export class MultiplayerSession {
 
   private requestIceConfiguration(): void {
     const now = Date.now();
-    if (now - this.lastIceRequestAt < 20_000) return;
-    if (this.socket?.readyState === WebSocket.OPEN && this.active) {
-      try { this.socket.send(JSON.stringify({ type: "ice-refresh" })); this.lastIceRequestAt = now; } catch { /* socket may be closing */ }
+    if (!this.active || !this.request || this.iceRequesting) return;
+    const directWait = this.directStartedAt + 8000 - now;
+    if (directWait > 0) {
+      window.clearTimeout(this.iceFallbackTimer);
+      this.iceFallbackTimer = window.setTimeout(() => this.requestIceConfiguration(), directWait);
+      return;
     }
+    if (now - this.lastIceRequestAt < 20_000) return;
+    this.lastIceRequestAt = now;
+    this.iceRequesting = true;
+    void this.fetchIceConfiguration().catch(() => {
+      this.relayStatus = "unavailable";
+      this.callbacks.status("TURN relay setup failed. Direct peer connections are still being tried.", true);
+      this.scheduleIceRefresh();
+    }).finally(() => { this.iceRequesting = false; });
   }
 
+  private async fetchIceConfiguration(): Promise<void> {
+    const request = this.request;
+    if (!request) return;
+    const renewToken = async (): Promise<boolean> => {
+      const response = await request(TURN_SESSION_URL);
+      if (response.status === 429) {
+        this.callbacks.status("TURN setup is rate-limited. Direct peer connections are still being tried; retrying shortly.", true);
+        return false;
+      }
+      const body = response.body && typeof response.body === "object" ? response.body as Record<string, unknown> : {};
+      if (response.status < 200 || response.status >= 300 || typeof body.token !== "string" || !/^[0-9a-f]{64}$/i.test(body.token)
+        || !Number.isSafeInteger(body.expiresAt) || Number(body.expiresAt) <= Date.now()) return false;
+      this.iceRefreshToken = body.token;
+      this.iceRefreshTokenExpiresAt = Number(body.expiresAt);
+      return true;
+    };
+    if (!this.iceRefreshToken || this.iceRefreshTokenExpiresAt <= Date.now() + 60_000) {
+      if (!await renewToken()) { this.relayStatus = "unavailable"; this.scheduleIceRefresh(); return; }
+    }
+    let response = await request(TURN_CONFIGURATION_URL, this.iceRefreshToken);
+    // A cold Durable Object may forget its in-memory session. Renew once on 401.
+    if (response.status === 401 && await renewToken()) response = await request(TURN_CONFIGURATION_URL, this.iceRefreshToken);
+    const msg = response.body && typeof response.body === "object" ? response.body as Record<string, unknown> : {};
+    if (response.status === 429) { this.relayStatus = "unavailable"; this.callbacks.status("TURN setup is rate-limited. Direct peer connections are still being tried; retrying shortly.", true); this.scheduleIceRefresh(); return; }
+    if (response.status < 200 || response.status >= 300) { this.relayStatus = "unavailable"; this.callbacks.status("TURN relay setup is unavailable. Direct peer connections are still being tried.", true); this.scheduleIceRefresh(); return; }
+    const servers = validIceServers(msg.iceServers), expiresAt = Number.isSafeInteger(msg.iceExpiresAt) ? Number(msg.iceExpiresAt) : 0;
+    const status = this.readRelayStatus(msg.relayStatus, servers), changed = JSON.stringify(servers) !== JSON.stringify(this.relay) || expiresAt !== this.iceExpiresAt;
+    this.relay = servers; this.iceExpiresAt = expiresAt; this.relayStatus = status;
+    if (changed && status === "ready") await this.applyIceConfiguration();
+    if (status === "quota") this.callbacks.status("The free TURN relay allowance is exhausted. Direct peer connections may still work.", true);
+    else if (status === "unavailable") this.callbacks.status("TURN relay setup is unavailable. Direct peer connections are still being tried.", true);
+    else if (status === "pending") this.callbacks.status("Preparing relay access; direct connections are being tried.");
+    this.scheduleIceRefresh(); this.updatePeerStatus();
+  }
   private scheduleIceRefresh(): void {
     window.clearTimeout(this.iceRefreshTimer);
     if (!this.active) return;
@@ -691,14 +806,28 @@ export class MultiplayerSession {
       try {
         peer.pc.setConfiguration({ ...peer.pc.getConfiguration(), iceServers: this.relay });
         if (peer.pc.connectionState === "failed") { this.schedulePeerRetry(id); continue; }
-        if (this.selfId.localeCompare(id) < 0 && peer.pc.connectionState === "connected" && peer.pc.signalingState === "stable") {
-          peer.pc.restartIce();
-          const offer = await peer.pc.createOffer({ iceRestart: true });
-          await peer.pc.setLocalDescription(offer);
-          this.signal(id, { description: peer.pc.localDescription });
-        }
+        // Only the deterministic offerer starts an ICE restart. Do it for
+        // pending direct connections too, otherwise a peer that needs TURN
+        // remains stuck on its original STUN-only checklist forever.
+        if (this.selfId.localeCompare(id) < 0) await this.restartPeerIce(id, peer);
       } catch { this.schedulePeerRetry(id); }
     }
+  }
+
+  private async restartPeerIce(id: string, peer: NonNullable<ReturnType<typeof this.peers.get>>): Promise<void> {
+    if (!this.active || this.peers.get(id) !== peer || this.selfId.localeCompare(id) >= 0) return;
+    if (peer.pc.connectionState === "closed" || peer.pc.connectionState === "failed") { this.schedulePeerRetry(id); return; }
+    if (peer.pc.signalingState !== "stable") { peer.restartAfterStable = true; return; }
+    if (peer.iceRestarting) return;
+    peer.iceRestarting = true;
+    peer.restartAfterStable = false;
+    try {
+      peer.pc.restartIce();
+      const offer = await peer.pc.createOffer({ iceRestart: true });
+      await peer.pc.setLocalDescription(offer);
+      if (peer.pc.localDescription) this.signal(id, { description: peer.pc.localDescription });
+    } catch { this.schedulePeerRetry(id); }
+    finally { peer.iceRestarting = false; }
   }
 
   private reportIceError(id: string, event: Event): void {
@@ -737,6 +866,7 @@ export class MultiplayerSession {
     this.gameTimer = window.setInterval(() => {
       if (!this.isHost || !this.world) return;
       const now = Date.now();
+      if (!this.authorityReady) { this.lastGameStep = now; return; }
       if (now < this.gameResumeAt) { this.lastGameStep = now; return; }
       const dt = Math.max(0.001, Math.min(0.05, (now - this.lastGameStep) / 1000)); this.lastGameStep = now;
       this.world.step(dt, now);
@@ -796,6 +926,73 @@ export class MultiplayerSession {
       this.lastRoundSendAt = now;
       this.sendReliableAll({ type: "round-state", epoch: this.epoch, state });
     }
+  }
+
+  private authorityMembers(): string[] { return this.roster.map(member => member.id).sort(); }
+  private validAuthorityMembers(value: unknown): value is string[] {
+    return Array.isArray(value) && value.length === this.roster.length && value.length >= 1 && value.length <= 4
+      && value.every((id, index) => typeof id === "string" && /^[0-9a-f-]{36}$/i.test(id) && (index === 0 || value[index - 1] < id))
+      && this.sameAuthorityMembers(value);
+  }
+  private sameAuthorityMembers(value: string[]): boolean {
+    const expected = this.authorityMembers(); return value.length === expected.length && value.every((id, index) => id === expected[index]);
+  }
+  private nextAuthorityCandidate(): string {
+    return [...this.roster].sort((a, b) => a.joinedAt - b.joinedAt || a.id.localeCompare(b.id)).find(member => member.id !== this.hostId)?.id ?? "";
+  }
+  private sendAuthorityVote(): void {
+    if (!this.hostId || !this.selfId || !this.authorityMembers().includes(this.selfId)) return;
+    this.authorityVotes.add(this.selfId);
+    this.sendReliableAll({ type: "authority-vote", epoch: this.epoch, hostId: this.hostId, voterId: this.selfId, members: this.authorityMembers() });
+    this.tryCommitAuthority();
+  }
+  private tryCommitAuthority(): void {
+    if (!this.active || !this.isHost || this.authorityReady || this.authorityVotes.size < Math.floor(this.roster.length / 2) + 1) return;
+    this.authorityReady = true; this.gameResumeAt = Date.now() + 250; this.lastHostPacketAt = Date.now(); this.pendingAuthorityCommit = null;
+    this.sendReliableAll({ type: "authority-commit", epoch: this.epoch, hostId: this.selfId, members: this.authorityMembers() });
+    this.callbacks.status("Room authority is confirmed; flight has resumed.");
+  }
+  private tryAcceptAuthorityCommit(): void {
+    const commit = this.pendingAuthorityCommit;
+    if (this.isHost || !commit || commit.epoch !== this.epoch || commit.hostId !== this.hostId || this.authorityVotes.size < Math.floor(this.roster.length / 2) + 1) return;
+    this.pendingAuthorityCommit = null; this.authorityReady = true; this.gameResumeAt = Date.now() + 250; this.lastHostPacketAt = Date.now();
+    this.callbacks.status("Room authority is confirmed; flight has resumed.");
+  }
+  private monitorAuthority(): void {
+    if (!this.active) return;
+    const now = Date.now(), quorum = Math.floor(this.roster.length / 2) + 1;
+    if (this.isHost) {
+      const connected = 1 + this.roster.filter(member => member.id !== this.selfId && this.controlReady(member.id)).length;
+      if (this.authorityReady && connected < quorum) {
+        this.authorityReady = false; this.authorityVotes.clear(); this.pendingAuthorityCommit = null;
+        this.callbacks.status("The peer network is split. Flight and combat are paused until a room majority reconnects.", true);
+      } else if (!this.authorityReady && connected >= quorum) this.maybeStartAuthorityTransfer();
+      return;
+    }
+    if (now - this.lastHostPacketAt < 6000 || this.controlReady(this.hostId)) return;
+    if (this.authorityReady) {
+      this.authorityReady = false; this.callbacks.status("The host is unreachable. Flight and combat are paused while the room checks for a majority.", true);
+    }
+    if (this.nextAuthorityCandidate() !== this.selfId || this.epoch >= Number.MAX_SAFE_INTEGER) return;
+    if (!this.lastCheckpoint || now - this.lastCheckpoint.sentAt > 15_000) {
+      this.callbacks.status("Host recovery is waiting for a recent room checkpoint.", true); return;
+    }
+    const baseEpoch = this.epoch;
+    this.hostId = this.selfId; this.epoch++; this.authorityReady = false; this.authorityVotes.clear(); this.pendingAuthorityCommit = null;
+    this.gameResumeAt = now + 700; this.lastHostPacketAt = now;
+    this.restoreAuthority();
+    this.callbacks.members(this.roster, this.selfId, this.hostId, this.epoch);
+    this.callbacks.authority(this.hostId, this.epoch, this.lastCheckpoint.state);
+    const members = this.authorityMembers();
+    this.sendReliableAll({ type: "authority-proposal", epoch: this.epoch, hostId: this.selfId, members, failure: true, baseEpoch });
+    this.sendAuthorityVote();
+    this.callbacks.status("The previous host is unreachable. Confirming the next host with the room majority.");
+  }
+  private maybeStartAuthorityTransfer(): void {
+    if (!this.active || !this.isHost || this.authorityReady || !this.world) return;
+    this.authorityVotes.add(this.selfId);
+    this.sendReliableAll({ type: "authority-proposal", epoch: this.epoch, hostId: this.selfId, members: this.authorityMembers() });
+    this.sendAuthorityVote();
   }
 
   private currentTopologyRevision(id: string): number {
@@ -878,12 +1075,12 @@ export class MultiplayerSession {
     if (this.isHost) this.world?.setInput(this.selfId, input, Date.now());
     else this.sendTo(this.hostId, { type: "input", epoch: this.epoch, input });
   }
-  fire(sequence: number, gun: number, aimPoint: [number, number, number]): void {
+  fire(sequence: number, gun: number, weapon: 0 | 1, aimPoint: [number, number, number]): void {
     if (!this.active || !Number.isSafeInteger(sequence) || sequence < 1 || !Number.isInteger(gun) || gun < 0 || gun > 3) return;
     const now = Date.now();
     if (!aimPoint.every(Number.isFinite) || aimPoint.some(v => Math.abs(v) > MAX_COORDINATE)) return;
-    if (this.isHost) this.callbacks.shotResult?.(sequence, this.world?.fireShot(this.selfId, sequence, gun, now, aimPoint) ?? false);
-    else this.sendReliable(this.hostId, { type: "fire", epoch: this.epoch, sequence, gun, aimPoint });
+    if (this.isHost) this.callbacks.shotResult?.(sequence, this.world?.fireShot(this.selfId, sequence, gun, now, aimPoint, weapon) ?? false);
+    else this.sendReliable(this.hostId, { type: "fire", epoch: this.epoch, sequence, gun, weapon, aimPoint });
   }
 
   requestFastTravel(target: NavigationTarget): void {
@@ -931,7 +1128,7 @@ export class MultiplayerSession {
     const ch = this.peers.get(id)?.live; if (!ch || ch.readyState !== "open" || ch.bufferedAmount > 512_000) return;
     try { ch.send(JSON.stringify(message)); } catch { /* the peer may have closed during a frame */ }
   }
-  private signal(to: string, data: object): void { if (this.socket?.readyState === WebSocket.OPEN) this.socket.send(JSON.stringify({ type: "signal", to, data })); }
+  private signal(to: string, data: object): void { this.publicRoom?.signal(to, data); }
   private memberName(id: string): string { return this.roster.find(p => p.id === id)?.name ?? "player"; }
   private removePeer(id: string): void {
     this.iceFailures.delete(id);
@@ -942,16 +1139,16 @@ export class MultiplayerSession {
 
   leave(message = "Left the room."): void {
     if (this.closed) return;
-    this.closed = true; window.clearInterval(this.sendTimer); window.clearInterval(this.checkpointTimer); window.clearInterval(this.topologyTimer); window.clearTimeout(this.iceRefreshTimer); window.clearTimeout(this.authorityTimer);
+    this.closed = true; window.clearInterval(this.sendTimer); window.clearInterval(this.checkpointTimer); window.clearInterval(this.topologyTimer); window.clearInterval(this.authorityMonitorTimer); window.clearTimeout(this.iceRefreshTimer); window.clearTimeout(this.authorityTimer);
     window.clearInterval(this.gameTimer); this.world = null;
     for (const timer of this.retryTimers.values()) window.clearTimeout(timer);
     this.retryTimers.clear();
     for (const id of [...this.peers.keys()]) this.removePeer(id);
     this.iceFailures.clear();
-    const ws = this.socket; this.socket = null;
-    if (ws) { if (ws.readyState === WebSocket.OPEN) { try { ws.send(JSON.stringify({ type: "leave" })); } catch { /* closing anyway */ } } ws.close(); }
+    const room = this.publicRoom; this.publicRoom = null; room?.leave(); this.socket = null;
     const self = this.selfId; this.roomCode = ""; this.selfId = ""; this.hostId = ""; this.roster = []; this.topology = null; this.ids.clear(); this.revision = 0;
-    this.relay = []; this.iceExpiresAt = 0; this.relayStatus = "pending"; this.lastIceRequestAt = 0;
+    this.relay = []; this.iceExpiresAt = 0; this.relayStatus = "pending"; this.lastIceRequestAt = 0; this.directStartedAt = 0; this.lastCheckpoint = null;
+    this.iceRefreshToken = ""; this.iceRefreshTokenExpiresAt = 0; this.iceRequesting = false; window.clearTimeout(this.iceFallbackTimer);
     this.lastShipSequence.clear(); this.lastShotSequence = 0; this.stateSequence = 0; this.positionSequence = 0;
     this.lastRoundId = 0; this.lastRoundWireKey = ""; this.lastRoundSendAt = 0; this.seenEliminations.clear();
     this.callbacks.shotState([], []);

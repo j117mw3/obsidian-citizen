@@ -51,6 +51,10 @@ export interface SimNode extends RawNode {
 /** What the view needs from its host (Obsidian, or the dev harness). */
 export interface Host {
   openNote(id: string, newTab: boolean): void;
+  /** Send small room-discovery messages through Obsidian's native HTTP adapter. */
+  post?(url: string, body: string): Promise<number>;
+  /** Read the backend's short-lived ICE relay configuration through Obsidian's native HTTP adapter. */
+  request?(url: string, token?: string): Promise<{ status: number; body: unknown }>;
   updateSettings?(patch: Partial<ConstellationSettings>): void;
 }
 
@@ -69,7 +73,7 @@ export interface RendererCallbacks {
   onNetworkFrame?(input: FlightInput): void;
   onNavigationTarget?(target: NavigationTarget | null): void;
   onFastTravel?(target: NavigationTarget): void;
-  onFire?(sequence: number, gun: number, aimPoint: [number, number, number]): void;
+  onFire?(sequence: number, gun: number, weapon: 0 | 1, aimPoint: [number, number, number]): void;
 }
 
 /** The 3D renderer and the list-only fallback expose the same surface, so the UI never has to care which it has. */

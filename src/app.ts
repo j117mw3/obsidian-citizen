@@ -2,7 +2,9 @@ import { ConstellationRenderer, webglAvailable } from "./renderer";
 import { FallbackRenderer } from "./fallback";
 import type { GraphData, GraphRenderer, Host, RendererCallbacks } from "./types";
 import { ConstellationSettings, effectiveHighContrast, effectiveMotion, prefersReducedMotion } from "./settings";
-import { HOSTED_SIGNALING_URL, MultiplayerSession, type AnonymousPlayer, type GameMessage, type Pose } from "./multiplayer";
+import { MultiplayerSession, type AnonymousPlayer, type GameMessage, type Pose } from "./multiplayer";
+import { formatRoomCode } from "./netcrypto";
+import { DEFAULT_RELAY } from "./relay";
 import type { EliminationEvent, RoundSnapshot } from "./rounds";
 import { version as CLIENT_VERSION } from "../manifest.json";
 import { PilotHangar } from "./hangar";
@@ -50,6 +52,9 @@ export class ConstellationApp {
   private novaBtn: HTMLButtonElement;
   private pilotBtn: HTMLButtonElement;
   private hangarBtn: HTMLButtonElement;
+  private scoresBtn: HTMLButtonElement;
+  private scoreBoard: HTMLElement;
+  private scoresOpen = false;
   private hangar!: PilotHangar;
   private multiplayerBtn: HTMLButtonElement;
   private multiplayerPanel: HTMLElement;
@@ -69,6 +74,7 @@ export class ConstellationApp {
   private killFeed: HTMLElement;
   private roundNotice: HTMLElement;
   private roundState: RoundSnapshot | null = null;
+  private scoreNames = new Map<string, string>();
   private roundReceivedAt = 0;
   private lastNovaRound = 0;
   private roundRefreshTimer = 0;
@@ -106,12 +112,12 @@ export class ConstellationApp {
       onNetworkFrame: input => this.network?.sendInput(input),
       onNavigationTarget: target => { if (this.inRoom) this.multiplayerStatus.textContent = target ? `Star marked. ${this.renderer.pilotActive ? "Press G to travel there." : "Enter Pilot mode (P), then press G to travel."}` : "Navigation target cleared."; },
       onFastTravel: target => this.network?.requestFastTravel(target),
-      onFire: (sequence, gun, aimPoint) => this.network?.fire(sequence, gun, aimPoint),
+      onFire: (sequence, gun, weapon, aimPoint) => this.network?.fire(sequence, gun, weapon, aimPoint),
     };
     let made: GraphRenderer | null = null;
     if (webglAvailable()) {
       try { made = new ConstellationRenderer(this.stage, callbacks, settings); }
-      catch (e) { console.warn("Constellation Graph: the 3D view could not start", e); }
+      catch (e) { console.warn("Obsidian Citizen: the 3D view could not start", e); }
     }
     this.flat = !made;
     this.renderer = made ?? new FallbackRenderer(callbacks);
@@ -131,6 +137,8 @@ export class ConstellationApp {
     this.pilotBtn = this.button("cg-btn", "Pilot mode: fly through your notes (P)", "\u2708\uFE0E");
     this.pilotBtn.setAttribute("aria-pressed", "false");
     this.hangarBtn = this.button("cg-btn", "Spacecraft hangar", "\u2699");
+    this.scoresBtn = this.button("cg-btn", "Toggle multiplayer scoreboard (Tab)", "Scores");
+    this.scoresBtn.hidden = true;
     this.listBtn = this.button("cg-btn", "Show note list", "\u2630");
     this.listBtn.setAttribute("aria-expanded", "false");
     this.helpBtn = this.button("cg-btn", "Keyboard help", "?");
@@ -138,7 +146,7 @@ export class ConstellationApp {
     this.helpBtn.setAttribute("aria-controls", this.helpId);
     this.multiplayerBtn = this.button("cg-btn", "Multiplayer rooms", "\u2726");
     this.multiplayerBtn.setAttribute("aria-expanded", "false");
-    top.append(this.search, this.pauseBtn, resetBtn, this.animBtn, this.novaBtn, this.pilotBtn, this.hangarBtn, this.multiplayerBtn, this.listBtn, this.helpBtn);
+    top.append(this.search, this.pauseBtn, resetBtn, this.animBtn, this.novaBtn, this.pilotBtn, this.hangarBtn, this.scoresBtn, this.multiplayerBtn, this.listBtn, this.helpBtn);
     if (this.flat) { this.pauseBtn.hidden = true; resetBtn.hidden = true; this.animBtn.hidden = true; this.novaBtn.hidden = true; this.pilotBtn.hidden = true; }
     this.root.appendChild(top);
     this.multiplayerPanel = el("aside", "cg-multiplayer", { "aria-label": "Multiplayer room" });
@@ -159,7 +167,7 @@ export class ConstellationApp {
     this.multiplayerPanel.appendChild(consentLabel);
     const roomActions = el("div", "cg-multiplayer-actions");
     const createRoom = this.button("cg-btn", "Create a room", "Create room");
-    this.multiplayerCode = el("input", "cg-multiplayer-code", { type: "text", placeholder: "8-character code", maxlength: "8", "aria-label": "Room code", autocomplete: "off", spellcheck: "false" });
+    this.multiplayerCode = el("input", "cg-multiplayer-code", { type: "text", placeholder: "ABCDE-FGHJK", maxlength: "14", "aria-label": "Room code", autocomplete: "off", spellcheck: "false" });
     const joinRoom = this.button("cg-btn", "Join a room", "Join");
     const copyRoom = this.button("cg-btn", "Copy room code", "Copy code");
     const leaveRoom = this.button("cg-btn", "Leave room", "Leave");
@@ -173,7 +181,8 @@ export class ConstellationApp {
     this.root.append(this.stats, this.motionNote);
     this.killFeed = el("div", "cg-killfeed", { "aria-hidden": "true" }); this.killFeed.hidden = true;
     this.roundNotice = el("div", "cg-round-notice", { role: "status", "aria-live": "off" }); this.roundNotice.hidden = true;
-    this.root.append(this.killFeed, this.roundNotice);
+    this.scoreBoard = el("aside", "cg-board", { role: "region", "aria-label": "Multiplayer scoreboard" }); this.scoreBoard.hidden = true;
+    this.root.append(this.killFeed, this.roundNotice, this.scoreBoard);
 
     this.legend = el("ul", "cg-legend", { "aria-label": "Groups. Toggle to show or hide." });
     this.root.appendChild(this.legend);
@@ -211,6 +220,7 @@ export class ConstellationApp {
     resetBtn.addEventListener("click", () => this.renderer.resetView());
     this.listBtn.addEventListener("click", () => this.toggleList());
     this.animBtn.addEventListener("click", () => this.renderer.animate());
+    this.scoresBtn.addEventListener("click", () => this.toggleScores(!this.scoresOpen));
     this.novaBtn.addEventListener("click", () => this.renderer.supernova());
     this.pilotBtn.addEventListener("click", () => this.togglePilot());
     this.hangarBtn.addEventListener("click", () => this.openHangar());
@@ -264,7 +274,7 @@ export class ConstellationApp {
       elimination: event => this.onElimination(event),
       removed: id => { if (id) { this.renderer.removeRemote(id); this.remoteIds.delete(id); } },
       authority: (_hostId, _epoch, _checkpoint) => { this.multiplayerStatus.textContent = "Room authority transferred. Reconnecting the shared session…"; },
-    }, () => ({ data: this.data, nodes: this.renderer.nodes }), () => this.roomServiceUrl());
+    }, () => ({ data: this.data, nodes: this.renderer.nodes }), () => this.roomServiceUrl(), this.host.post, this.host.request);
     this.roundRefreshTimer = window.setInterval(() => this.refreshRoundDisplay(), 250);
   }
 
@@ -340,7 +350,7 @@ export class ConstellationApp {
       this.host.updateSettings?.({ multiplayerName: name });
       if (action === "create") await this.network.create(name, this.pilotProfile());
       else await this.network.join(this.multiplayerCode.value, name, this.pilotProfile());
-      this.multiplayerCode.value = this.network.room;
+      this.multiplayerCode.value = formatRoomCode(this.network.room);
       this.network.setLocalGraph(this.data);
     } catch (e) {
       this.multiplayerStatus.textContent = e instanceof Error ? e.message : "Could not connect to the room.";
@@ -349,23 +359,23 @@ export class ConstellationApp {
   }
 
   private roomServiceUrl(): string {
-    return this.settings.multiplayerConnectionMode === "hosted" ? HOSTED_SIGNALING_URL : this.settings.multiplayerCustomServerUrl;
+    return this.settings.multiplayerConnectionMode === "custom" ? this.settings.multiplayerRelayUrl : DEFAULT_RELAY;
   }
 
   private updateRoomServiceInfo(): void {
     let server = "not configured";
     try { server = new URL(this.roomServiceUrl()).host; } catch { /* settings explain invalid custom URLs */ }
-    const mode = this.settings.multiplayerConnectionMode === "hosted" ? "Hosted rooms" : "Custom server";
+    const mode = this.settings.multiplayerConnectionMode === "custom" ? "Custom public relay" : "Public relay";
     // The version is bundled into main.js, so this identifies the code actually
     // loaded by Obsidian even if a different manifest was copied beside it.
     // Show only the host: custom URL credentials and query tokens stay private.
-    this.multiplayerService.textContent = `Version ${CLIENT_VERSION} · ${mode}\nServer: ${server}`;
+    this.multiplayerService.textContent = `Version ${CLIENT_VERSION} · ${mode}\nRelay: ${server} · game traffic uses direct peer connections`;
   }
 
   private async copyRoomCode(): Promise<void> {
     if (!this.network?.room) { this.multiplayerStatus.textContent = "Create or join a room first."; return; }
-    try { await navigator.clipboard.writeText(this.network.room); this.multiplayerStatus.textContent = "Room code copied."; }
-    catch { this.multiplayerCode.value = this.network.room; this.multiplayerCode.select(); this.multiplayerStatus.textContent = "Select and copy the room code."; }
+    try { await navigator.clipboard.writeText(formatRoomCode(this.network.room)); this.multiplayerStatus.textContent = "Room code copied."; }
+    catch { this.multiplayerCode.value = formatRoomCode(this.network.room); this.multiplayerCode.select(); this.multiplayerStatus.textContent = "Select and copy the room code."; }
   }
 
   private onMembers(members: AnonymousPlayer[], selfId: string): void {
@@ -373,6 +383,7 @@ export class ConstellationApp {
     this.playerRows.clear();
     for (const id of this.playerStates.keys()) if (!members.some(member => member.id === id)) this.playerStates.delete(id);
     for (const member of members) {
+      this.scoreNames.set(member.id, member.name);
       const label = member.id === selfId ? `${member.name} (you)` : member.name;
       const row = el("li", "cg-player-row"); row.dataset.name = label.slice(0, 32);
       const name = el("span", "cg-player-name", {}, label.slice(0, 32));
@@ -384,6 +395,7 @@ export class ConstellationApp {
       if (pose) this.updatePlayerRow(member.id, pose);
     }
     const joined = !!selfId;
+    this.scoresBtn.hidden = !joined;
     this.renderer.setPlayerNames(new Map(members.filter(member => member.id !== selfId).map(member => [member.id, member.name])));
     for (const member of members) if (member.id !== selfId) this.renderer.setPlayerProfile(member.id, member.profile);
     this.renderer.setLocalTopology(joined ? selfId : "", joined ? this.network.localTopology : null);
@@ -397,8 +409,10 @@ export class ConstellationApp {
       this.listBtn.setAttribute("aria-expanded", "false");
     }
     if (!joined) {
+      this.toggleScores(false);
       this.legend.hidden = false;
       this.roundState = null; this.lastNovaRound = 0; this.killFeed.replaceChildren(); this.killFeed.hidden = true; this.roundNotice.hidden = true;
+      this.scoreNames.clear(); this.scoreBoard.replaceChildren();
       this.renderer.setRoundDisplay(0, 0, "SOLO", 0);
       this.renderer.setMultiplayer(false); this.renderer.setWorldOrigin(0);
       this.renderer.setLocalTopology("", null);
@@ -422,6 +436,10 @@ export class ConstellationApp {
 
   private onRoundState(state: RoundSnapshot): void {
     const old = this.roundState;
+    if (old && state.roundId > old.roundId) {
+      const currentScores = new Set(state.scores.map(score => score.playerId));
+      for (const id of this.scoreNames.keys()) if (!currentScores.has(id)) this.scoreNames.delete(id);
+    }
     this.roundState = state; this.roundReceivedAt = performance.now();
     if (state.phase === "supernova") {
       if (this.lastNovaRound !== state.roundId) {
@@ -446,7 +464,35 @@ export class ConstellationApp {
     this.announce(`${item.textContent}. ${event.attackerScore} kills.`);
   }
 
-  private memberName(id: string): string { return this.network?.members.find(member => member.id === id)?.name ?? "Pilot"; }
+  private memberName(id: string): string { return this.network?.members.find(member => member.id === id)?.name ?? this.scoreNames.get(id) ?? "Departed pilot"; }
+
+  private toggleScores(open: boolean): void {
+    this.scoresOpen = open && this.inRoom;
+    this.scoreBoard.hidden = !this.scoresOpen;
+    this.scoresBtn.setAttribute("aria-expanded", String(this.scoresOpen));
+    if (this.scoresOpen) this.renderScoreboard();
+  }
+
+  private renderScoreboard(): void {
+    const state = this.roundState;
+    if (!state) { this.scoreBoard.replaceChildren(el("p", "cg-board-title", {}, "Waiting for round scores")); return; }
+    const title = state.phase === "supernova" || state.phase === "waiting" || state.phase === "countdown" ? "Final standings" : `Round ${state.roundId} standings`;
+    this.scoreBoard.replaceChildren(el("div", "cg-board-title", {}, title));
+    const head = el("div", "cg-board-row cg-board-head");
+    head.append(el("span", "", {}, ""), el("span", "cg-board-name", {}, "Pilot"), el("span", "", {}, "Kills"), el("span", "", {}, "Deaths"));
+    this.scoreBoard.appendChild(head);
+    const rows = [...state.scores].sort((a, b) => b.kills - a.kills || a.deaths - b.deaths || a.playerId.localeCompare(b.playerId));
+    for (const score of rows) {
+      const mine = score.playerId === this.network?.localPlayerId;
+      const row = el("div", `cg-board-row${mine ? " cg-mine" : ""}`);
+      const member = this.network?.members.find(value => value.id === score.playerId);
+      const color = mine ? "#7fe8ff" : member ? `var(--cg-player-${member.slot}, #ff806f)` : "#8b93a7";
+      const dot = el("span", "cg-dot"); dot.style.color = color; dot.style.background = color;
+      row.append(dot, el("span", "cg-board-name", {}, `${this.scoreNames.get(score.playerId) ?? member?.name ?? "Departed pilot"}${mine ? " (you)" : ""}`),
+        el("span", "", {}, String(score.kills)), el("span", "", {}, String(score.deaths)));
+      this.scoreBoard.appendChild(row);
+    }
+  }
 
   private refreshRoundDisplay(): void {
     const state = this.roundState;
@@ -462,6 +508,7 @@ export class ConstellationApp {
     const own = state.scores.find(score => score.playerId === this.network.localPlayerId)?.kills ?? 0;
     const leader = Math.max(0, ...state.scores.map(score => score.kills));
     this.renderer.setRoundDisplay(own, leader, state.phase, remaining);
+    if (this.scoresOpen) this.renderScoreboard();
   }
 
   private onNetworkMessage(_from: string, message: GameMessage): void {
@@ -684,7 +731,8 @@ export class ConstellationApp {
   private onKey = (e: KeyboardEvent) => {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     if (this.inRoom) {
-      if (e.key === "p" || e.key === "P") this.togglePilot();
+      if (e.key === "Tab") this.toggleScores(!this.scoresOpen);
+      else if (e.key === "p" || e.key === "P") this.togglePilot();
       else if (e.key === "Escape") this.renderer.clearSelection();
       else if (e.key === "?") this.setHelp(this.help.hidden);
       else return;

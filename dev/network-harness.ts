@@ -1,5 +1,6 @@
 // Synthetic network-only browser harness. No vault access and no WebGL required.
-import { HOSTED_SIGNALING_URL, MultiplayerSession, type AnonymousPlayer, type Pose } from "../src/multiplayer";
+import { MultiplayerSession, type AnonymousPlayer, type Pose } from "../src/multiplayer";
+import { DEFAULT_RELAY } from "../src/relay";
 import type { GraphData, SimNode } from "../src/types";
 
 const name = document.getElementById("name") as HTMLInputElement;
@@ -30,6 +31,12 @@ const nodes: SimNode[] = data.nodes.map((node, index) => ({ ...node, index, gi: 
 let members: AnonymousPlayer[] = [], self = "", topologyCount = 0, positionCount = 0;
 const poses = new Map<string, Pose>();
 const rows = new Map<string, HTMLLIElement>();
+const requestIce = async (url: string, token?: string) => {
+  const response = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : undefined });
+  let body: unknown = null;
+  try { body = await response.json(); } catch { /* preserve the status for the service error path */ }
+  return { status: response.status, body };
+};
 function renderPlayers(): void {
   for (const [id, row] of rows) if (!members.some(member => member.id === id)) { row.remove(); rows.delete(id); }
   for (const member of members) {
@@ -51,7 +58,7 @@ const network = new MultiplayerSession({
   playerState(id, pose) { poses.set(id, pose); renderPlayers(); },
   topology() { topologyCount++; renderMaps(); }, positions() { positionCount++; renderMaps(); },
   message() {}, removed() {}, authority() {}, shotState() {},
-}, () => ({ data, nodes }), () => HOSTED_SIGNALING_URL);
+}, () => ({ data, nodes }), () => DEFAULT_RELAY, undefined, requestIce);
 
 async function start(action: "create" | "join"): Promise<void> {
   try {
@@ -62,7 +69,7 @@ async function start(action: "create" | "join"): Promise<void> {
 document.getElementById("create")!.addEventListener("click", () => void start("create"));
 document.getElementById("join")!.addEventListener("click", () => void start("join"));
 document.getElementById("leave")!.addEventListener("click", () => network.leave());
-const inputs = window.setInterval(() => network.sendInput({ thrust: 0, strafe: 0, lift: 0, roll: 0, pitch: 0, yaw: 0, boost: false, brake: false, fire: false, active: flying.checked }), 50);
+const inputs = window.setInterval(() => network.sendInput({ thrust: 0, strafe: 0, lift: 0, roll: 0, pitch: 0, yaw: 0, boost: false, brake: false, fire: false, active: flying.checked, weapon: 0 }), 50);
 const stats = window.setInterval(() => {
   void Promise.all([...connections].filter(pc => pc.connectionState !== "closed").map(async pc => {
     const report = await pc.getStats();

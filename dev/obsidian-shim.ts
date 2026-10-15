@@ -20,6 +20,8 @@ Object.assign(window, { createEl: make, createDiv: (o?: Info | string) => make("
 
 Object.assign(HTMLElement.prototype, {
   createDiv(this: HTMLElement, o?: Info | string) { const e = make("div", o); this.appendChild(e); return e; },
+  createEl(this: HTMLElement, tag: keyof HTMLElementTagNameMap, o?: Info | string) { const e = make(tag, o); this.appendChild(e); return e; },
+  createSpan(this: HTMLElement, o?: Info | string) { const e = make("span", o); this.appendChild(e); return e; },
   setCssProps(this: HTMLElement, props: Record<string, string>) { for (const [k, v] of Object.entries(props)) this.style.setProperty(k, v); },
   toggleClass(this: HTMLElement, cls: string, on: boolean) { this.classList.toggle(cls, on); },
 });

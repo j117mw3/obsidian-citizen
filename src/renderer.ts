@@ -69,7 +69,7 @@ export function webglAvailable(): boolean {
 
 interface Tween { t0: number; dur: number; p0: THREE.Vector3; p1: THREE.Vector3; t0v: THREE.Vector3; t1v: THREE.Vector3 }
 interface RemoteMap { playerId: string; points: THREE.Points; links: THREE.LineSegments; ids: Map<string, number>; nodeIds: string[]; revision: number; target: Float32Array; current: Float32Array; initialized: boolean }
-interface RemoteShip { ship: Ship; target: Pose | null; name: string; profile: PilotProfile; indicator: HTMLDivElement; label: HTMLSpanElement; arrow: HTMLSpanElement }
+interface RemoteShip { ship: Ship; target: Pose | null; name: string; profile: PilotProfile; indicator: HTMLDivElement; label: HTMLSpanElement; arrow: HTMLSpanElement; velocity: THREE.Vector3 }
 interface RemoteBolt { line: THREE.Line; ownerId: string; origin: THREE.Vector3; target: THREE.Vector3; current: THREE.Vector3; direction: THREE.Vector3 }
 interface NetworkImpact { mesh: THREE.Mesh; expires: number }
 interface Rect { x: number; y: number; w: number; h: number }
@@ -148,6 +148,8 @@ export class ConstellationRenderer implements GraphRenderer {
   private io: IntersectionObserver;
   private tmp = new THREE.Vector3();
   private tmp2 = new THREE.Vector3();
+  private tmp3 = new THREE.Vector3();
+  private tmp4 = new THREE.Vector3();
   private lit = new Set<number>();
   private placed: Rect[] = [];
   private reveal: { t0: number; dur: number; order: number[]; rank: Int32Array; count: number; total: number } | null = null;
@@ -239,7 +241,9 @@ export class ConstellationRenderer implements GraphRenderer {
       onHangar: () => this.cb.onHangar?.(),
       onToggleGroups: () => this.cb.onToggleGroups?.(),
       onNetworkFrame: input => this.cb.onNetworkFrame?.(input),
-      onFire: (sequence, gun, aimPoint) => this.cb.onFire?.(sequence, gun, aimPoint),
+      onFire: (sequence, gun, weapon, aimPoint) => this.cb.onFire?.(sequence, gun, weapon, aimPoint),
+      remoteTargets: () => [...this.remoteShips.values()].filter(remote => !!remote.target?.active && remote.target.health > 0 && remote.ship.group.visible)
+        .map(remote => ({ position: remote.ship.group.position, velocity: remote.velocity })),
     }, pilotOptions(settings));
 
     this.canvas.addEventListener("pointermove", this.onPointerMove);
@@ -545,7 +549,7 @@ export class ConstellationRenderer implements GraphRenderer {
       const arrow = document.createElement("span"); arrow.className = "cg-player-indicator-arrow";
       const label = document.createElement("span"); label.className = "cg-player-indicator-label";
       indicator.append(arrow, label); this.indicatorLayer.appendChild(indicator);
-      remote = { ship, target: null, name, profile: chosen, indicator, label, arrow }; this.remoteShips.set(playerId, remote);
+      remote = { ship, target: null, name, profile: chosen, indicator, label, arrow, velocity: new THREE.Vector3() }; this.remoteShips.set(playerId, remote);
     }
     if (profile && profile.revision > remote.profile.revision) this.setPlayerProfile(playerId, profile);
     remote.name = name; remote.label.textContent = name;
@@ -564,16 +568,16 @@ export class ConstellationRenderer implements GraphRenderer {
         continue;
       }
       const shooter = this.remoteShips.get(shot.ownerId);
-      if (shooter?.target?.active && shooter.target.health > 0) this.pilot.playRemoteShot(shot.ownerId, shot.id, shot.sound, shot.position, shot.startedAt);
+      if (shooter?.target?.active && shooter.target.health > 0) this.pilot.playRemoteShot(shot.ownerId, shot.id, shot.sound, shot.weapon, shot.position, shot.startedAt);
       let bolt = this.remoteShots.get(shot.id);
       if (!bolt) {
         const geometry = new THREE.BufferGeometry(); geometry.setAttribute("position", new THREE.BufferAttribute(new Float32Array(6), 3));
-        const line = new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: 0x8cecff, transparent: true, opacity: 0.95 }));
+        const line = new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: shot.weapon === 1 ? 0xffbd5c : 0x8cecff, transparent: true, opacity: 0.95 }));
         line.frustumCulled = false; line.renderOrder = 4; this.scene.add(line);
         bolt = { line, ownerId: shot.ownerId, origin: new THREE.Vector3(...shot.origin), target: new THREE.Vector3(), current: new THREE.Vector3(), direction: new THREE.Vector3() };
         bolt.current.set(...shot.position);
         const initial = geometry.getAttribute("position") as THREE.BufferAttribute;
-        const direction = new THREE.Vector3(...shot.direction).normalize(), traveled = bolt.origin.distanceTo(bolt.current), tail = Math.min(22, traveled);
+        const direction = new THREE.Vector3(...shot.direction).normalize(), traveled = bolt.origin.distanceTo(bolt.current), tail = Math.min(shot.weapon === 1 ? 13 : 22, traveled);
         initial.setXYZ(0, bolt.current.x - direction.x * tail, bolt.current.y - direction.y * tail, bolt.current.z - direction.z * tail);
         initial.setXYZ(1, ...shot.position); initial.needsUpdate = true;
         this.remoteShots.set(shot.id, bolt);
@@ -618,7 +622,7 @@ export class ConstellationRenderer implements GraphRenderer {
     this.remoteMaps.delete(playerId); this.stale = true;
   }
 
-  private updateRemoteMaps(): boolean {
+  private updateRemoteMaps(dt: number): boolean {
     let moving = false;
     for (const remote of this.remoteMaps.values()) {
       if (!remote.initialized) continue;
@@ -626,7 +630,7 @@ export class ConstellationRenderer implements GraphRenderer {
       for (let i = 0; i < remote.current.length; i++) {
         const delta = remote.target[i] - remote.current[i];
         if (Math.abs(delta) > 0.05) moving = true;
-        remote.current[i] += delta * 0.35;
+        remote.current[i] += delta * (1 - Math.exp(-25 * dt));
       }
       p.needsUpdate = true; remote.points.visible = true;
       const lp = remote.links.geometry.getAttribute("position") as THREE.BufferAttribute;
@@ -637,13 +641,16 @@ export class ConstellationRenderer implements GraphRenderer {
       }
       lp.needsUpdate = true; remote.links.visible = true;
     }
+    const shipAlpha = 1 - Math.exp(-36 * dt), velocityAlpha = 1 - Math.exp(-18 * dt);
     for (const remote of this.remoteShips.values()) {
-      const pose = remote.target; if (!pose || !pose.active) continue;
+      const pose = remote.target;
+      if (!pose?.active || pose.health <= 0) { remote.ship.group.visible = false; remote.indicator.hidden = true; remote.velocity.set(0, 0, 0); continue; }
       const group = remote.ship.group;
       const target = this.tmp.set(...pose.position);
       this.netQ.set(...pose.rotation).normalize().multiply(this.tmpQ.setFromEuler(this.tmpE.set(pose.tilt, 0, pose.bank)));
-      if (!group.visible) { group.position.copy(target); group.quaternion.copy(this.netQ); group.visible = true; }
-      else { group.position.lerp(target, 0.45); group.quaternion.slerp(this.netQ, 0.45); }
+      this.tmp4.set(...pose.velocity);
+      if (!group.visible) { group.position.copy(target); group.quaternion.copy(this.netQ); remote.velocity.copy(this.tmp4); group.visible = true; }
+      else { group.position.lerp(target, shipAlpha); group.quaternion.slerp(this.netQ, shipAlpha); remote.velocity.lerp(this.tmp4, velocityAlpha); }
       moving = moving || group.position.distanceTo(target) > 0.05;
     }
     for (const bolt of this.remoteShots.values()) {
@@ -1132,7 +1139,7 @@ export class ConstellationRenderer implements GraphRenderer {
     this.last = now; this.age += dt; this.frameNo++;
     if (!this.nodePoints) return;
 
-    let moving = this.updateRemoteMaps();
+    let moving = this.updateRemoteMaps(dt);
     if (!this.paused) { this.sim.step(dt); moving = this.sim.isActive() || moving; }
     this.refreshWorldNodes();
     if (!this.drag && !this.pilot.active && (this.pointer.moved || (this.pointer.inside && moving && this.frameNo % 8 === 0))) {

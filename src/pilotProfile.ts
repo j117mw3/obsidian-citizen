@@ -1,7 +1,7 @@
-export const SHIP_IDS = ["classic", "vector", "dart", "bulwark", "crescent", "revenant"] as const;
-export const ENGINE_SOUND_IDS = ["classic", "ion", "turbine"] as const;
-export const AFTERBURNER_SOUND_IDS = ["classic", "plasma", "fusion"] as const;
-export const LASER_SOUND_IDS = ["classic", "pulse", "arc"] as const;
+export const SHIP_IDS = ["classic", "vector", "dart", "bulwark", "crescent", "revenant", "dart-interceptor", "bulwark-gunship"] as const;
+export const ENGINE_SOUND_IDS = ["classic", "ion", "turbine", "stellar"] as const;
+export const AFTERBURNER_SOUND_IDS = ["classic", "plasma", "fusion", "stellar"] as const;
+export const LASER_SOUND_IDS = ["classic", "pulse", "arc", "pulse-xl"] as const;
 
 export type ShipId = typeof SHIP_IDS[number];
 export type EngineSoundId = typeof ENGINE_SOUND_IDS[number];

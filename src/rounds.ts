@@ -1,6 +1,6 @@
 export type RoundPhase = "combat" | "supernova" | "waiting" | "countdown";
 
-export interface RoundScore { playerId: string; kills: number }
+export interface RoundScore { playerId: string; kills: number; deaths: number }
 export interface LayoutRequirement { playerId: string; revision: number }
 export interface EliminationEvent {
   id: string;

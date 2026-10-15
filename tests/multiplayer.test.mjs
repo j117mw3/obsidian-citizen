@@ -66,8 +66,8 @@ test("anonymous topology and all application packets omit local vault metadata",
   session.setLocalGraph(fixture());
   session.pumpTopologies();
   session.sendPositionsTo(peerId);
-  session.sendInput({ thrust: 1, strafe: 0, lift: 0, roll: 0, pitch: 0, yaw: 0, boost: false, brake: false, fire: false, active: true });
-  session.fire(1, 2, [10, 20, 30]);
+  session.sendInput({ thrust: 1, strafe: 0, lift: 0, roll: 0, pitch: 0, yaw: 0, boost: false, brake: false, fire: false, active: true, weapon: 0 });
+  session.fire(1, 2, 0, [10, 20, 30]);
   session.requestFastTravel({ ownerId: session.selfId, starId: session.localTopology.nodes[0].id, revision: session.localTopology.revision });
 
   // Capture actual host round and elimination messages too. These contain only
@@ -77,8 +77,8 @@ test("anonymous topology and all application packets omit local vault metadata",
   world.add({ id: peerId, slot: 1, name: "Synthetic Peer", joinedAt: 2 });
   const shooter = world.players.get(self), victim = world.players.get(peerId);
   shooter.pos.set(0, 0, 0); shooter.active = true; shooter.input.active = true;
-  victim.pos.set(0, 0, -100); victim.health = 10; victim.active = true; victim.input.active = true;
-  assert.equal(world.fireShot(self, 1, 0, 10_000), true);
+  victim.pos.set(0, 0, -100); victim.shields = 0; victim.health = 10; victim.active = true; victim.input.active = true;
+  assert.equal(world.fireShot(self, 1, 0, 10_000, undefined, 0), true);
   for (let frame = 1; frame <= 8 && victim.health > 0; frame++) world.step(1 / 60, 10_000 + frame * 17);
   const elimination = world.drainEliminations()[0];
   assert.ok(elimination);
@@ -137,11 +137,11 @@ test("host accepts only current-epoch anonymous navigation and bounded authorita
   session.onPeerMessage(guestId, JSON.stringify({ type: "navigate", epoch: 3, target }), "control");
   assert.ok(session.world.players.get(guestId).travel);
 
-  session.onPeerMessage(guestId, JSON.stringify({ type: "fire", epoch: 2, sequence: 1, gun: 0, aimPoint: [2300, 0, -900] }), "control");
-  session.onPeerMessage(guestId, JSON.stringify({ type: "fire", epoch: 3, sequence: 1, gun: 0, aimPoint: [2300, 0, 900] }), "control");
+  session.onPeerMessage(guestId, JSON.stringify({ type: "fire", epoch: 2, sequence: 1, gun: 0, weapon: 0, aimPoint: [2300, 0, -900] }), "control");
+  session.onPeerMessage(guestId, JSON.stringify({ type: "fire", epoch: 3, sequence: 1, gun: 0, weapon: 0, aimPoint: [2300, 0, 900] }), "control");
   assert.equal(session.world.shotSnapshots().length, 0, "stale and backward shots are rejected");
   assert.equal(JSON.parse(peer.control.sent.at(-1)).accepted, false, "the host reliably rejects an invalid predicted shot");
-  session.onPeerMessage(guestId, JSON.stringify({ type: "fire", epoch: 3, sequence: 1, gun: 2, aimPoint: [2300, 0, -900] }), "control");
+  session.onPeerMessage(guestId, JSON.stringify({ type: "fire", epoch: 3, sequence: 1, gun: 2, weapon: 0, aimPoint: [2300, 0, -900] }), "control");
   assert.equal(session.world.shotSnapshots()[0]?.gun, 2);
   assert.equal(JSON.parse(peer.control.sent.at(-1)).accepted, true, "the host reliably acknowledges an accepted predicted shot");
   assert.equal(session.world.players.get(guestId).travel, null, "an accepted shot cancels travel");
@@ -167,7 +167,7 @@ test("round states and elimination announcements require the current host and de
   const session = new network.MultiplayerSession(callbacks({ round: value => rounds.push(value), elimination: value => eliminations.push(value) }), () => ({ data: fixture(), nodes: [] }), () => "wss://rooms.example.test");
   session.selfId = selfId; session.hostId = hostId; session.epoch = 8;
   session.peers.set(hostId, peerStub()); session.peers.set(otherId, peerStub());
-  const state = { epoch: 8, roundId: 2, phase: "combat", phaseRemainingMs: 0, winnerId: "", scores: [{ playerId: hostId, kills: 0 }, { playerId: selfId, kills: 0 }], layoutRequirements: [] };
+  const state = { epoch: 8, roundId: 2, phase: "combat", phaseRemainingMs: 0, winnerId: "", scores: [{ playerId: hostId, kills: 0, deaths: 0 }, { playerId: selfId, kills: 0, deaths: 0 }], layoutRequirements: [] };
   session.onPeerMessage(otherId, JSON.stringify({ type: "round-state", epoch: 8, state }), "control");
   session.onPeerMessage(hostId, JSON.stringify({ type: "round-state", epoch: 7, state: { ...state, epoch: 7 } }), "control");
   session.onPeerMessage(hostId, JSON.stringify({ type: "round-state", epoch: 8, state }), "control");
@@ -190,7 +190,7 @@ test("multiplayer map coordinates double around their stable region and restore 
   }
 });
 
-const emptyInput = { thrust: 0, strafe: 0, lift: 0, roll: 0, pitch: 0, yaw: 0, boost: false, brake: false, fire: false, active: false };
+const emptyInput = { thrust: 0, strafe: 0, lift: 0, roll: 0, pitch: 0, yaw: 0, boost: false, brake: false, fire: false, active: false, weapon: 0 };
 function addPair(world) {
   world.add({ id: "attacker", slot: 0, name: "A", joinedAt: 1 });
   world.add({ id: "target", slot: 1, name: "B", joinedAt: 2 });
@@ -201,15 +201,16 @@ function addPair(world) {
   return { attacker, target };
 }
 
-test("host projectiles sweep travel, deal one ten-point hit, and checkpoint in-flight state", () => {
+test("host projectiles sweep travel, apply the upstream weapon damage model, and checkpoint in-flight state", () => {
   const world = new combat.CombatWorld(4), { attacker, target } = addPair(world);
+  target.shields = 0;
   assert.equal(world.fireShot("attacker", 1, 0, 10_000), true);
   world.step(1 / 60, 10_000);
   for (let i = 0; i < 5; i++) world.step(1 / 60, 10_017 + i * 17);
-  assert.equal(target.health, 90);
+  assert.ok(target.health >= 87.5 && target.health < 90, "damage follows the weapon's distance curve after shield absorption");
   assert.equal(world.impactSnapshots(10_100).at(-1)?.kind, "ship");
 
-  assert.equal(world.fireShot("attacker", 2, 3, 10_200), true);
+  assert.equal(world.fireShot("attacker", 2, 3, 10_200, undefined, 0), true);
   world.step(1 / 60, 10_200);
   const checkpoint = world.snapshot(10_200);
   assert.ok(checkpoint.shots.length > 0);
@@ -267,7 +268,7 @@ test("projectile hits on stars are visuals only and spawn protection holds", () 
 
 test("lethal damage respawns at five seconds with full health, boost, and three-second protection", () => {
   const world = new combat.CombatWorld(1), { attacker, target } = addPair(world);
-  target.health = 10;
+  target.shields = 0; target.health = 10;
   assert.equal(world.fireShot("attacker", 1, 0, 30_000), true);
   world.step(1 / 60, 30_000);
   target.input = { ...emptyInput, active: true };
@@ -288,7 +289,7 @@ test("first-to-five scores only confirmed lethal hits and checkpoints victory pr
   const world = new combat.CombatWorld(9), { attacker, target } = addPair(world);
   let now = 40_000;
   for (let kill = 1; kill <= 5; kill++) {
-    target.health = 10; target.active = true; target.protectedUntil = 0;
+    target.shields = 0; target.health = 10; target.active = true; target.protectedUntil = 0;
     attacker.active = true;
     assert.equal(world.fireShot("attacker", kill, 0, now), true);
     for (let frame = 1; frame <= 8 && target.health > 0; frame++) world.step(1 / 60, now + frame * 17);
@@ -304,7 +305,7 @@ test("first-to-five scores only confirmed lethal hits and checkpoints victory pr
   assert.equal(world.startTravel("attacker", [0, 0, -500], 1, now), false);
 
   const checkpoint = world.snapshot(now), transferred = new combat.CombatWorld(10);
-  assert.equal(checkpoint.version, 4);
+  assert.equal(checkpoint.version, 5);
   assert.equal(transferred.restore(checkpoint, now + 100, 1200), true);
   assert.equal(transferred.currentRoundId, 1);
   assert.equal(transferred.roundSnapshot(now + 100).phaseRemainingMs, checkpoint.round.phaseRemainingMs - 1200);
@@ -401,53 +402,11 @@ test("replicated thrust audio follows effective propulsion and goes quiet during
   assert.equal(pose.thrust, 0); assert.equal(pose.boosting, false);
 });
 
-function signalingStubs(t) {
-  const sockets = [];
-  class Socket extends EventTarget {
-    static OPEN = 1;
-    static CLOSED = 3;
-    readyState = 0;
-    constructor() { super(); sockets.push(this); }
-    send() {}
-    close() { if (this.readyState !== Socket.CLOSED) this.emitClose(1000); }
-    emitClose(code) { this.readyState = Socket.CLOSED; this.dispatchEvent(Object.assign(new Event("close"), { code })); }
-  }
-  const values = { window: globalThis, WebSocket: Socket, RTCPeerConnection: class {} };
-  for (const [key, value] of Object.entries(values)) {
-    const descriptor = Object.getOwnPropertyDescriptor(globalThis, key);
-    Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
-    t.after(() => { if (descriptor) Object.defineProperty(globalThis, key, descriptor); else delete globalThis[key]; });
-  }
-  return sockets;
-}
-
-test("early signaling closure rejects immediately with host and close code, and releases its socket", async t => {
-  const sockets = signalingStubs(t);
-  const session = new network.MultiplayerSession(callbacks(), () => ({ data: fixture(), nodes: [] }), () => "wss://rooms.example.test");
-  const rejected = assert.rejects(session.create("Pilot"), /rooms\.example\.test.*WebSocket code 1006/);
-  sockets[0].emitClose(1006);
-  await rejected;
-  assert.equal(session.socket, null);
+test("new room sessions advertise protocol 5 without opening a connection on construction", () => {
+  const session = new network.MultiplayerSession(callbacks(), () => ({ data: fixture(), nodes: [] }));
+  assert.equal(network.ROOM_PROTOCOL, 5);
   assert.equal(session.active, false);
-  assert.equal(session.opening, false);
-});
-
-test("failed signaling attempts clean up for retry and ignore late events from the old socket", async t => {
-  const sockets = signalingStubs(t), statuses = [];
-  const session = new network.MultiplayerSession(callbacks({ status: text => statuses.push(text) }), () => ({ data: fixture(), nodes: [] }), () => "wss://rooms.example.test");
-  const first = assert.rejects(session.join("ABCDEFGH", "Pilot"), /Could not reach.*rooms\.example\.test/);
-  await assert.rejects(session.join("ABCDEFGH", "Pilot"), /already in progress/);
-  assert.equal(sockets.length, 1);
-  sockets[0].dispatchEvent(new Event("error"));
-  await first;
-  assert.equal(session.socket, null);
-  const second = assert.rejects(session.join("ABCDEFGH", "Pilot"), /WebSocket code 1008/);
-  assert.equal(sockets.length, 2);
-  sockets[0].dispatchEvent(new MessageEvent("message", { data: "not-json" }));
-  assert.equal(statuses.some(text => text.includes("invalid data")), false);
-  sockets[1].emitClose(1008);
-  await second;
-  assert.equal(session.socket, null);
+  assert.equal(session.room, "");
 });
 
 test("the host publishes authoritative flight state locally for every participant", () => {
@@ -462,6 +421,32 @@ test("the host publishes authoritative flight state locally for every participan
   session.world.step(1 / 60, 1000);
   session.publishWorldState(1000);
   assert.deepEqual(states.map(({ id, pose }) => [id, pose.active]), [["host", true], ["guest", true]]);
+});
+
+test("abrupt host failure is transferred only to the deterministic successor after verified majority votes", () => {
+  const ids = [1, 2, 3].map(index => `00000000-0000-4000-8000-${String(index).padStart(12, "0")}`);
+  const [host, successor, guest] = ids;
+  const members = ids.map((id, slot) => ({ id, name: `Pilot ${slot}`, joinedAt: slot + 1, slot, profile: { revision: 1, ship: "classic", engine: "classic", afterburner: "classic", laser: "classic" } }));
+  const roomCallbacks = callbacks();
+  const voter = new network.MultiplayerSession(roomCallbacks, () => ({ data: fixture(), nodes: [] }), () => "https://ntfy.sh");
+  voter.selfId = guest; voter.hostId = host; voter.epoch = 4; voter.roster = members; voter.lastHostPacketAt = Date.now() - 7000;
+  const candidatePeer = peerStub(); voter.peers.set(successor, candidatePeer);
+  voter.onPeerMessage(successor, JSON.stringify({ type: "authority-proposal", epoch: 5, baseEpoch: 4, failure: true, hostId: successor, members: ids }), "control");
+  assert.equal(voter.hostId, successor);
+  assert.equal(voter.epoch, 5);
+  assert.equal(voter.authorityReady, false, "a proposal alone does not resume combat");
+  assert.ok(candidatePeer.control.sent.some(raw => JSON.parse(raw).type === "authority-vote"));
+
+  const candidate = new network.MultiplayerSession(roomCallbacks, () => ({ data: fixture(), nodes: [] }), () => "https://ntfy.sh");
+  candidate.selfId = successor; candidate.hostId = successor; candidate.epoch = 5; candidate.roster = members;
+  candidate.authorityVotes.add(successor);
+  const guestPeer = peerStub(); candidate.peers.set(guest, guestPeer);
+  const baseVote = { type: "authority-vote", epoch: 5, hostId: successor, members: ids };
+  candidate.onPeerMessage(guest, JSON.stringify({ ...baseVote, voterId: host }), "control");
+  assert.deepEqual([...candidate.authorityVotes], [successor], "a peer cannot claim another participant's vote");
+  candidate.onPeerMessage(guest, JSON.stringify({ ...baseVote, voterId: guest }), "control");
+  assert.equal(candidate.authorityReady, true);
+  assert.ok(guestPeer.control.sent.some(raw => JSON.parse(raw).type === "authority-commit"));
 });
 
 test("ICE candidates arriving before or during remote description setup are retained", async () => {
@@ -507,6 +492,43 @@ test("one failed STUN endpoint is informational and cannot mark a connected peer
   session.reportIceError("guest", { errorCode: 701, url: "turn:synthetic.invalid", errorText: "quota" });
   assert.equal(statuses.length, count);
   assert.equal(session.relayStatus, "ready");
+});
+
+test("the TURN client uses Worker-issued refresh tokens and renews after a cold-session 401", async () => {
+  globalThis.window ??= globalThis;
+  const calls = [], tokens = ["a".repeat(64), "b".repeat(64)];
+  const request = async (url, token) => {
+    calls.push([url, token || ""]);
+    if (url.endsWith("/turn/session")) return { status: 200, body: { token: tokens.shift(), expiresAt: Date.now() + 6 * 60 * 60_000 } };
+    if (calls.filter(([path]) => path.endsWith("/turn") && !path.endsWith("/turn/session")).length === 1) return { status: 401, body: {} };
+    assert.ok(token === "b".repeat(64), "retry must use the replacement Worker token");
+    return { status: 200, body: { iceServers: [{ urls: "stun:relay.example.test:3478" }], iceExpiresAt: Date.now() + 3_600_000, relayStatus: "direct-only" } };
+  };
+  const session = new network.MultiplayerSession(callbacks(), () => ({ data: fixture(), nodes: [] }), () => "https://ntfy.sh", undefined, request);
+  await session.fetchIceConfiguration();
+  assert.deepEqual(calls.map(([url]) => url.split("/").at(-1)), ["session", "turn", "session", "turn"]);
+  assert.equal(session.relayStatus, "direct-only");
+});
+
+test("TURN configuration restarts an ICE-checking peer instead of leaving its STUN-only attempt stuck", async () => {
+  const session = new network.MultiplayerSession(callbacks(), () => ({ data: fixture(), nodes: [] }));
+  const self = "00000000-0000-4000-8000-000000000001", guest = "00000000-0000-4000-8000-000000000002";
+  session.selfId = self;
+  session.relay = [{ urls: "turn:relay.example.test:3478", username: "temporary", credential: "temporary" }];
+  const sent = [], pc = {
+    connectionState: "connecting", signalingState: "stable", config: { iceServers: [] },
+    setConfiguration(value) { this.config = value; }, getConfiguration() { return this.config; },
+    restartIce() { this.restarted = true; },
+    async createOffer(options) { this.offerOptions = options; return { type: "offer", sdp: "relay-restart" }; },
+    async setLocalDescription(value) { this.localDescription = value; },
+  };
+  const peer = peerStub(); peer.pc = pc; session.peers.set(guest, peer);
+  session.publicRoom = { signal: (to, data) => sent.push({ to, data }) };
+  await session.applyIceConfiguration();
+  assert.equal(pc.config.iceServers[0].urls, "turn:relay.example.test:3478");
+  assert.equal(pc.restarted, true);
+  assert.equal(pc.offerOptions.iceRestart, true);
+  assert.deepEqual(sent, [{ to: guest, data: { description: { type: "offer", sdp: "relay-restart" } } }]);
 });
 
 test("closing a removed peer's channels cannot overwrite a clean leave or departure status", () => {

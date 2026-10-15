@@ -5,23 +5,33 @@ import { build } from "esbuild";
 const built = await build({ entryPoints: ["src/settings.ts"], bundle: true, platform: "node", format: "esm", target: "node22", write: false });
 const settingsModule = await import(`data:text/javascript;base64,${Buffer.from(built.outputFiles[0].text).toString("base64")}`);
 
-test("legacy localhost signaling default migrates to hosted rooms", () => {
+test("legacy localhost signaling address is preserved but inactive after ntfy migration", () => {
   const settings = settingsModule.sanitizeSettings({ multiplayerSignalingUrl: "ws://localhost:8787" });
-  assert.equal(settings.multiplayerConnectionMode, "hosted");
+  assert.equal(settings.multiplayerConnectionMode, "public");
   assert.equal(settings.multiplayerCustomServerUrl, "");
+  assert.equal(settings.multiplayerLegacyServerUrl, "ws://localhost:8787");
 });
 
-test("previous custom signaling addresses remain selected and unchanged", () => {
+test("previous custom websocket addresses remain inactive legacy settings", () => {
   const url = "wss://my-room.example.net/socket";
   const settings = settingsModule.sanitizeSettings({ multiplayerSignalingUrl: url });
-  assert.equal(settings.multiplayerConnectionMode, "custom");
-  assert.equal(settings.multiplayerCustomServerUrl, url);
+  assert.equal(settings.multiplayerConnectionMode, "public");
+  assert.equal(settings.multiplayerCustomServerUrl, "");
+  assert.equal(settings.multiplayerLegacyServerUrl, url);
 });
 
-test("fresh settings use the bundled hosted service", () => {
+test("fresh settings use ntfy public relay discovery", () => {
   const settings = settingsModule.sanitizeSettings({});
-  assert.equal(settings.multiplayerConnectionMode, "hosted");
+  assert.equal(settings.multiplayerConnectionMode, "public");
   assert.equal(settings.multiplayerCustomServerUrl, "");
+  assert.equal(settings.multiplayerRelayUrl, "https://ntfy.sh");
+});
+
+test("upstream-only settings preserve its Dart and Bulwark meanings", () => {
+  const imported = settingsModule.sanitizeSettings({ pilotShip: "dart", pilotCollapse: "auto" });
+  assert.equal(imported.pilotShip, "dart-interceptor");
+  assert.equal(settingsModule.sanitizeSettings({ pilotShip: "bulwark", pilotCollapse: "auto" }).pilotShip, "bulwark-gunship");
+  assert.equal(settingsModule.sanitizeSettings({ pilotShip: "dart", settingsSchemaVersion: 1 }).pilotShip, "dart");
 });
 
 test("new hangar choices default to Classic and sanitize invalid saved ids", () => {

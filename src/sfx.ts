@@ -19,11 +19,13 @@ const ENGINE_CHARACTER: Record<EngineSoundId, { wave: OscillatorType; sub: Oscil
   classic: { wave: "sawtooth", sub: "square", base: 48, range: 70, subBase: 24, subRange: 35, filter: 180, filterRange: 900, hiss: 0.05, whine: 0.018 },
   ion: { wave: "triangle", sub: "sine", base: 38, range: 42, subBase: 19, subRange: 21, filter: 145, filterRange: 330, hiss: 0.014, whine: 0.001 },
   turbine: { wave: "sawtooth", sub: "triangle", base: 62, range: 82, subBase: 31, subRange: 41, filter: 230, filterRange: 720, hiss: 0.024, whine: 0.003 },
+  stellar: { wave: "sawtooth", sub: "sine", base: 52, range: 58, subBase: 26, subRange: 29, filter: 205, filterRange: 460, hiss: 0.012, whine: 0.002 },
 };
 const AFTERBURNER_CHARACTER: Record<AfterburnerSoundId, { wave: OscillatorType; holdHz: number; peak: number }> = {
   classic: { wave: "sawtooth", holdHz: 190, peak: 0.12 },
   plasma: { wave: "triangle", holdHz: 82, peak: 0.1 },
   fusion: { wave: "square", holdHz: 56, peak: 0.11 },
+  stellar: { wave: "sawtooth", holdHz: 48, peak: 0.095 },
 };
 
 export class PilotAudio {
@@ -225,9 +227,14 @@ export class PilotAudio {
     } else if (this.afterburnerSound === "plasma") {
       this.burst(0.42, 380, 115, 0.065, 0, destination); this.sweep(74, 42, 0.48, "sine", 0.09, 0, destination);
       this.sweep(128, 76, 0.4, "triangle", 0.065, 0.015, destination);
-    } else {
+    } else if (this.afterburnerSound === "fusion") {
       this.burst(0.5, 260, 90, 0.075, 0, destination); this.sweep(62, 38, 0.55, "square", 0.085, 0, destination);
       this.sweep(108, 64, 0.46, "triangle", 0.052, 0.025, destination);
+    } else {
+      // Low, layered propulsion with only a short filtered exhaust transient; no sustained high whine.
+      this.burst(0.42, 170, 58, 0.035, 0, destination);
+      this.sweep(48, 34, 0.52, "sawtooth", 0.075, 0, destination);
+      this.sweep(76, 44, 0.46, "triangle", 0.045, 0.015, destination);
     }
   }
 
@@ -240,11 +247,22 @@ export class PilotAudio {
     } else if (sound === "pulse") {
       this.sweep(1500 * k, 320 * k, 0.12, "triangle", 0.085, 0, destination);
       this.sweep(220 * k, 90 * k, 0.18, "sine", 0.05, 0, destination);
-    } else {
+    } else if (sound === "arc") {
       this.burst(0.07, 4200, 500, 0.072, 0, destination);
       this.sweep(1850 * k, 260 * k, 0.15, "sawtooth", 0.075, 0, destination);
       this.sweep(620 * k, 110 * k, 0.22, "sine", 0.055, 0, destination);
+    } else {
+      this.burst(0.055, 2900, 760, 0.055, 0, destination);
+      this.sweep(2250 * k, 185 * k, 0.18, "sawtooth", 0.085, 0, destination);
+      this.sweep(540 * k, 82 * k, 0.23, "triangle", 0.05, 0, destination);
     }
+  }
+
+  /** Deeper, slower cannon report, routed with local or nearby blaster audio. */
+  cannon(destination: AudioNode | null = this.laserBus): void {
+    this.sweep(780, 115, 0.24, "sawtooth", 0.12, 0, destination);
+    this.sweep(160, 48, 0.3, "sine", 0.09, 0, destination);
+    this.burst(0.035, 1200, 220, 0.035, 0, destination);
   }
 
   preview(kind: "engine" | "afterburner" | "laser"): void {
@@ -295,6 +313,22 @@ export class PilotAudio {
     this.playedShots.add(shotId); if (this.playedShots.size > 512) this.playedShots.delete(this.playedShots.values().next().value!);
     const pan = ctx.createPanner(); pan.panningModel = "HRTF"; pan.distanceModel = "inverse"; pan.refDistance = 40; pan.maxDistance = 800; pan.rolloffFactor = 1.2;
     this.place(pan, position); pan.connect(bus); this.laser(0, sound, pan); window.setTimeout(() => { try { pan.disconnect(); } catch { /* already disconnected */ } }, 700);
+  }
+
+  remoteShot(id: string, shotId: string, sound: LaserSoundId, weapon: 0 | 1, position: [number, number, number], startedAt: number): void {
+    const ctx = this.ctx, bus = this.remoteLaserBus;
+    if (!ctx || !bus || !this.remoteAudioActive || !this.nearbyAudio || !this.enabled || !id || this.playedShots.has(shotId) || Date.now() - startedAt > 500 || startedAt > Date.now() + 1000) return;
+    this.playedShots.add(shotId); if (this.playedShots.size > 512) this.playedShots.delete(this.playedShots.values().next().value!);
+    const pan = ctx.createPanner(); pan.panningModel = "HRTF"; pan.distanceModel = "inverse"; pan.refDistance = 40; pan.maxDistance = 800; pan.rolloffFactor = 1.2;
+    this.place(pan, position); pan.connect(bus);
+    if (weapon === 1) this.cannon(pan); else this.laser(0, sound, pan);
+    window.setTimeout(() => { try { pan.disconnect(); } catch { /* already disconnected */ } }, 800);
+  }
+
+  weaponSwitch(weapon: 0 | 1): void {
+    if (!this.enabled || !this.initialize()) return;
+    void this.ctx!.resume();
+    this.sweep(weapon === 1 ? 460 : 720, weapon === 1 ? 220 : 360, 0.08, "triangle", 0.045, 0, this.laserBus);
   }
 
   private place(panner: PannerNode, p: [number, number, number]): void { panner.setPosition(p[0], p[1], p[2]); }

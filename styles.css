@@ -4,7 +4,7 @@
 
 .cg-root {
   --cg-bg: #05070c;
-  --cg-panel: rgba(12, 15, 24, 0.82);
+  --cg-panel: rgba(12, 15, 24, 0.92);
   --cg-border: rgba(255, 255, 255, 0.14);
   --cg-ink: #eef1f8;
   --cg-dim: #9aa3b8;
@@ -62,7 +62,7 @@
 .cg-top { position: absolute; top: 12px; left: 12px; display: flex; gap: 6px; align-items: center; z-index: 3; }
 .cg-search {
   width: 210px; height: 30px; padding: 0 10px; border-radius: 8px; color: var(--cg-ink);
-  background: var(--cg-panel); border: 1px solid var(--cg-border); backdrop-filter: blur(6px);
+  background: var(--cg-panel); border: 1px solid var(--cg-border);
 }
 .cg-search::placeholder { color: var(--cg-dim); }
 .cg-btn {
@@ -101,7 +101,7 @@
 @keyframes cg-kill-fade { 0%, 68% { opacity: 1; } 100% { opacity: 0; } }
 
 /* legend */
-.cg-legend { position: absolute; left: 12px; bottom: 12px; margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; z-index: 3; max-height: min(60%, calc(100% - 86px)); overflow: auto; overscroll-behavior: contain; }
+.cg-legend { position: absolute; left: 12px; bottom: 50px; margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; z-index: 3; max-height: min(60%, calc(100% - 124px)); overflow: auto; overscroll-behavior: contain; }
 .cg-room-active .cg-legend, .cg-room-active .cg-legend-toggle { display: none !important; }
 .cg-root.cg-piloting .cg-legend { bottom: 62px; max-height: min(44%, calc(100% - 150px)); }
 .cg-legend-toggle { position: absolute; z-index: 4; left: 12px; bottom: 12px; height: 30px; padding: 0 9px; border-radius: 8px; color: var(--cg-ink); background: var(--cg-panel); border: 1px solid var(--cg-border); cursor: pointer; }
@@ -120,7 +120,7 @@
 /* selected-note panel */
 .cg-detail {
   position: absolute; right: 12px; bottom: 12px; width: 280px; max-height: 55%; overflow: auto; padding: 12px 14px; z-index: 4;
-  background: var(--cg-panel); border: 1px solid var(--cg-border); border-radius: 10px; backdrop-filter: blur(8px);
+  background: var(--cg-panel); border: 1px solid var(--cg-border); border-radius: 10px;
 }
 .cg-detail-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
 .cg-detail-title:focus-visible { outline: 2px solid var(--cg-accent); outline-offset: 3px; }
@@ -140,7 +140,7 @@
 /* note list */
 .cg-list {
   position: absolute; left: 12px; top: 52px; bottom: 12px; width: 260px; padding: 6px; z-index: 5; overflow: auto;
-  background: var(--cg-panel); border: 1px solid var(--cg-border); border-radius: 10px; backdrop-filter: blur(8px);
+  background: var(--cg-panel); border: 1px solid var(--cg-border); border-radius: 10px;
 }
 .cg-list[hidden], .cg-detail[hidden], .cg-help[hidden], .cg-tip[hidden] { display: none; }
 .cg-list-body { margin: 0; padding: 0; list-style: none; }
@@ -245,8 +245,8 @@
 /* Pilot mode: the controls, as key caps in a quiet glass panel */
 .cg-pilot-keys {
   position: absolute; top: 58px; right: 14px; width: 214px; padding: 10px 12px 8px; border-radius: 12px;
-  background: linear-gradient(160deg, rgba(18, 24, 38, 0.72), rgba(10, 13, 22, 0.62)); border: 1px solid var(--cg-border);
-  backdrop-filter: blur(8px); box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35); transition: opacity 0.6s ease;
+  background: linear-gradient(160deg, rgba(18, 24, 38, 0.88), rgba(10, 13, 22, 0.84)); border: 1px solid var(--cg-border);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35); transition: opacity 0.6s ease;
 }
 .cg-pilot-keys[hidden] { display: none; }
 .cg-pilot-keys.cg-quiet { opacity: 0.34; }
@@ -267,3 +267,93 @@
 .cg-contrast .cg-key.cg-down { background: #fff; color: #000; box-shadow: none; }
 @container (max-width: 640px) { .cg-pilot-keys { display: none; } }
 @media (prefers-reduced-motion: reduce) { .cg-pilot-keys, .cg-key { transition: none; } }
+
+/* Pilot mode: the afterburner's glow at the edges of the view */
+.cg-pilot-boostfx { position: absolute; inset: 0; opacity: 0; transition: opacity 0.35s ease; pointer-events: none;
+  background: radial-gradient(ellipse at 50% 50%, rgba(0, 0, 0, 0) 52%, rgba(70, 190, 255, 0.2) 100%); }
+.cg-pilot-boostfx.cg-on { opacity: 1; }
+.cg-contrast .cg-pilot-boostfx { display: none; }
+@media (prefers-reduced-motion: reduce) { .cg-pilot-boostfx { transition: none; } }
+
+.cg-contrast .cg-minimap { outline: 2px solid #fff; }
+@container (max-width: 560px) { .cg-minimap { display: none; } }
+
+/* a folded group's name */
+.cg-label-cluster { font-weight: 700; letter-spacing: 0.02em; }
+
+/* Multiplayer: the Fly together panel (layout adapted from the multiplayer styles in the community pull request by j117mw3) */
+.cg-multiplayer { position: absolute; top: 52px; right: 12px; z-index: 5; width: min(360px, calc(100% - 24px)); max-height: calc(100% - 70px); overflow: auto; padding: 12px; border: 1px solid var(--cg-border); border-radius: 10px; background: var(--cg-panel); box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4); }
+.cg-multiplayer[hidden] { display: none; }
+.cg-multiplayer-head { display: flex; align-items: center; justify-content: space-between; }
+.cg-multiplayer h2 { margin: 0 0 6px; font-size: 15px; }
+.cg-multiplayer-privacy, .cg-multiplayer-status { margin: 6px 0; color: var(--cg-dim); font-size: 12px; }
+.cg-multiplayer-name { display: flex; flex-direction: column; gap: 4px; margin: 8px 0; color: var(--cg-dim); font-size: 11px; }
+.cg-multiplayer-name input, .cg-multiplayer-name select, .cg-multiplayer-code { height: 30px; padding: 0 8px; border: 1px solid var(--cg-border); border-radius: 7px; background: rgba(0, 0, 0, 0.25); color: var(--cg-ink); font: inherit; }
+.cg-multiplayer-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.cg-multiplayer-actions[hidden] { display: none; }
+.cg-multiplayer-actions .cg-btn { width: auto; min-width: 56px; padding: 0 9px; font-size: 12px; }
+.cg-multiplayer-code { width: 130px; font-family: monospace; text-transform: uppercase; }
+.cg-multiplayer-codeshow { font-family: monospace; font-size: 16px; letter-spacing: 0.08em; margin-right: 4px; user-select: all; }
+.cg-multiplayer-players { display: flex; flex-direction: column; gap: 6px; margin: 10px 0 0; padding: 0; list-style: none; }
+.cg-multiplayer-players li { display: grid; grid-template-columns: 12px minmax(60px, 1fr) 72px auto auto; align-items: center; gap: 8px; padding: 5px 8px; border: 1px solid var(--cg-border); border-radius: 8px; font-size: 12px; }
+.cg-player-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cg-player-health { width: 72px; height: 8px; accent-color: #ff6c73; }
+.cg-player-state { color: var(--cg-dim); white-space: nowrap; }
+.cg-multiplayer-status.cg-error { color: #ff927e; }
+.cg-label-pilot { font-weight: 700; letter-spacing: 0.02em; }
+.cg-pilot-health { position: absolute; left: 50%; bottom: 40px; width: 140px; height: 3px; transform: translateX(-50%); background: rgba(255, 255, 255, 0.14); border-radius: 2px; overflow: hidden; }
+.cg-pilot-health[hidden] { display: none; }
+.cg-pilot-health-fill { height: 100%; width: 100%; background: linear-gradient(90deg, #ff4b62, #ff9d86); }
+.cg-pilot-destroyed { position: absolute; left: 50%; top: 44%; transform: translate(-50%, -50%); color: #ff6b72; font: 700 17px var(--font-interface, system-ui, sans-serif); letter-spacing: 0.14em; text-align: center; text-shadow: 0 2px 12px #000; white-space: nowrap; pointer-events: none; }
+.cg-pilot-destroyed[hidden] { display: none; }
+.cg-contrast .cg-multiplayer { background: #000; border-color: #fff; backdrop-filter: none; }
+
+.cg-btn:disabled, .cg-btn.cg-disabled { opacity: 0.35; cursor: not-allowed; }
+
+/* Pilot mode: the guns */
+.cg-pilot-weapon { position: absolute; left: calc(50% + 100px); bottom: 36px; width: 120px; font-size: 10px; letter-spacing: 0.08em; color: var(--cg-dim); text-shadow: 0 0 4px #000; }
+.cg-pilot-weapon-bar { margin-top: 3px; height: 3px; background: rgba(255, 255, 255, 0.14); border-radius: 2px; overflow: hidden; }
+.cg-pilot-weapon-fill { height: 100%; width: 0; background: linear-gradient(90deg, #5ad2ff, #ffffff); }
+.cg-pilot-weapon.cg-hot .cg-pilot-weapon-fill { background: linear-gradient(90deg, #ff9a3a, #ff4b3a); }
+.cg-pilot-weapon.cg-hot { color: #ff8a6a; }
+.cg-pilot-weapon.cg-cannon .cg-pilot-weapon-fill { background: linear-gradient(90deg, #ffb347, #ffe08a); }
+.cg-pilot-weapon.cg-cannon { color: #ffd37a; }
+.cg-contrast .cg-pilot-weapon { color: #fff; }
+
+/* Multiplayer: nameplates for other pilots */
+.cg-plate { position: absolute; left: 0; top: 0; display: flex; flex-direction: column; align-items: center; gap: 2px; pointer-events: none; color: var(--plate, #fff); font-weight: 700; font-size: 12px; letter-spacing: 0.03em; text-shadow: 0 0 6px rgba(0, 0, 0, 0.9); will-change: transform; }
+.cg-plate-name { white-space: nowrap; }
+.cg-plate-bar { width: 54px; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.18); overflow: hidden; }
+.cg-plate-fill { height: 100%; width: 100%; background: var(--plate, #fff); }
+.cg-plate-low .cg-plate-fill { background: #ff5a4a; }
+.cg-plate-dist { font-weight: 500; font-size: 11px; opacity: 0.75; }
+.cg-plate-arrow { display: none; width: 0; height: 0; border-left: 10px solid var(--plate, #fff); border-top: 6px solid transparent; border-bottom: 6px solid transparent; position: absolute; left: 50%; top: 50%; margin: -6px 0 0 -4px; transform-origin: 4px 6px; translate: 22px 0; }
+.cg-plate-edge .cg-plate-arrow { display: block; }
+.cg-plate-edge { gap: 1px; }
+
+.cg-pilot-cross.cg-hit { border-color: #ff5a4a; box-shadow: 0 0 10px #ff5a4a; transform-origin: center; }
+.cg-pip { position: absolute; left: 0; top: 0; width: 16px; height: 16px; border: 2px solid var(--plate, #fff); border-radius: 50%; opacity: 0.75; pointer-events: none; box-shadow: 0 0 8px var(--plate, #fff); will-change: transform; }
+
+/* Multiplayer: kill announcements and the scoreboard */
+.cg-player-score { color: var(--cg-ink); font-variant-numeric: tabular-nums; font-size: 12px; opacity: 0.9; }
+.cg-feed { position: absolute; top: 52px; left: 50%; transform: translateX(-50%); z-index: 4; display: flex; flex-direction: column; align-items: center; gap: 4px; pointer-events: none; }
+.cg-feed-item { padding: 4px 12px; border-radius: 8px; font-size: 13px; font-weight: 600; letter-spacing: 0.02em; color: var(--cg-ink); background: rgba(10, 13, 22, 0.82); border: 1px solid var(--cg-border); text-shadow: 0 1px 6px #000; animation: cg-feed-in 0.18s ease-out; }
+.cg-feed-item.cg-mine { border-color: #ff7a5a; color: #ffd2c6; }
+@keyframes cg-feed-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+.cg-board { position: absolute; top: 90px; left: 50%; transform: translateX(-50%); z-index: 6; min-width: 300px; padding: 12px 16px; border-radius: 12px; background: rgba(10, 13, 22, 0.94); border: 1px solid var(--cg-border); box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5); pointer-events: none; }
+.cg-board[hidden] { display: none; }
+.cg-board-title { font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; font-size: 11px; color: var(--cg-dim); margin-bottom: 8px; }
+.cg-board-row { display: grid; grid-template-columns: 14px 1fr 52px 52px; align-items: center; gap: 8px; padding: 5px 0; font-size: 14px; font-variant-numeric: tabular-nums; }
+.cg-board-row span:nth-child(n+3) { text-align: right; }
+.cg-board-head { font-size: 11px; color: var(--cg-dim); letter-spacing: 0.08em; text-transform: uppercase; border-bottom: 1px solid var(--cg-border); }
+.cg-board-row.cg-mine { color: #7fe8ff; font-weight: 700; }
+.cg-board-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { .cg-feed-item { animation: none; } }
+
+/* a nameplate that is hidden (its pilot was destroyed, or is gone) must really be hidden: .cg-plate sets display after .cg-hidden */
+.cg-plate.cg-hidden, .cg-pip.cg-hidden { display: none; }
+.cg-plate-shieldbar { width: 54px; height: 3px; border-radius: 2px; background: rgba(255, 255, 255, 0.12); overflow: hidden; margin-bottom: -1px; }
+.cg-plate-shieldfill { height: 100%; width: 0; background: #8fd8ff; }
+.cg-pilot-health { overflow: visible; }
+.cg-pilot-shield { position: absolute; left: 0; right: 0; top: -6px; height: 3px; border-radius: 2px; background: rgba(255, 255, 255, 0.12); overflow: hidden; }
+.cg-pilot-shield-fill { height: 100%; width: 100%; background: linear-gradient(90deg, #5ad2ff, #c8f0ff); }

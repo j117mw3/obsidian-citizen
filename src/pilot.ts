@@ -3,6 +3,8 @@ import type { SimNode } from "./types";
 import { PilotAudio } from "./sfx";
 import { buildShip, type Ship } from "./ship";
 import { buildCockpit, cockpitScreenLayout, type Cockpit } from "./cockpit";
+import { FLIGHT, stepFlightRotation, stepFlightVelocity } from "./flight";
+import { inSweetSpot, interceptPoint, weaponStats } from "./weapons";
 import type { FlightInput, NavigationTarget, Pose, ShotSnapshot } from "./multiplayer";
 import type { PilotProfile, ShipId } from "./pilotProfile";
 import { stepPresentation } from "./pilotProfile";
@@ -38,7 +40,9 @@ export interface PilotHost {
   onToggleGroups?(): void;
   onAudioMute(which: "engine" | "afterburner", muted: boolean): void;
   onNetworkFrame(input: FlightInput): void;
-  onFire(sequence: number, gun: number, aimPoint: [number, number, number]): void;
+  onFire(sequence: number, gun: number, weapon: 0 | 1, aimPoint: [number, number, number]): void;
+  /** Anonymous positions and velocities already interpolated for the remote ship display. */
+  remoteTargets(): { position: THREE.Vector3; velocity: THREE.Vector3 }[];
 }
 
 export interface PilotOptions {
@@ -72,16 +76,7 @@ const CROSS_MAX = 60;      // ...or more than this
 const MIN_CRUISE = 12;     // scene units per second, so a tiny vault is still flyable
 
 // ---- flight model. The ship is a rigid body: it has a velocity and a spin, and the controls only apply forces and torques to them.
-const ACCEL = 0.7;         // main engine thrust, in cruise-speeds per second squared
-const BOOST_ACCEL = 11;    // afterburner multiplier on the main engine
-const BOOST_TOP = Math.sqrt(BOOST_ACCEL); // top speed under afterburner, in cruise speeds (drag grows with speed squared)
-const REVERSE = 0.45;      // reverse thrusters are weaker than the main engine
-const SIDE = 0.35;         // so are the side and vertical thrusters
-const RETRO = 2.4;         // braking thrust (X), in main-engine units
-const GRIP = 0.7;          // how fast the velocity swings toward where the nose points (per second): a turn carves rather than slides
-const GRIP_COST = 0.06;    // speed lost by bending your velocity (a hard turn bleeds a little energy)
-const TURN_BLEED = 0.1;    // extra drag while the ship is spinning fast
-const RESP = 6;            // how quickly the spin eases toward the turn rate the stick asks for (per second)
+const BOOST_TOP = Math.sqrt(FLIGHT.boostAcceleration);
 const SHIP_RADIUS = 0.7;   // size of the ship for collisions, in scene units
 const HIT_SCALE = 1.4;     // a note is a little bigger to the ship than it is to the eye, so collisions are readable and fair
 const BOUNCE = 0.35;       // how much of the speed into a note comes back out
@@ -89,18 +84,14 @@ const DEAD_ZONE = 0.07;    // cursor steering: how far from the centre (as a fra
 const CURSOR_REACH = 0.42; // cursor steering: full turn rate at this fraction of the pane's shorter side from the centre
 const CURSOR_EASE = 14;    // how quickly the stick follows the cursor (per second)
 const BUMP_MIN = 0.04;     // an impact under this fraction of top speed is just a graze: no sound, no shake
-const PITCH_RATE = 2.0;    // radians per second at full stick
-const YAW_RATE = 1.5;
-const ROLL_RATE = 3.0;
-const ANG_ACC = 4.0;       // radians per second squared: how quickly the ship can start and stop a turn (its rotational inertia)
 const STICK_GAIN = 0.0035; // stick deflection per pixel of mouse movement at sensitivity 1
-const STICK_DECAY = 0.9;   // how quickly the virtual stick re-centres when the mouse stops
+const MOUSE_INPUT_SMOOTHING = FLIGHT.inputSmoothing;
 const BOOST_DRAIN = 0.28;  // afterburner energy per second (1 is full)
 const BOOST_REGEN = 0.08;
 const BOOST_REGEN_DELAY = 1.5;
 const BOOST_HOLD = 3.0;    // seconds the tank stays completely empty after it runs dry, before it starts to refill
 const BOOST_RELOCK = 0.3;  // and then the afterburner stays off until the tank has refilled this far
-const CAM_RATE = 4.5;      // how tightly the chase camera follows the ship's orientation; lower trails more
+const CAM_RATE = 4.5;      // solo chase-camera response; multiplayer uses the shared 6.25 response
 const CAM_OFFSET = new THREE.Vector3(0, 1.1, 5.2); // behind and above the ship, in the camera's own space
 
 const WARP_MIN_MS = 1200;  // a warp is fast travel, but it still takes time: longer trips take longer
@@ -123,14 +114,12 @@ const MAX_SHELLS = 24;
 const MAX_BURSTS = 4;
 const SHELL_EVERY = 20;    // frames between refreshes of the cluster shells
 
-const X_AXIS = new THREE.Vector3(1, 0, 0);
 const Y_AXIS = new THREE.Vector3(0, 1, 0);
-const Z_AXIS = new THREE.Vector3(0, 0, 1);
 
 /** Keys the pilot owns. Anything else (Enter, /, ?, L, ...) is left to the normal keyboard handling. */
 const OWNED = new Set([
   "KeyW", "KeyA", "KeyS", "KeyD", "Space", "KeyC", "KeyQ", "KeyE", "ShiftLeft", "ShiftRight",
-  "KeyX", "KeyF", "KeyT", "KeyG", "KeyH", "KeyV", "KeyK",
+  "KeyX", "KeyF", "KeyT", "KeyG", "KeyH", "KeyV", "KeyK", "KeyR",
 ]);
 
 type KeyRow = { caps: string[]; label: string | ((p: PilotController) => string); codes: (string | null)[] };
@@ -146,6 +135,7 @@ const KEY_GROUPS: { title: string; rows: KeyRow[] }[] = [
   { title: "Aim", rows: [
     { caps: ["Mouse"], label: p => p.cursorMode ? "Steer: move away from centre" : "Steer", codes: [null] },
     { caps: ["Click", "F"], label: "Fire", codes: [null, "KeyF"] },
+    { caps: ["R"], label: "Switch blaster / cannon", codes: ["KeyR"] },
     { caps: ["T"], label: "Lock target", codes: ["KeyT"] },
     { caps: ["G"], label: p => p.multiplayer ? "Warp disabled in multiplayer" : "Warp to target", codes: ["KeyG"] },
     { caps: ["H"], label: p => p.multiplayer ? "Warp disabled in multiplayer" : "Back to the hub", codes: ["KeyH"] },
@@ -167,7 +157,7 @@ interface Warp {
   dist: number;                 // how far from the target to stop
 }
 /** A bolt flies from the gun to the note it was aimed at, and the shot counts when it lands. */
-interface Bolt { from: THREE.Vector3; origin: THREE.Vector3; node: number; point: THREE.Vector3; travelled: number; ctrl: boolean; landed: boolean; fade: number; sequence?: number; sentAt?: number; confirmed?: boolean }
+interface Bolt { from: THREE.Vector3; origin: THREE.Vector3; node: number; point: THREE.Vector3; travelled: number; ctrl: boolean; landed: boolean; fade: number; weapon: 0 | 1; sequence?: number; sentAt?: number; confirmed?: boolean }
 interface Burst { age: number; pos: THREE.Vector3; size: number; line: THREE.LineSegments }
 
 const clamp = (v: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, v));
@@ -193,6 +183,8 @@ export class PilotController {
   private stick = new THREE.Vector2();         // virtual joystick: x yaw, y pitch, each -1..1
   private energy = 1;
   private health = 100;
+  private shields = 40;
+  private damagePause = 0;
   private respawnLeft = 0;
   private protectionLeft = 0;
   private boostLocked = false;
@@ -220,6 +212,10 @@ export class PilotController {
   private firePending = false;
   private firePendingCtrl = false;
   private cooldown = 0;
+  private weapon: 0 | 1 = 0;
+  private heat = 0;
+  private overheated = false;
+  private ammunition = 36;
   private gun = 0;
   private fireSequence = 0;
   private lastShot = { i: -1, t: -1e9 };
@@ -251,6 +247,8 @@ export class PilotController {
   private boltCol = new Float32Array(MAX_BOLTS * 3 * 6);
   private aimReticle: THREE.LineSegments;
   private lockReticle: THREE.LineSegments;
+  private leadReticle: THREE.LineSegments;
+  private leadSolution = { x: 0, y: 0, z: 0, t: 0 };
   private shells: THREE.LineSegments[] = [];
   private shellGeo: THREE.BufferGeometry;
   private burstGeo: THREE.BufferGeometry;
@@ -301,11 +299,11 @@ export class PilotController {
     this.audio.setNearbyAudio(opts.nearbyAudio);
 
     // the cockpit (first-person view)
-    this.cockpit = buildCockpit();
+    this.cockpit = buildCockpit(opts.ship);
     this.scene.add(this.cockpit.group);
 
     // the plane
-    this.ship = buildShip();
+    this.ship = buildShip(opts.ship);
     this.ship.group.visible = false;
     this.ship.lights.forEach(l => { l.visible = false; this.scene.add(l); });
     this.scene.add(this.ship.group);
@@ -326,7 +324,8 @@ export class PilotController {
     // wireframe elements: target brackets, cluster shells and impact bursts
     this.aimReticle = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.IcosahedronGeometry(1, 0)), this.wireMaterial(0x6fe8ff, 0.95));
     this.lockReticle = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.OctahedronGeometry(1, 0)), this.wireMaterial(0xff7a4a, 0.95));
-    for (const r of [this.aimReticle, this.lockReticle]) { r.renderOrder = 4; r.visible = false; r.frustumCulled = false; this.scene.add(r); }
+    this.leadReticle = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.OctahedronGeometry(1, 0)), this.wireMaterial(0x7dff9a, 0.95));
+    for (const r of [this.aimReticle, this.lockReticle, this.leadReticle]) { r.renderOrder = 4; r.visible = false; r.frustumCulled = false; this.scene.add(r); }
     this.shellGeo = new THREE.EdgesGeometry(new THREE.IcosahedronGeometry(1, 1));
     this.burstGeo = new THREE.EdgesGeometry(new THREE.IcosahedronGeometry(1, 0));
 
@@ -438,7 +437,11 @@ export class PilotController {
     this.scene.remove(old.group); old.lights.forEach(light => this.scene.remove(light)); old.dispose();
     this.ship = buildShip(style); this.ship.group.visible = wasVisible;
     this.ship.lights.forEach(light => { light.visible = wasVisible; this.scene.add(light); });
-    this.scene.add(this.ship.group); this.applyLook();
+    this.scene.add(this.ship.group);
+    const oldCockpit = this.cockpit, cockpitVisible = oldCockpit.group.visible;
+    this.scene.remove(oldCockpit.group); oldCockpit.dispose();
+    this.cockpit = buildCockpit(style); this.cockpit.group.visible = cockpitVisible; this.scene.add(this.cockpit.group);
+    this.applyLook();
   }
 
   setHangarOpen(open: boolean): void {
@@ -461,6 +464,14 @@ export class PilotController {
 
   previewSound(kind: "engine" | "afterburner" | "laser"): void { this.audio.preview(kind); }
 
+  get currentWeapon(): 0 | 1 { return this.weapon; }
+  get currentWeaponSpeed(): number { return weaponStats(this.weapon).speed; }
+  getForwardDirection(out: THREE.Vector3): THREE.Vector3 { return out.set(0, 0, -1).applyQuaternion(this.quat).normalize(); }
+  getNextMuzzle(out: THREE.Vector3): THREE.Vector3 {
+    const order = [0, 3, 1, 2];
+    return this.muzzle(order[this.gun % order.length], out);
+  }
+
   updateNearbyAudio(players: RemoteAudioState[], enabled: boolean): void {
     const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion).toArray() as [number, number, number];
     const up = new THREE.Vector3(0, 1, 0).applyQuaternion(this.camera.quaternion).toArray() as [number, number, number];
@@ -468,9 +479,9 @@ export class PilotController {
     this.audio.updateRemoteAudio({ position: this.pos.toArray() as [number, number, number], forward, up }, players, this.active && this.health > 0 && !this.hangarOpen);
   }
 
-  playRemoteShot(id: string, shotId: string, sound: PilotProfile["laser"], position: [number, number, number], startedAt: number): void {
+  playRemoteShot(id: string, shotId: string, sound: PilotProfile["laser"], weapon: 0 | 1, position: [number, number, number], startedAt: number): void {
     if (!this.active || !this.roomVisible || this.hangarOpen || this.health <= 0 || document.hidden) return;
-    this.audio.remoteLaser(id, shotId, sound, position, startedAt);
+    this.audio.remoteShot(id, shotId, sound, weapon, position, startedAt);
   }
 
   /**
@@ -479,7 +490,7 @@ export class PilotController {
    * about 12 s for 100 notes, 17 s for 1,000, 24 s for 10,000 (never under 10 s or over 60 s), times the speed setting.
    */
   private cruiseSpeed(): number {
-    if (this.opts.multiplayer) return 100;
+    if (this.opts.multiplayer) return FLIGHT.roomCruise;
     const b = this.host.bounds(), n = Math.max(20, this.host.nodes().length);
     const crossSeconds = clamp(CROSS_BASE * Math.pow(n / 100, CROSS_GROWTH), CROSS_MIN, CROSS_MAX);
     return Math.max(MIN_CRUISE, (2 * b.radius) / crossSeconds) * this.opts.speed;
@@ -497,7 +508,7 @@ export class PilotController {
     this.container.classList.toggle("cg-cursor", on && this.opts.mouse === "cursor");
     this.ship.outline.opacity = this.opts.wireframe ? 0.9 : 0;
     for (const s of this.shells) s.visible = on && this.opts.wireframe;
-    if (!(on && this.opts.wireframe)) { this.aimReticle.visible = false; this.lockReticle.visible = false; }
+    if (!(on && this.opts.wireframe)) { this.aimReticle.visible = false; this.lockReticle.visible = false; this.leadReticle.visible = false; }
   }
 
   private get chase(): boolean { return this.opts.view === "chase"; }
@@ -515,6 +526,7 @@ export class PilotController {
     if (!accepted) { bolt.node = -1; bolt.landed = true; bolt.fade = 0; return; }
     bolt.confirmed = true;
     if (!shot) return;
+    bolt.weapon = shot.weapon;
 
     // Preserve the already visible head, then bend the same bolt onto the host's physical firing direction.
     // Rebuilding it at the host's older muzzle pose makes turns look like shots spawn behind the local ship.
@@ -543,7 +555,9 @@ export class PilotController {
     const target = new THREE.Vector3(...pose.position);
     this.pos.lerp(target, this.active ? 0.45 : 1);
     this.quat.slerp(new THREE.Quaternion(...pose.rotation).normalize(), this.active ? 0.45 : 1);
-    this.vel.set(...pose.velocity); this.energy = pose.energy; this.health = pose.health;
+    this.vel.set(...pose.velocity); this.energy = pose.energy; this.health = pose.health; this.shields = pose.shields; this.damagePause = pose.damagePause;
+    this.weapon = pose.weapon; this.heat = pose.heat; this.overheated = pose.overheated; this.ammunition = pose.ammunition;
+    this.cooldown = pose.weaponCooldown / 1000;
     this.boostLocked = pose.boostLocked; this.holdLeft = pose.boostHold; this.regenDelay = pose.regenDelay;
     this.respawnLeft = pose.respawnAt; this.protectionLeft = pose.protectedUntil;
     this.boosting = false;
@@ -630,7 +644,7 @@ export class PilotController {
     this.hud.hidden = true;
     this.container.classList.remove("cg-piloting", "cg-cursor");
     this.host.setAim(-1); this.aim = -1;
-    if (notifyRoom) this.host.onNetworkFrame({ thrust: 0, strafe: 0, lift: 0, roll: 0, pitch: 0, yaw: 0, boost: false, brake: false, fire: false, active: false });
+    if (notifyRoom) this.host.onNetworkFrame({ thrust: 0, strafe: 0, lift: 0, roll: 0, pitch: 0, yaw: 0, boost: false, brake: false, fire: false, active: false, weapon: 0 });
     if (say) this.host.onState(false, "Pilot mode off");
     else this.host.onState(false, "");
   }
@@ -658,7 +672,7 @@ export class PilotController {
     this.ship.lights.forEach(l => this.scene.remove(l));
     this.ship.dispose();
     dispose(this.boltLines); this.boltLines.geometry.dispose();
-    for (const r of [this.aimReticle, this.lockReticle]) { dispose(r); r.geometry.dispose(); }
+    for (const r of [this.aimReticle, this.lockReticle, this.leadReticle]) { dispose(r); r.geometry.dispose(); }
     for (const s of this.shells) dispose(s);
     this.shellGeo.dispose();
     for (const b of this.bursts) dispose(b.line);
@@ -738,6 +752,7 @@ export class PilotController {
         break;
       }
       case "KeyH": this.returnToHub(); break;
+      case "KeyR": this.weapon = this.weapon === 0 ? 1 : 0; if (this.opts.multiplayer) this.host.onNetworkFrame(this.networkInput()); this.audio.weaponSwitch(this.weapon); break;
       case "KeyV": this.opts = { ...this.opts, view: this.chase ? "cockpit" : "chase" }; this.applyLook(); this.host.onState(true, this.chase ? "Chase view" : "Cockpit view"); break;
     }
   };
@@ -806,6 +821,9 @@ export class PilotController {
     this.networkAccumulator += dt;
     this.respawnLeft = Math.max(0, this.respawnLeft - dt * 1000);
     this.protectionLeft = Math.max(0, this.protectionLeft - dt * 1000);
+    this.heat = Math.max(0, this.heat - 0.26 * dt);
+    this.damagePause = Math.max(0, this.damagePause - dt);
+    if (this.overheated && this.heat <= 0.4) this.overheated = false;
 
     const thrust = this.hangarOpen ? 0 : (k.has("KeyW") ? 1 : 0) - (k.has("KeyS") ? 1 : 0);
     const strafe = this.hangarOpen ? 0 : (k.has("KeyD") ? 1 : 0) - (k.has("KeyA") ? 1 : 0);
@@ -827,6 +845,8 @@ export class PilotController {
     } else if (this.holdLeft > 0 || this.regenDelay > 0) {
       this.holdLeft = Math.max(0, this.holdLeft - dt); // empty and not refilling yet
       this.regenDelay = Math.max(0, this.regenDelay - dt);
+    } else if (this.damagePause > 0) {
+      // Damage briefly interrupts boost recovery, matching the room authority.
     } else {
       this.energy = Math.min(1, this.energy + BOOST_REGEN * dt);
       if (this.boostLocked && this.energy >= BOOST_RELOCK) this.boostLocked = false;
@@ -868,6 +888,7 @@ export class PilotController {
       pitch: this.stick.y, yaw: this.stick.x,
       boost: this.keys.has("ShiftLeft") || this.keys.has("ShiftRight"), brake: this.keys.has("KeyX"), fire: this.firing || this.keys.has("KeyF"),
       active: this.active && this.roomVisible && !document.hidden && document.hasFocus(),
+      weapon: this.weapon,
     };
   }
 
@@ -880,36 +901,17 @@ export class PilotController {
       this.steerWithCursor(dt);
     } else {
       // the mouse moved since the last frame: smooth it (so it does not arrive in lumps), and move the virtual stick
-      const a = 1 - Math.exp(-dt * 40);
+      const a = 1 - Math.exp(-dt * MOUSE_INPUT_SMOOTHING);
       this.smX += (this.mouseDX - this.smX) * a; this.smY += (this.mouseDY - this.smY) * a;
       this.mouseDX = 0; this.mouseDY = 0;
       const k = STICK_GAIN * this.opts.sensitivity;
-      this.stick.x += -this.smX * k;
-      this.stick.y += -this.smY * k * (this.opts.invertY ? -1 : 1);
-      if (this.stick.length() > 1) this.stick.normalize();
-      this.stick.multiplyScalar(Math.exp(-STICK_DECAY * dt));
+      this.stick.x = clamp(-this.smX * k, -1, 1);
+      this.stick.y = clamp(-this.smY * k * (this.opts.invertY ? -1 : 1), -1, 1);
     }
 
-    if (this.opts.multiplayer) {
-      this.spin.set(clamp(this.stick.y, -1, 1) * PITCH_RATE, clamp(this.stick.x, -1, 1) * YAW_RATE, rollIn * ROLL_RATE);
-      this.quat.multiply(this.tmpQ.setFromAxisAngle(X_AXIS, this.spin.x * dt));
-      this.quat.multiply(this.tmpQ.setFromAxisAngle(Y_AXIS, this.spin.y * dt));
-      this.quat.multiply(this.tmpQ.setFromAxisAngle(Z_AXIS, this.spin.z * dt));
-      this.quat.normalize();
-      return;
-    }
-
-    // the spin eases toward the rate the stick asks for, and can change only so fast
+    // The same angular integrator drives solo flight and multiplayer prediction/authority.
     const agility = this.opts.agility * (1 - 0.3 * speed01) * (this.boosting ? 0.8 : 1);
-    const cap = ANG_ACC * agility * dt, ease = 1 - Math.exp(-RESP * dt);
-    const toward = (cur: number, target: number, c: number) => cur + clamp((target - cur) * ease, -c, c);
-    this.spin.x = toward(this.spin.x, this.stick.y * PITCH_RATE * agility, cap);
-    this.spin.y = toward(this.spin.y, this.stick.x * YAW_RATE * agility, cap);
-    this.spin.z = toward(this.spin.z, rollIn * ROLL_RATE * agility, cap * 1.4);
-    this.quat.multiply(this.tmpQ.setFromAxisAngle(X_AXIS, this.spin.x * dt));
-    this.quat.multiply(this.tmpQ.setFromAxisAngle(Y_AXIS, this.spin.y * dt));
-    this.quat.multiply(this.tmpQ.setFromAxisAngle(Z_AXIS, this.spin.z * dt));
-    this.quat.normalize();
+    stepFlightRotation(this.quat, this.spin, { pitch: this.stick.y, yaw: this.stick.x, roll: rollIn }, dt, this.opts.multiplayer ? 1 : agility);
   }
 
   /**
@@ -941,34 +943,8 @@ export class PilotController {
    * instead of sliding, and sharp turns bleed a little speed. The ship collides with the notes and bounces off.
    */
   private thrustAndDrag(dt: number, thrust: number, strafe: number, lift: number, brake: boolean): void {
-    const q = this.quat, A = this.cruise * ACCEL;
-    const fwd = this.fwdV.set(0, 0, -1).applyQuaternion(q);
-    const right = this.tmpV2.set(1, 0, 0).applyQuaternion(q);
-    const up = this.tmpV3.set(0, 1, 0).applyQuaternion(q);
-
-    const main = thrust > 0 ? A * (this.boosting ? BOOST_ACCEL : 1) : thrust < 0 ? A * REVERSE : 0;
-    this.vel.addScaledVector(fwd, main * Math.sign(thrust) * dt);
-    this.vel.addScaledVector(right, strafe * A * SIDE * dt);
-    this.vel.addScaledVector(up, lift * A * SIDE * dt);
-
-    let sp = this.vel.length();
-    if (brake && sp > 0) { const cut = Math.min(sp, A * RETRO * dt); this.vel.multiplyScalar((sp - cut) / sp); sp -= cut; }
-
-    // drag: quadratic in speed, set so that the main engine alone holds cruise speed
-    this.vel.divideScalar(1 + (A / (this.cruise * this.cruise)) * sp * dt);
+    stepFlightVelocity(this.vel, this.quat, this.spin, { thrust, strafe, lift, brake }, dt, this.cruise, this.boosting);
     if (this.opts.multiplayer) { this.pos.addScaledVector(this.vel, dt); return; }
-    this.vel.divideScalar(1 + TURN_BLEED * this.spin.length() * dt);
-
-    // grip: turn the direction of travel toward the nose
-    sp = this.vel.length();
-    if (sp > 1) {
-      const cos = this.vel.dot(fwd) / sp;
-      if (cos > 0) {
-        const g = 1 - Math.exp(-GRIP * dt);
-        const sin = Math.sqrt(Math.max(0, 1 - cos * cos));
-        this.vel.divideScalar(sp).lerp(fwd, g).normalize().multiplyScalar(sp * (1 - GRIP_COST * sin * g));
-      }
-    }
     // move in small steps so a fast ship cannot pass straight through a note between frames
     const sub = clamp(Math.ceil((this.vel.length() * dt) / 0.8), 1, 40);
     let impact = 0, hit = -1;
@@ -1055,7 +1031,7 @@ export class PilotController {
   /** The chase camera trails the ship's orientation, so a turn swings the plane away from the middle of the screen before the view catches up. */
   private updateCamera(dt: number): void {
     const chase = this.chase, cam = this.camera;
-    const rate = !chase ? 90 : this.warp ? 11 : CAM_RATE;
+    const rate = !chase ? 90 : this.warp ? 11 : this.opts.multiplayer ? FLIGHT.chaseCameraResponse : CAM_RATE;
     this.camQuat.slerp(this.quat, 1 - Math.exp(-rate * dt));
     cam.quaternion.copy(this.camQuat);
     cam.position.copy(this.pos);
@@ -1132,8 +1108,9 @@ export class PilotController {
       this.dashboardAccumulator %= 0.1;
       const left = Math.max(0, this.roundRemaining - (performance.now() - this.roundUpdatedAt));
       const phase = this.opts.multiplayer ? `${this.roundPhase}${left > 0 ? ` ${Math.ceil(left / 1000)}s` : ""}` : "SOLO";
-      this.cockpit.updateDashboard({ health: this.health, boost: this.energy, speed: this.vel.length(), boostLocked: this.boostLocked,
-        regenDelay: this.regenDelay, emptyHold: this.holdLeft, weaponReady: this.cooldown <= 0, weaponCooldown: this.cooldown, kills: this.roundKills, leader: this.roundLeader,
+      this.cockpit.updateDashboard({ health: this.health, shields: this.shields, boost: this.energy, speed: this.vel.length(), boostLocked: this.boostLocked,
+        regenDelay: this.regenDelay, emptyHold: this.holdLeft, weapon: this.weapon, heat: this.heat, overheated: this.overheated, ammunition: this.ammunition,
+        weaponReady: this.cooldown <= 0 && (this.weapon === 1 ? this.ammunition > 0 : !this.overheated), weaponCooldown: this.cooldown, kills: this.roundKills, leader: this.roundLeader,
         protectedFor: this.protectionLeft, respawnIn: this.respawnLeft, phase });
       const accessible = this.cockpit.dashboardText;
       if (accessible !== this.accessibleDashboardText && performance.now() - this.accessibleDashboardAt >= 1000) {
@@ -1168,8 +1145,10 @@ export class PilotController {
   }
 
   private fire(ctrl: boolean): void {
-    if (this.health <= 0 || this.cooldown > 0) return;
-    this.cooldown = FIRE_GAP;
+    if (this.health <= 0 || this.cooldown > 0 || (this.weapon === 0 && this.overheated) || (this.weapon === 1 && this.ammunition <= 0)) return;
+    this.cooldown = this.weapon === 0 ? FIRE_GAP : 0.5;
+    if (this.weapon === 0) { this.heat = Math.min(1, this.heat + 0.1); if (this.heat >= 1) this.overheated = true; }
+    else this.ammunition--;
     const point = new THREE.Vector3(0, 0, -RANGE).applyQuaternion(this.quat).add(this.pos);
     // guns fire in a rotating pattern: upper-left, lower-right, upper-right, lower-left
     const order = [0, 3, 1, 2], gun = order[this.gun++ % 4];
@@ -1177,14 +1156,14 @@ export class PilotController {
     if (this.opts.multiplayer) {
       const sequence = ++this.fireSequence;
       const from = this.muzzle(gun, new THREE.Vector3());
-      this.bolts.push({ from, origin: from.clone(), node: -1, point, travelled: 0, ctrl: false, landed: false, fade: 0, sequence, sentAt: this.clock, confirmed: false });
-      this.host.onFire(sequence, gun, point.toArray() as [number, number, number]);
+      this.bolts.push({ from, origin: from.clone(), node: -1, point, travelled: 0, ctrl: false, landed: false, fade: 0, weapon: this.weapon, sequence, sentAt: this.clock, confirmed: false });
+      this.host.onFire(sequence, gun, this.weapon, point.toArray() as [number, number, number]);
     } else {
       const i = this.host.pickAt(this.aimX, this.aimY, FIRE_SLACK);
       const from = this.muzzle(gun, new THREE.Vector3());
-      this.bolts.push({ from, origin: from.clone(), node: i, point, travelled: 0, ctrl, landed: false, fade: 0 });
+      this.bolts.push({ from, origin: from.clone(), node: i, point, travelled: 0, ctrl, landed: false, fade: 0, weapon: this.weapon });
     }
-    this.audio.laser(gun, this.opts.laserSound);
+    if (this.weapon === 1) this.audio.cannon(); else this.audio.laser(gun, this.opts.laserSound);
   }
 
   /** A bolt has reached the note it was aimed at. The first hit selects it; a second hit soon after opens it. */
@@ -1215,7 +1194,7 @@ export class PilotController {
       const dir = this.tmpV.copy(end).sub(b.from), dist = dir.length() || 1;
       dir.divideScalar(dist);
       if (!b.landed) {
-        b.travelled += (BOLT_SPEED + this.vel.length()) * dt; // a bolt inherits the ship's speed, so it never lags behind a fast ship
+        b.travelled += ((b.weapon === 1 ? 900 : BOLT_SPEED) + this.vel.length()) * dt;
         if (b.travelled >= dist) { b.landed = true; b.travelled = dist; if (b.node >= 0) this.land(b); }
       } else { b.fade += dt; if (b.fade >= BOLT_FADE) { this.bolts.splice(k, 1); continue; } }
       if (out >= MAX_BOLTS) continue;
@@ -1297,6 +1276,7 @@ export class PilotController {
     };
     place(this.aimReticle, this.aim, 1, 1.3);
     place(this.lockReticle, this.host.selectedIndex(), 1.45, -0.9);
+    this.updateLeadReticle(dt);
 
     for (const b of this.bursts) {
       if (!b.line.visible) continue;
@@ -1307,5 +1287,29 @@ export class PilotController {
       b.line.scale.setScalar(b.size * (0.6 + 5 * (1 - Math.pow(1 - t, 3))));
       (b.line.material as THREE.LineBasicMaterial).opacity = 0.9 * (1 - t);
     }
+  }
+
+  /** Place a lead pip on the intercept point for the next actual cannon muzzle and selected weapon. */
+  private updateLeadReticle(dt: number): void {
+    const reticle = this.leadReticle;
+    reticle.visible = false;
+    if (!this.opts.multiplayer || !this.opts.wireframe || !this.active || this.hangarOpen || this.health <= 0 || !this.roomVisible) return;
+    const forward = this.getForwardDirection(this.tmpV4), candidates = this.host.remoteTargets();
+    const muzzle = this.getNextMuzzle(this.tmpV3);
+    let best: { position: THREE.Vector3; velocity: THREE.Vector3; distance: number } | null = null, bestDot = 0.9;
+    for (const target of candidates) {
+      const offset = this.tmpV.copy(target.position).sub(this.pos), distance = offset.length();
+      if (distance > 1100 || distance < 5) continue;
+      const dot = offset.dot(forward) / distance;
+      if (dot > bestDot) { bestDot = dot; best = { position: target.position, velocity: target.velocity, distance }; }
+    }
+    if (!best || !interceptPoint(muzzle, best.position, best.velocity, this.currentWeaponSpeed, this.leadSolution)) return;
+    const solution = this.leadSolution;
+    reticle.position.set(solution.x, solution.y, solution.z);
+    const travel = muzzle.distanceTo(reticle.position);
+    (reticle.material as THREE.LineBasicMaterial).color.setHex(inSweetSpot(this.currentWeapon, travel) ? 0x7dff9a : 0xffc04a);
+    reticle.scale.setScalar(Math.max(1.2, this.camera.position.distanceTo(reticle.position) * 0.014));
+    reticle.rotation.y += dt * 1.3; reticle.rotation.x += dt * 0.8;
+    reticle.visible = true;
   }
 }

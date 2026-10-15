@@ -1,55 +1,25 @@
-// Synthetic signaling check only: no vault data and no WebRTC/TURN media traffic.
-// Match the Origin header sent by desktop Obsidian. Never print service payloads,
-// because successful replies contain temporary TURN credentials.
+// Synthetic health and TURN-token check for the current protocol-5 deployment.
+// It does not create a room or open a WebRTC connection, and never prints tokens or ICE credentials.
 import assert from "node:assert/strict";
-import { createRequire } from "node:module";
 
-const require = createRequire(import.meta.url);
-const { WebSocket } = require("../server/node_modules/ws");
-const url = process.argv[2] || "wss://constellation-rooms.mrassetto.workers.dev";
-const profile = { revision: 1, ship: "classic", engine: "classic", afterburner: "classic", laser: "classic" };
-const clients = [];
+const base = (process.argv[2] || process.env.CITIZEN_TURN_SERVICE_URL || "https://constellation-rooms.mrassetto.workers.dev").replace(/\/+$/, "");
+const health = await fetch(`${base}/health`);
+assert.equal(health.status, 200, "Hosted Worker health endpoint did not return HTTP 200.");
+const healthBody = await health.json();
+assert.equal(healthBody.ok, true, "Hosted Worker reported unhealthy.");
 
-function client() {
-  const ws = new WebSocket(url, { origin: "app://obsidian.md", handshakeTimeout: 15_000 });
-  const messages = [], waiters = [];
-  const opened = new Promise((resolve, reject) => { ws.once("open", resolve); ws.once("error", reject); });
-  ws.on("error", () => {});
-  ws.on("message", raw => {
-    const message = JSON.parse(raw.toString());
-    messages.push(message);
-    for (let i = waiters.length - 1; i >= 0; i--) if (waiters[i].predicate(message)) {
-      const [waiter] = waiters.splice(i, 1); clearTimeout(waiter.timer); waiter.resolve(message);
-    }
-  });
-  const wait = predicate => {
-    const existing = messages.find(predicate); if (existing) return Promise.resolve(existing);
-    return new Promise((resolve, reject) => {
-      const waiter = { predicate, resolve, timer: setTimeout(() => {
-        waiters.splice(waiters.indexOf(waiter), 1); reject(new Error("Room reply timed out."));
-      }, 15_000) };
-      waiters.push(waiter);
-    });
-  };
-  const result = { ws, opened, wait }; clients.push(result); return result;
-}
+const unauthorized = await fetch(`${base}/turn`);
+assert.equal(unauthorized.status, 401, "TURN configuration must reject requests without an issued token.");
+const session = await fetch(`${base}/turn/session`);
+assert.equal(session.status, 200, "TURN token endpoint did not return HTTP 200.");
+const tokenBody = await session.json();
+assert.equal(typeof tokenBody.token, "string", "TURN session omitted a refresh token.");
+assert.match(tokenBody.token, /^[0-9a-f]{64}$/i, "TURN session returned an invalid refresh token.");
+assert.ok(Number.isSafeInteger(tokenBody.expiresAt) && tokenBody.expiresAt > Date.now(), "TURN refresh token is not short-lived.");
 
-try {
-  const host = client(); await host.opened;
-  host.ws.send(JSON.stringify({ type: "create", protocol: 4, name: "Synthetic check A", profile }));
-  const created = await host.wait(message => message.type === "created" || message.type === "error");
-  assert.equal(created.type, "created", `Create failed: ${created.code || "unknown error"}`);
-  const peer = client(); await peer.opened;
-  peer.ws.send(JSON.stringify({ type: "join", protocol: 4, code: created.code, name: "Synthetic check B", profile }));
-  const joined = await peer.wait(message => message.type === "joined" || message.type === "error");
-  assert.equal(joined.type, "joined", `Join failed: ${joined.code || "unknown error"}`);
-  assert.equal(joined.members.length, 2);
-  assert.equal(joined.hostId, created.hostId);
-  console.log(`Hosted WebSocket check passed: Obsidian Origin accepted, create/join succeeded, two members, relay ${joined.relayStatus} (${joined.iceServers?.length || 0} servers).`);
-} finally {
-  await Promise.all(clients.map(({ ws }) => new Promise(resolve => {
-    if (ws.readyState === WebSocket.CLOSED) return resolve();
-    const timer = setTimeout(() => { ws.terminate(); resolve(); }, 2000);
-    ws.once("close", () => { clearTimeout(timer); resolve(); }); ws.close();
-  })));
-}
+const configuration = await fetch(`${base}/turn`, { headers: { Authorization: `Bearer ${tokenBody.token}` } });
+assert.equal(configuration.status, 200, "Issued TURN token was not accepted.");
+const relay = await configuration.json();
+assert.ok(Array.isArray(relay.iceServers) && relay.iceServers.length <= 12, "TURN configuration exceeded the server limit.");
+assert.ok(["ready", "pending", "unavailable", "quota", "direct-only"].includes(relay.relayStatus), "Worker returned an unknown relay state.");
+console.log(`Hosted Worker check passed: health available, token issued and accepted, relay status ${relay.relayStatus}, ${relay.iceServers.length} ICE server entries.`);

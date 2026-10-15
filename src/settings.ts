@@ -38,8 +38,11 @@ export interface ConstellationSettings {
   pilotLaserSound: LaserSoundId;
   pilotNearbyAudio: boolean;
   multiplayerName: string;
-  multiplayerConnectionMode: "hosted" | "custom";
+  multiplayerConnectionMode: "public" | "custom";
   multiplayerCustomServerUrl: string;
+  multiplayerRelayUrl: string;
+  multiplayerLegacyServerUrl: string;
+  settingsSchemaVersion: number;
 }
 
 export const DEFAULT_SETTINGS: ConstellationSettings = {
@@ -77,8 +80,11 @@ export const DEFAULT_SETTINGS: ConstellationSettings = {
   pilotLaserSound: DEFAULT_PILOT_PROFILE.laser,
   pilotNearbyAudio: true,
   multiplayerName: "Pilot",
-  multiplayerConnectionMode: "hosted",
+  multiplayerConnectionMode: "public",
   multiplayerCustomServerUrl: "",
+  multiplayerRelayUrl: "https://ntfy.sh",
+  multiplayerLegacyServerUrl: "",
+  settingsSchemaVersion: 2,
 };
 
 const clamp = (v: unknown, lo: number, hi: number, fallback: number): number =>
@@ -92,8 +98,19 @@ export function sanitizeSettings(raw: unknown): ConstellationSettings {
   const r = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
   const d = DEFAULT_SETTINGS;
   const legacyServerUrl = typeof r.multiplayerSignalingUrl === "string" ? r.multiplayerSignalingUrl.slice(0, 512) : "";
-  const migratedCustomUrl = legacyServerUrl && legacyServerUrl !== "ws://localhost:8787" ? legacyServerUrl : "";
-  const connectionMode = pick(r.multiplayerConnectionMode, ["hosted", "custom"] as const, migratedCustomUrl ? "custom" : d.multiplayerConnectionMode);
+  const oldCustomUrl = typeof r.multiplayerCustomServerUrl === "string" ? r.multiplayerCustomServerUrl.slice(0, 512) : "";
+  const storedSchema = Math.max(0, Math.floor(clamp(r.settingsSchemaVersion, 0, 100, 0)));
+  // 0.4.x upstream settings had a different Dart/Bulwark meaning and private
+  // TURN fields. The upstream-only collapse/credential fields identify that
+  // source, so preserve those selections as the imported variants.
+  const fromUpstream = storedSchema === 0 && ("pilotCollapse" in r || "multiplayerTurnUrl" in r || "multiplayerTurnCredential" in r);
+  const legacyShip = r.pilotShip === "striker" ? "classic"
+    : fromUpstream && r.pilotShip === "dart" ? "dart-interceptor"
+      : fromUpstream && r.pilotShip === "bulwark" ? "bulwark-gunship" : r.pilotShip;
+  const legacyUrl = typeof r.multiplayerLegacyServerUrl === "string" ? r.multiplayerLegacyServerUrl.slice(0, 512)
+    : [legacyServerUrl, oldCustomUrl].find(value => /^wss?:\/\//i.test(value)) ?? "";
+  const migratedCustomUrl = oldCustomUrl && !/^wss?:\/\//i.test(oldCustomUrl) ? oldCustomUrl : "";
+  const connectionMode = storedSchema < 2 ? d.multiplayerConnectionMode : pick(r.multiplayerConnectionMode, ["public", "custom"] as const, d.multiplayerConnectionMode);
   return {
     motion: pick(r.motion, ["off", "calm", "lively"] as const, d.motion),
     autoRotate: bool(r.autoRotate, d.autoRotate),
@@ -123,16 +140,17 @@ export function sanitizeSettings(raw: unknown): ConstellationSettings {
     pilotAgility: clamp(r.pilotAgility, 0.5, 1.5, d.pilotAgility),
     pilotSpeed: clamp(r.pilotSpeed, 0.4, 3, d.pilotSpeed),
     pilotMouse: pick(r.pilotMouse, ["capture", "cursor"] as const, d.pilotMouse),
-    pilotShip: pick(r.pilotShip, SHIP_IDS, d.pilotShip),
+    pilotShip: pick(legacyShip, SHIP_IDS, d.pilotShip),
     pilotEngineSound: pick(r.pilotEngineSound, ENGINE_SOUND_IDS, d.pilotEngineSound),
     pilotAfterburnerSound: pick(r.pilotAfterburnerSound, AFTERBURNER_SOUND_IDS, d.pilotAfterburnerSound),
     pilotLaserSound: pick(r.pilotLaserSound, LASER_SOUND_IDS, d.pilotLaserSound),
     pilotNearbyAudio: bool(r.pilotNearbyAudio, d.pilotNearbyAudio),
     multiplayerName: typeof r.multiplayerName === "string" ? r.multiplayerName.trim().slice(0, 24) || d.multiplayerName : d.multiplayerName,
     multiplayerConnectionMode: connectionMode,
-    multiplayerCustomServerUrl: typeof r.multiplayerCustomServerUrl === "string"
-      ? r.multiplayerCustomServerUrl.slice(0, 512)
-      : migratedCustomUrl,
+    multiplayerCustomServerUrl: migratedCustomUrl,
+    multiplayerRelayUrl: typeof r.multiplayerRelayUrl === "string" ? r.multiplayerRelayUrl.slice(0, 512) : d.multiplayerRelayUrl,
+    multiplayerLegacyServerUrl: legacyUrl,
+    settingsSchemaVersion: 2,
   };
 }
 

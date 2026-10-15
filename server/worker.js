@@ -11,7 +11,7 @@ const CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 function json(value, status = 200) {
   return new Response(JSON.stringify(value), {
     status,
-    headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff" },
+    headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff", "access-control-allow-origin": "*", "access-control-allow-headers": "authorization, content-type", "access-control-allow-methods": "GET, OPTIONS" },
   });
 }
 
@@ -59,6 +59,10 @@ function cleanPeerSignal(value) {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    if (url.pathname === "/turn" || url.pathname === "/turn/session") {
+      const id = env.ROOMS.idFromName("global-room-coordinator");
+      return env.ROOMS.get(id).fetch(new Request(`https://coordinator.internal${url.pathname}`, { method: request.method, headers: request.headers }));
+    }
     if (url.pathname === "/health" && request.method === "GET") {
       const id = env.ROOMS.idFromName("global-room-coordinator");
       return env.ROOMS.get(id).fetch(new Request("https://coordinator.internal/health"));
@@ -84,6 +88,7 @@ export class RoomCoordinator extends DurableObject {
     this.connections = new Map();
     this.attempts = new Map();
     this.turnCredentials = [];
+    this.turnSessions = new Map();
     this.turnRotation = null;
     this.turnError = "";
     this.turnRetryAt = 0;
@@ -101,7 +106,34 @@ export class RoomCoordinator extends DurableObject {
   }
 
   async fetch(request) {
-    if (new URL(request.url).pathname === "/health") return json({ ok: true, rooms: this.rooms.size });
+    const path = new URL(request.url).pathname;
+    if (path === "/health" && request.method === "GET") return json({ ok: true, rooms: this.rooms.size });
+    if (path === "/turn/session" || path === "/turn") {
+      if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: { "access-control-allow-origin": "*", "access-control-allow-headers": "authorization, content-type", "access-control-allow-methods": "GET, OPTIONS", "access-control-max-age": "600", "cache-control": "no-store" } });
+      if (request.method !== "GET") return json({ code: "method-not-allowed" }, 405);
+      if (path === "/turn/session") {
+        const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+        if (!this.consume(`turn-session-ip:${ip}`, 6, 6 * 60 * 60_000)) return json({ code: "rate-limited" }, 429);
+        const now = Date.now();
+        for (const [key, expiry] of this.turnSessions) if (expiry <= now) this.turnSessions.delete(key);
+        const bytes = crypto.getRandomValues(new Uint8Array(32));
+        const token = [...bytes].map(value => value.toString(16).padStart(2, "0")).join("");
+        const expiresAt = now + 6 * 60 * 60_000;
+        this.turnSessions.set(token, expiresAt);
+        if (this.turnSessions.size > 5000) this.turnSessions.delete(this.turnSessions.keys().next().value);
+        return json({ token, expiresAt });
+      }
+      const token = (request.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
+      if (!/^[0-9a-f]{64}$/i.test(token)) return json({ code: "unauthorized" }, 401);
+      const tokenExpiry = this.turnSessions.get(token);
+      if (!tokenExpiry || tokenExpiry <= Date.now()) { this.turnSessions.delete(token); return json({ code: "unauthorized" }, 401); }
+      const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+      if (!this.consume(`turn-ip:${ip}`, 30, 60 * 60_000) || !this.consume(`turn-token:${token}`, 12, 60 * 60_000)) return json({ code: "rate-limited" }, 429);
+      // The Worker-issued bearer is kept only in memory. TURN credentials are separately
+      // short-lived and provider-backed; neither value is logged.
+      const config = await this.iceConfiguration();
+      return json(config);
+    }
     if (request.headers.get("Upgrade")?.toLowerCase() !== "websocket") return new Response("WebSocket upgrade required", { status: 426 });
 
     const ip = request.headers.get("CF-Connecting-IP") || "unknown";

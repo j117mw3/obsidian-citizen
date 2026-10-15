@@ -13,27 +13,31 @@ const profile = await load("pilotProfile");
 const shipModule = await load("ship");
 const cockpit = await load("cockpit");
 
-test("pilot profiles accept six ships and three sounds per category", () => {
-  assert.deepEqual(profile.SHIP_IDS, ["classic", "vector", "dart", "bulwark", "crescent", "revenant"]);
-  assert.deepEqual(profile.ENGINE_SOUND_IDS, ["classic", "ion", "turbine"]);
-  assert.deepEqual(profile.AFTERBURNER_SOUND_IDS, ["classic", "plasma", "fusion"]);
-  assert.deepEqual(profile.LASER_SOUND_IDS, ["classic", "pulse", "arc"]);
+test("pilot profiles accept eight ships and four sounds per category", () => {
+  assert.deepEqual(profile.SHIP_IDS, ["classic", "vector", "dart", "bulwark", "crescent", "revenant", "dart-interceptor", "bulwark-gunship"]);
+  assert.deepEqual(profile.ENGINE_SOUND_IDS, ["classic", "ion", "turbine", "stellar"]);
+  assert.deepEqual(profile.AFTERBURNER_SOUND_IDS, ["classic", "plasma", "fusion", "stellar"]);
+  assert.deepEqual(profile.LASER_SOUND_IDS, ["classic", "pulse", "arc", "pulse-xl"]);
   assert.equal(profile.validPilotProfile(profile.DEFAULT_PILOT_PROFILE), true);
   assert.equal(profile.validPilotProfile({ ...profile.DEFAULT_PILOT_PROFILE, ship: "unknown" }), false);
   assert.equal(profile.validPilotProfile({ ...profile.DEFAULT_PILOT_PROFILE, engine: "private-id" }), false);
 });
 
-test("all six procedural ship models share the same four cannon mounts", () => {
+test("all eight models expose their four registered physical muzzle positions", () => {
   const signatures = new Set();
   for (const id of profile.SHIP_IDS) {
     const ship = shipModule.buildShip(id);
-    assert.deepEqual(ship.muzzles.map(muzzle => muzzle.toArray()), shipModule.SHIP_MUZZLES);
+    const expected = shipModule.shipMuzzles(id);
+    for (const [index, muzzle] of ship.muzzles.entries()) {
+      assert.ok(muzzle.toArray().every((value, axis) => Math.abs(value - expected[index][axis]) < 1e-12), `${id} muzzle ${index} matches its registered position`);
+    }
+    assert.equal(ship.muzzles.length, 4);
     const geometries = [];
     ship.group.traverse(object => { if (object.isMesh) geometries.push([object.geometry.type, object.geometry.getAttribute("position").count]); });
     signatures.add(JSON.stringify(geometries));
     ship.dispose();
   }
-  assert.equal(signatures.size, 6, "each hangar choice has a distinct procedural silhouette");
+  assert.equal(signatures.size, 8, "each hangar choice has a distinct silhouette");
 });
 
 test("cockpit screens remain inside the camera at narrow and wide aspect ratios", () => {

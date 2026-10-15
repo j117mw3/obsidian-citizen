@@ -110,10 +110,10 @@ const SECTIONS: Section[] = [
     items: [
       { key: "multiplayerName", name: "Display name", control: { kind: "text", placeholder: "Pilot" },
         desc: "Shown to other players in a room. Up to 24 characters." },
-      { key: "multiplayerConnectionMode", name: "Room service", control: { kind: "dropdown", options: { hosted: "Hosted rooms", custom: "Custom server" } },
-        desc: "Hosted rooms work after installing the plugin. Use a custom server only if you run your own." },
-      { key: "multiplayerCustomServerUrl", name: "Custom signaling address", control: { kind: "text", placeholder: "wss://your-server.example" },
-        desc: "Used only when Room service is set to Custom server. Local development can use ws://localhost:8787." },
+      { key: "multiplayerConnectionMode", name: "Room discovery", control: { kind: "dropdown", options: { public: "Public relay", custom: "Custom relay" } },
+        desc: "The public ntfy relay is the default and needs no account. It carries only encrypted room setup messages; game traffic travels directly between pilots." },
+      { key: "multiplayerRelayUrl", name: "Custom relay URL", control: { kind: "text", placeholder: "https://ntfy.sh" },
+        desc: "Used only when Custom relay is selected. Use an ntfy-compatible HTTPS publish and event-stream service." },
     ],
   },
 ];

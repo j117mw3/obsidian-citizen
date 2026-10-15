@@ -14,6 +14,9 @@ permissions:
 
 jobs:
   release:
+    # Historical 0.1–0.4 tags and the manually staged first 0.5.0 release must
+    # never auto-publish when the archive backfill creates their tags.
+    if: ${{ !startsWith(github.ref_name, '0.1.') && !startsWith(github.ref_name, '0.2.') && !startsWith(github.ref_name, '0.3.') && !startsWith(github.ref_name, '0.4.') && github.ref_name != '0.5.0' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7

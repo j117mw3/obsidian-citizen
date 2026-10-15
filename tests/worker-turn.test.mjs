@@ -84,3 +84,25 @@ test("confirmed provider quota exhaustion is distinguished from other outages", 
   assert.equal(service.turnError, "quota");
   assert.equal((await service.iceConfiguration()).relayStatus, "quota");
 });
+
+test("TURN configuration requires a short-lived Worker-issued refresh token", async () => {
+  FakeDate.clock = Date.now();
+  const { RoomCoordinator } = loadWorker(async () => new Response("unused", { status: 404 }));
+  const service = new RoomCoordinator({ waitUntil() {} }, {});
+  service.turnCredentials = [{ createdAt: FakeDate.clock, usableAt: FakeDate.clock, expiresAt: FakeDate.clock + 3_600_000, iceServers: testIceServers() }];
+  const request = (path, headers = {}) => new Request(`https://worker.test${path}`, { headers: { "CF-Connecting-IP": "198.51.100.7", ...headers } });
+
+  assert.equal((await service.fetch(request("/turn"))).status, 401, "no bearer token is rejected");
+  assert.equal((await service.fetch(request("/turn", { Authorization: `Bearer ${"a".repeat(64)}` }))).status, 401, "client-chosen values are not credentials");
+  const issuedResponse = await service.fetch(request("/turn/session"));
+  assert.equal(issuedResponse.status, 200);
+  const issued = await issuedResponse.json();
+  assert.match(issued.token, /^[0-9a-f]{64}$/);
+  assert.equal(issued.expiresAt, FakeDate.clock + 6 * 60 * 60_000);
+  const configuration = await service.fetch(request("/turn", { Authorization: `Bearer ${issued.token}` }));
+  assert.equal(configuration.status, 200);
+  assert.equal((await configuration.json()).relayStatus, "ready");
+
+  FakeDate.clock = issued.expiresAt;
+  assert.equal((await service.fetch(request("/turn", { Authorization: `Bearer ${issued.token}` }))).status, 401, "expired tokens stop working");
+});

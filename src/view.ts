@@ -1,4 +1,4 @@
-import { ItemView, TFile, WorkspaceLeaf } from "obsidian";
+import { ItemView, requestUrl, TFile, WorkspaceLeaf } from "obsidian";
 import { ConstellationApp } from "./app";
 import { buildGraphData, signature } from "./data";
 import type ConstellationPlugin from "./main";
@@ -14,7 +14,7 @@ export class ConstellationView extends ItemView {
   constructor(leaf: WorkspaceLeaf, private plugin: ConstellationPlugin) { super(leaf); }
 
   getViewType(): string { return VIEW_TYPE; }
-  getDisplayText(): string { return "Constellation graph"; }
+  getDisplayText(): string { return "Obsidian Citizen"; }
   getIcon(): string { return "orbit"; }
 
   async onOpen(): Promise<void> {
@@ -23,6 +23,11 @@ export class ConstellationView extends ItemView {
     this.ca = new ConstellationApp(this.contentEl, {
       openNote: (id, newTab) => { if (!this.ca?.inRoom) this.openNote(id, newTab); },
       updateSettings: patch => this.plugin.update(patch),
+      post: async (url, body) => (await requestUrl({ url, method: "POST", body, headers: { "Content-Type": "text/plain" } })).status,
+      request: async (url, token) => {
+        const response = await requestUrl({ url, method: "GET", headers: token ? { Authorization: `Bearer ${token}` } : {} });
+        return { status: response.status, body: response.json };
+      },
     }, this.plugin.settings);
     this.refresh(true);
 

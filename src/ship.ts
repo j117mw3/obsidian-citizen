@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import type { ShipId } from "./pilotProfile";
+import { buildShip as buildImportedShip } from "./importedShipModels";
 
 export interface Ship {
   /** The fighter, nose toward -Z like the camera. Add it to the scene; the pilot positions it every frame. */
@@ -21,12 +22,29 @@ export const MULTIPLAYER_SHIP_SCALE = SHIP_SCALE * 2;
 export const SHIP_MUZZLES: readonly [number, number, number][] = [
   [-1.61, -0.51, -0.97], [-1.61, 0.51, -0.97], [1.61, -0.51, -0.97], [1.61, 0.51, -0.97],
 ];
+const DART_MUZZLES: readonly [number, number, number][] = [
+  [-0.76, 0, -0.744], [-1.36, 0, -0.184], [0.76, 0, -0.744], [1.36, 0, -0.184],
+];
+const BULWARK_MUZZLES: readonly [number, number, number][] = [
+  [-0.336, 0.136, -1.504], [-0.336, -0.136, -1.504], [0.336, 0.136, -1.504], [0.336, -0.136, -1.504],
+];
+const IMPORTED_MODEL_SCALE = 0.8;
+function normalizeImportedShip(kind: "dart" | "bulwark"): Ship {
+  const model = buildImportedShip(kind), group = new THREE.Group(), normalized = new THREE.Group();
+  normalized.scale.setScalar(IMPORTED_MODEL_SCALE); normalized.add(model.group); group.add(normalized);
+  return { group, lights: model.lights, flames: model.flames, muzzles: model.muzzles.map(muzzle => muzzle.multiplyScalar(IMPORTED_MODEL_SCALE)), outline: model.outline, dispose: model.dispose };
+}
+export function shipMuzzles(style: ShipId): readonly [number, number, number][] {
+  return style === "dart-interceptor" ? DART_MUZZLES : style === "bulwark-gunship" ? BULWARK_MUZZLES : SHIP_MUZZLES;
+}
 
 /**
  * A small four-winged starfighter built from primitives, with a glowing wireframe outline over the hull.
  * Nothing is loaded from disk: the plugin ships no model files.
  */
 export function buildShip(style: ShipId = "classic"): Ship {
+  if (style === "dart-interceptor") return normalizeImportedShip("dart");
+  if (style === "bulwark-gunship") return normalizeImportedShip("bulwark");
   const group = new THREE.Group();
   const owned: { dispose(): void }[] = [];
   const own = <T extends { dispose(): void }>(o: T): T => { owned.push(o); return o; };

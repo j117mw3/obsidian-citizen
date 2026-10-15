@@ -4,10 +4,10 @@ import { buildShip, type Ship } from "./ship";
 import type { AfterburnerSoundId, EngineSoundId, LaserSoundId, ShipId } from "./pilotProfile";
 
 type ChoicePatch = Partial<Pick<ConstellationSettings, "pilotShip" | "pilotEngineSound" | "pilotAfterburnerSound" | "pilotLaserSound" | "pilotNearbyAudio">>;
-const SHIPS: [ShipId, string][] = [["classic", "Classic fighter"], ["vector", "Vector interceptor"], ["dart", "Dart freighter"], ["bulwark", "Bulwark cruiser"], ["crescent", "Crescent spacecraft"], ["revenant", "Revenant explorer"]];
-const ENGINES: [EngineSoundId, string][] = [["classic", "Classic rumble"], ["ion", "Ion reactor"], ["turbine", "Turbine drive"]];
-const BOOSTS: [AfterburnerSoundId, string][] = [["classic", "Classic whoosh"], ["plasma", "Plasma surge"], ["fusion", "Fusion roar"]];
-const LASERS: [LaserSoundId, string][] = [["classic", "Classic blaster"], ["pulse", "Pulse bolt"], ["arc", "Arc snap"]];
+const SHIPS: [ShipId, string][] = [["classic", "Classic"], ["vector", "Vector"], ["dart", "Dart Freighter"], ["bulwark", "Bulwark Cruiser"], ["crescent", "Crescent"], ["revenant", "Revenant"], ["dart-interceptor", "Dart Interceptor"], ["bulwark-gunship", "Bulwark Gunship"]];
+const ENGINES: [EngineSoundId, string][] = [["classic", "Classic rumble"], ["ion", "Ion reactor"], ["turbine", "Turbine drive"], ["stellar", "Stellar drive"]];
+const BOOSTS: [AfterburnerSoundId, string][] = [["classic", "Classic whoosh"], ["plasma", "Plasma surge"], ["fusion", "Fusion roar"], ["stellar", "Stellar surge"]];
+const LASERS: [LaserSoundId, string][] = [["classic", "Classic blaster"], ["pulse", "Pulse bolt"], ["arc", "Arc snap"], ["pulse-xl", "Pulse XL"]];
 
 export class PilotHangar {
   readonly panel: HTMLElement;
