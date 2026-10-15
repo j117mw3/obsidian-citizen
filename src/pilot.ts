@@ -77,7 +77,7 @@ const MIN_CRUISE = 12;     // scene units per second, so a tiny vault is still f
 
 // ---- flight model. The ship is a rigid body: it has a velocity and a spin, and the controls only apply forces and torques to them.
 const ACCEL = 0.7;         // main engine thrust, in cruise-speeds per second squared
-const BOOST_ACCEL = 8;     // afterburner multiplier on the main engine (top speed under afterburner is its square root, in cruise speeds)
+const BOOST_ACCEL = 10;    // afterburner multiplier on the main engine (top speed under afterburner is its square root, in cruise speeds)
 const BOOST_TOP = Math.sqrt(BOOST_ACCEL); // top speed under afterburner, in cruise speeds (drag grows with speed squared)
 const REVERSE = 0.45;      // reverse thrusters are weaker than the main engine
 const SIDE = 0.35;         // so are the side and vertical thrusters
@@ -129,7 +129,7 @@ const AIM_SLACK = 10;      // extra px of forgiveness when aiming
 const FIRE_SLACK = 14;    // and when firing
 const RESPAWN_MS = 5000;     // a destroyed ship is back after this long
 const PROTECT_MS = 3000;     // and cannot be hit for this long after it returns
-const ROOM_CRUISE = 100;     // in a room everyone cruises at the same speed
+const ROOM_CRUISE = 135;     // in a room everyone cruises at the same speed
 const FOV_BOOST = 16;      // degrees the view widens under afterburner
 const FOV_SPEED = 6;       // and a little for plain speed
 const COCKPIT_SCALE = 2.2;

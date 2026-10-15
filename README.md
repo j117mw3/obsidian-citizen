@@ -94,7 +94,7 @@ The graph area is focusable. Press **?** for this list in the app.
 
 ## Pilot mode (a flying sandbox)
 
-Press **P** in the graph (or the plane button on the toolbar) and fly a small starfighter through your notes. Pilot mode is a **sandbox**: it never selects, opens or changes a note, and the rest of the plugin works exactly as before outside it. The plane has weight: it takes a moment to start and stop a turn, it coasts when you let go of the throttle, a trailing camera follows it, and the afterburner draws on an energy tank (its top speed is lower than it was, and it does not refill for two seconds after you are hit). Notes are solid, so you bounce off them. Blaster bolts make a splash where they land and can open a folded group (below), nothing more.
+Press **P** in the graph (or the plane button on the toolbar) and fly a small starfighter through your notes. Pilot mode is a **sandbox**: it never selects, opens or changes a note, and the rest of the plugin works exactly as before outside it. The plane has weight: it takes a moment to start and stop a turn, it coasts when you let go of the throttle, a trailing camera follows it, and the afterburner draws on an energy tank (it does not refill for two seconds after you are hit). Notes are solid, so you bounce off them. Blaster bolts make a splash where they land and can open a folded group (below), nothing more.
 
 | Key | Action |
 |---|---|
