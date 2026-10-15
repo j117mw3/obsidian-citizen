@@ -233,7 +233,7 @@ export class ConstellationRenderer implements GraphRenderer {
     }, pilotOptions(settings));
 
     this.remote = new RemoteWorld(this.scene, this.labelLayer, this.camera, () => this.nodeMaterial(), {
-      hitTest: (a, b, kind) => this.pilot.hitTest(a, b, kind),
+      hitTest: (a, b, kind, travelled) => this.pilot.hitTest(a, b, kind, travelled),
       struck: (id, shotId, at) => this.cb.onNetworkHit?.(id, shotId, at),
     });
 
@@ -369,7 +369,7 @@ export class ConstellationRenderer implements GraphRenderer {
   setRemotePositions(id: string, positions: Float32Array): void { this.remote.setPositions(id, positions); this.stale = true; }
   setRemotePose(id: string, pose: Pose): void { this.remote.setPose(id, pose); this.stale = true; }
   addRemoteShot(id: string, shot: ShotMsg): void { this.remote.addShot(id, shot); this.stale = true; }
-  showRemoteHit(hit: HitMsg): void { this.remote.showHit(hit); this.stale = true; }
+  showRemoteHit(hit: HitMsg): void { this.remote.showHit(hit); this.pilot.hitConfirmed(); this.stale = true; }
   removeRemote(id: string): void { this.remote.remove(id); this.stale = true; }
 
   /** Enter or leave free flight. The orbit controls are parked while it runs, and the view eases back out when it ends. */

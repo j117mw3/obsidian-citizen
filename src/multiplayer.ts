@@ -36,7 +36,7 @@ export interface AnonymousTopology { revision: number; nodes: AnonymousNode[]; g
 /** Where a pilot's ship is and how it is doing. Sent about twenty times a second. */
 export interface Pose { p: [number, number, number]; q: [number, number, number, number]; v: [number, number, number]; hp: number; en: number; bo: boolean; ac: boolean; pr: boolean; sh?: number }
 /** A blaster bolt: where it started and which way it flies. */
-export interface ShotMsg { id: string; o: [number, number, number]; d: [number, number, number]; w?: 0 | 1 }
+export interface ShotMsg { id: string; o: [number, number, number]; d: [number, number, number]; w?: 0 | 1; s?: number }
 /** "You hit me." Sent by the pilot who was hit, so the shooter can show the impact. */
 export interface HitMsg { shooter: string; target: string; shotId: string; at: [number, number, number] }
 
@@ -132,7 +132,8 @@ export function validPose(value: unknown): value is Pose {
 export function validShot(value: unknown): value is ShotMsg {
   if (!value || typeof value !== "object") return false;
   const s = value as ShotMsg;
-  return typeof s.id === "string" && s.id.length <= 64 && finite3(s.o, MAX_COORDINATE) && finite3(s.d, 1.01) && (s.w === undefined || s.w === 0 || s.w === 1);
+  return typeof s.id === "string" && s.id.length <= 64 && finite3(s.o, MAX_COORDINATE) && finite3(s.d, 1.01) && (s.w === undefined || s.w === 0 || s.w === 1)
+    && (s.s === undefined || (typeof s.s === "number" && Number.isFinite(s.s) && s.s >= 0 && s.s <= 20_000));
 }
 export function validHit(value: unknown, self: string): value is HitMsg {
   if (!value || typeof value !== "object") return false;

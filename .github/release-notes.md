@@ -6,6 +6,8 @@ Pilot mode becomes a sandbox, and you can now fly together.
 
 - **Two weapons:** a blaster that runs hot and overheats, and a cannon that hits three times as hard but carries limited rounds per life (R switches).
 - **Three ships to choose from:** Striker, Dart and Bulwark, each with its own look and its own cockpit view. Pick yours in the settings or in the Fly together panel.
+- **Hits you can trust:** bolts now fly the same on everyone's screen (they keep your ship's speed and are not a moment behind), the target grows a little the further a bolt flew, and every gun has a best range: inside it a hit does a quarter more damage, past it the damage fades. The lead pip turns green when you are in range, and a hit flashes your crosshair.
+- **One size for every ship:** your ship and everyone else's are the same size wherever they are, with a ring that stays visible on screen when a pilot is far away.
 - **Dogfighting in a room:** larger ships that grow with distance, nameplates with name, health and distance, arrows to pilots off-screen, and a lead pip for aiming at a moving target.
 - **Spectator mode:** N watches the other pilots; after 30 seconds without input in a room you start watching automatically, and any flight key brings you back.
 - **Smoother camera:** zooming with the wheel now glides instead of stepping, and a room no longer turns the camera smoothing off. The panels no longer blur the 3D view behind them, which was costly to draw.

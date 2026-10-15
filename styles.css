@@ -253,3 +253,6 @@
 .cg-plate-arrow { display: none; width: 0; height: 0; border-left: 10px solid var(--plate, #fff); border-top: 6px solid transparent; border-bottom: 6px solid transparent; position: absolute; left: 50%; top: 50%; margin: -6px 0 0 -4px; transform-origin: 4px 6px; translate: 22px 0; }
 .cg-plate-edge .cg-plate-arrow { display: block; }
 .cg-plate-edge { gap: 1px; }
+
+.cg-pilot-cross.cg-hit { border-color: #ff5a4a; box-shadow: 0 0 10px #ff5a4a; transform-origin: center; }
+.cg-pip { position: absolute; left: 0; top: 0; width: 16px; height: 16px; border: 2px solid var(--plate, #fff); border-radius: 50%; opacity: 0.75; pointer-events: none; box-shadow: 0 0 8px var(--plate, #fff); will-change: transform; }

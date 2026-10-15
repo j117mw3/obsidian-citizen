@@ -31,3 +31,26 @@ export function interceptPoint(
   out.x = target.x + targetVel.x * t; out.y = target.y + targetVel.y * t; out.z = target.z + targetVel.z * t; out.t = t;
   return true;
 }
+
+/** How far any bolt travels before it fades. */
+export const BOLT_REACH = 900;
+/** Each gun has a best range: inside it a hit does a quarter more damage; past it the damage fades to about half at the limit. */
+export const SWEET_SPOT: Record<0 | 1, [number, number]> = { 0: [70, 420], 1: [160, 650] };
+
+export function inSweetSpot(kind: 0 | 1, dist: number): boolean { const [lo, hi] = SWEET_SPOT[kind]; return dist >= lo && dist <= hi; }
+
+/** Damage of a hit that travelled `dist` units: bonus in the sweet spot, full when closer, fading beyond it. */
+export function damageAt(kind: 0 | 1, dist: number): number {
+  const w = weaponStats(kind), [lo, hi] = SWEET_SPOT[kind];
+  if (dist >= lo && dist <= hi) return w.damage * 1.25;
+  if (dist < lo) return w.damage;
+  return w.damage * (1 - 0.55 * Math.min(1, (dist - hi) / Math.max(1, BOLT_REACH - hi)));
+}
+
+/**
+ * How close a bolt must pass to a ship to hit it. The ship you aim at is drawn larger the further away it is, and news of it
+ * (and of your shot) is a moment old, so the target grows with the distance the bolt has flown and with the ship's own speed.
+ */
+export function hitRadius(travelled: number, victimSpeed: number): number {
+  return 2.2 + Math.min(9, travelled * 0.012) + Math.min(5, victimSpeed * 0.03);
+}

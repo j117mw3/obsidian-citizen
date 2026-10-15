@@ -21,6 +21,9 @@ export interface Ship {
   dispose(): void;
 }
 
+/** One size for every ship, yours and everyone else's: a ship is the same size wherever it is, so distance reads as distance. */
+export const SHIP_SCALE = 0.45;
+
 const WING_SPREAD = 0.32; // the Striker's four wings fan out of the horizontal by this much, in radians
 
 /** Everything a ship builder needs: owned resources, shared materials and a way to add solid parts with traced edges. */
@@ -54,8 +57,8 @@ function kit() {
 }
 
 function finish(kind: ShipKind, k: ReturnType<typeof kit>, muzzles: THREE.Vector3[]): Ship {
-  const ambient = new THREE.AmbientLight(0x8fa4d0, 1.0);
-  const sun = new THREE.DirectionalLight(0xffffff, 1.5);
+  const ambient = new THREE.AmbientLight(0x8fa4d0, 0.7);
+  const sun = new THREE.DirectionalLight(0xffffff, 1.05);
   sun.position.set(2, 4, 3);
   return { kind, group: k.group, lights: [ambient, sun], flames: k.flames, muzzles, outline: k.outline, dispose: () => { k.owned.forEach(o => o.dispose()); } };
 }

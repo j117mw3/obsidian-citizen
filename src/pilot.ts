@@ -1,11 +1,11 @@
 import * as THREE from "three";
 import type { SimNode } from "./types";
 import { PilotAudio } from "./sfx";
-import { buildShip, shipIndex, type Ship, type ShipKind } from "./ship";
+import { buildShip, shipIndex, SHIP_SCALE, type Ship, type ShipKind } from "./ship";
 import { buildCockpit, type Cockpit } from "./cockpit";
 import { SpeedFx } from "./speedfx";
 import type { Pose, ShotMsg } from "./multiplayer";
-import { BLASTER, CANNON, interceptPoint, weaponStats } from "./weapons";
+import { BLASTER, CANNON, damageAt, hitRadius, inSweetSpot, interceptPoint, weaponStats } from "./weapons";
 
 /** What the pilot needs from the renderer. Kept narrow so the controller never reaches into renderer state. */
 export interface PilotHost {
@@ -103,7 +103,7 @@ const BOOST_HOLD = 3.0;    // seconds the tank stays completely empty after it r
 const BOOST_RELOCK = 0.3;  // and then the afterburner stays off until the tank has refilled this far
 const AFK_SECONDS = 30;    // no keys pressed for this long in a room and you start watching the other pilots
 const CAM_RATE = 4.5;      // how tightly the chase camera follows the ship's orientation; lower trails more
-const CAM_OFFSET = new THREE.Vector3(0, 1.1, 5.2); // behind and above the ship, in the camera's own space
+const CAM_OFFSET = new THREE.Vector3(0, 1.3, 6.2); // behind and above the ship, in the camera's own space
 
 const WARP_MIN_MS = 1200;  // a warp is fast travel, but it still takes time: longer trips take longer
 const WARP_MAX_MS = 6000;
@@ -121,8 +121,6 @@ const RANGE = 900;         // how far a shot at nothing travels
 const AIM_DIST = 600;      // how far ahead of the nose the crosshair is drawn
 const AIM_SLACK = 10;      // extra px of forgiveness when aiming
 const FIRE_SLACK = 14;    // and when firing
-const SHIP_SCALE = 0.34;
-const HIT_RADIUS = 1.8;      // multiplayer: how close a bolt must pass to your ship to hit it
 const RESPAWN_MS = 5000;     // a destroyed ship is back after this long
 const PROTECT_MS = 3000;     // and cannot be hit for this long after it returns
 const ROOM_CRUISE = 100;     // in a room everyone cruises at the same speed
@@ -181,7 +179,7 @@ interface Warp {
   dist: number;                 // how far from the target to stop
 }
 /** A bolt flies from the gun to the note it was aimed at, and the shot counts when it lands. */
-interface Bolt { from: THREE.Vector3; node: number; cluster: number; point: THREE.Vector3; kind: 0 | 1; travelled: number; landed: boolean; fade: number }
+interface Bolt { from: THREE.Vector3; node: number; cluster: number; point: THREE.Vector3; kind: 0 | 1; boost: number; travelled: number; landed: boolean; fade: number }
 interface Burst { age: number; pos: THREE.Vector3; size: number; line: THREE.LineSegments }
 
 const clamp = (v: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, v));
@@ -1119,12 +1117,13 @@ export class PilotController {
     if (this.bolts.length >= MAX_BOLTS) this.bolts.shift();
     const from = this.muzzle(gun, new THREE.Vector3());
     const kind: 0 | 1 = cannon ? 1 : 0;
-    this.bolts.push({ from, node: i, cluster: cl, point, kind, travelled: 0, landed: false, fade: 0 });
+    const boost = this.vel.length(); // the bolt keeps the speed your ship had when it left the gun
+    this.bolts.push({ from, node: i, cluster: cl, point, kind, boost, travelled: 0, landed: false, fade: 0 });
     if (cannon) this.audio.cannon(gun); else this.audio.laser(gun);
     if (this.opts.multiplayer) { // the other pilots see the same round leave the same gun
       const n = i >= 0 ? this.host.nodes()[i] : null, to = n ? this.hitA.set(n.x, n.y, n.z) : point;
       const d = this.hitB.copy(to).sub(from).normalize();
-      this.host.onNetworkShot({ id: crypto.randomUUID(), o: [from.x, from.y, from.z], d: [d.x, d.y, d.z], w: kind });
+      this.host.onNetworkShot({ id: crypto.randomUUID(), o: [from.x, from.y, from.z], d: [d.x, d.y, d.z], w: kind, s: Math.round(boost) });
     }
   }
 
@@ -1134,6 +1133,14 @@ export class PilotController {
     this.pos.set(b.cx, b.cy + b.radius * 0.25, b.cz + b.radius * 1.3 + 80);
     this.tmpM.lookAt(this.pos, c, Y_AXIS); this.quat.setFromRotationMatrix(this.tmpM); this.camQuat.copy(this.quat);
     this.vel.set(0, 0, 0); this.spin.set(0, 0, 0); this.stick.set(0, 0);
+  }
+
+  /** One of your bolts hit another pilot: a short flash in the crosshair and a tick, so a hit never goes unnoticed. */
+  hitConfirmed(): void {
+    if (!this.active || this.watching) return;
+    this.audio.tick();
+    this.cross.classList.add("cg-hit");
+    window.setTimeout(() => this.cross.classList.remove("cg-hit"), 140);
   }
 
   /** N picks the next pilot to watch, and then back to your own ship. */
@@ -1187,8 +1194,9 @@ export class PilotController {
       const dot = ((t.x - this.pos.x) * fwd.x + (t.y - this.pos.y) * fwd.y + (t.z - this.pos.z) * fwd.z) / t.dist;
       if (dot > bestDot) { bestDot = dot; best = t; }
     }
-    if (!best || !interceptPoint(this.pos, best, { x: best.vx, y: best.vy, z: best.vz }, weaponStats(this.weapon).speed, this.leadOut)) return;
+    if (!best || !interceptPoint(this.pos, best, { x: best.vx, y: best.vy, z: best.vz }, weaponStats(this.weapon).speed + this.vel.length(), this.leadOut)) return;
     const o = this.leadOut;
+    (r.material as THREE.LineBasicMaterial).color.setHex(inSweetSpot(this.weapon, best.dist) ? 0x7dff9a : 0xffc04a); // green: this is the gun's best range
     r.visible = true; r.position.set(o.x, o.y, o.z);
     r.scale.setScalar(Math.max(1.2, this.camera.position.distanceTo(r.position) * 0.014));
     r.rotation.y += 0.05;
@@ -1206,12 +1214,12 @@ export class PilotController {
    * where your ship is. A hit costs ten of a hundred; at zero you are destroyed for five seconds, then you come back with
    * three seconds when nothing can hit you.
    */
-  hitTest(a: THREE.Vector3, b: THREE.Vector3, kind: 0 | 1 = 0): boolean {
+  hitTest(a: THREE.Vector3, b: THREE.Vector3, kind: 0 | 1 = 0, travelled = 0): boolean {
     if (!this.active || !this.opts.multiplayer || this.watching || this.health <= 0 || this.clock < this.protectedUntil) return false;
     const ab = this.hitA.copy(b).sub(a), len2 = ab.lengthSq();
     const t = len2 > 0 ? clamp(this.hitB.copy(this.pos).sub(a).dot(ab) / len2, 0, 1) : 0;
-    if (this.hitC.copy(a).addScaledVector(ab, t).distanceTo(this.pos) > HIT_RADIUS) return false;
-    this.health = Math.max(0, this.health - (kind === 1 ? CANNON.damage : BLASTER.damage));
+    if (this.hitC.copy(a).addScaledVector(ab, t).distanceTo(this.pos) > hitRadius(travelled, this.vel.length())) return false;
+    this.health = Math.max(0, this.health - damageAt(kind, travelled));
     this.shake = Math.max(this.shake, 0.8);
     if (this.health <= 0) this.destroyed(); else this.audio.bump(0.5);
     return true;
@@ -1262,7 +1270,7 @@ export class PilotController {
       const dir = this.tmpV.copy(end).sub(b.from), dist = dir.length() || 1;
       dir.divideScalar(dist);
       if (!b.landed) {
-        b.travelled += ((b.kind ? CANNON.speed : BLASTER.speed) + this.vel.length()) * dt; // a bolt inherits the ship's speed, so it never lags behind a fast ship
+        b.travelled += ((b.kind ? CANNON.speed : BLASTER.speed) + b.boost) * dt; // a bolt inherits the ship's speed, so it never lags behind a fast ship
         if (b.travelled >= dist) { b.landed = true; b.travelled = dist; if (b.node >= 0) this.land(b); else if (body) this.landOnGroup(b.cluster, body); }
       } else { b.fade += dt; if (b.fade >= BOLT_FADE) { this.bolts.splice(k, 1); continue; } }
       if (out >= MAX_BOLTS) continue;

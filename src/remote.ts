@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import type { AnonymousTopology, HitMsg, Pose, ShotMsg } from "./multiplayer";
-import { buildShip, shipFromIndex, shipIndex, type Ship } from "./ship";
-import { weaponStats } from "./weapons";
+import { buildShip, shipFromIndex, shipIndex, SHIP_SCALE, type Ship } from "./ship";
+import { BOLT_REACH, weaponStats } from "./weapons";
 
 /**
  * Where each pilot's constellation sits in the shared space. The first three form a triangle 1,500 units on a side, which is
@@ -13,20 +13,18 @@ export const WORLD_ORIGINS: [number, number, number][] = [[0, 0, 0], [1500, 0, 0
 export const SLOT_COLORS = ["#ffb347", "#c792ff", "#7dff9a", "#ff7a9a"];
 
 const CORE = 0.34;           // as in the renderer: the solid part of a note sprite
-const MIN_SCALE = 0.6;       // another pilot's ship is never drawn smaller than this...
-const MAX_SCALE = 14;        // ...and grows with distance (about 1.1 percent of it) so a pilot far away is still a visible ship
-const SCALE_PER_UNIT = 0.011;
-const REMOTE_STARS = 2.4;    // other constellations are drawn with larger, brighter stars, so they read from across the gap
-const BOLT_RANGE = 1100;
+const REMOTE_STARS = 1.5;    // other constellations are drawn with slightly larger, brighter stars, so they read from across the gap
+const PIP_FROM = 45;         // beyond this distance a ship also gets a ring that stays the same size on screen, so it is never lost
+const LATENCY_LEAD = 0.05;   // a shot is news by the time it arrives: the copy starts this many seconds along its way
 const MAX_BOLTS = 48;
 const MAX_BURSTS = 6;
 const POSE_STALE_MS = 2500;  // a pilot we have not heard from for this long is hidden
 const EDGE_MARGIN = 38;      // how far in from the edge of the view an off-screen pilot's marker sits
 
 interface RemoteMap { points: THREE.Points; lines: THREE.LineSegments; ends: Int32Array; pos: Float32Array; ready: boolean }
-interface Plate { root: HTMLDivElement; name: HTMLDivElement; fill: HTMLDivElement; dist: HTMLDivElement; arrow: HTMLDivElement; lastDist: string; lastHp: number; edge: boolean }
+interface Plate { pip: HTMLDivElement; root: HTMLDivElement; name: HTMLDivElement; fill: HTMLDivElement; dist: HTMLDivElement; arrow: HTMLDivElement; lastDist: string; lastHp: number; edge: boolean }
 interface RemoteShip { ship: Ship; plate: Plate; name: string; slot: number; color: string; pose: Pose | null; at: number; target: THREE.Vector3; shown: boolean; dead: boolean; scale: number }
-interface RemoteBolt { owner: string; id: string; kind: 0 | 1; o: THREE.Vector3; d: THREE.Vector3; travelled: number; head: THREE.Vector3; prev: THREE.Vector3 }
+interface RemoteBolt { owner: string; id: string; kind: 0 | 1; speed: number; o: THREE.Vector3; d: THREE.Vector3; travelled: number; head: THREE.Vector3; prev: THREE.Vector3 }
 interface Burst { line: THREE.LineSegments; age: number; size: number; live: boolean }
 
 /** Another pilot as a target: where their ship is drawn and how fast it is moving (for the lead pip). */
@@ -34,7 +32,7 @@ export interface RemoteTarget { id: string; x: number; y: number; z: number; vx:
 
 export interface RemoteHooks {
   /** Does this segment of a bolt's flight hit your own ship? (It also applies the damage.) */
-  hitTest(a: THREE.Vector3, b: THREE.Vector3, kind: 0 | 1): boolean;
+  hitTest(a: THREE.Vector3, b: THREE.Vector3, kind: 0 | 1, travelled: number): boolean;
   /** You were hit by a bolt from this pilot. */
   struck(shooterId: string, shotId: string, at: [number, number, number]): void;
 }
@@ -135,6 +133,8 @@ export class RemoteWorld {
   }
 
   private makePlate(color: string): Plate {
+    const pip = this.labelLayer.createDiv({ cls: "cg-pip" });
+    pip.style.setProperty("--plate", color); pip.toggleClass("cg-hidden", true);
     const root = this.labelLayer.createDiv({ cls: "cg-plate" });
     root.style.setProperty("--plate", color);
     const arrow = root.createDiv({ cls: "cg-plate-arrow" });
@@ -143,12 +143,12 @@ export class RemoteWorld {
     const fill = bar.createDiv({ cls: "cg-plate-fill" });
     const dist = root.createDiv({ cls: "cg-plate-dist" });
     root.toggleClass("cg-hidden", true);
-    return { root, name, fill, dist, arrow, lastDist: "", lastHp: -1, edge: false };
+    return { pip, root, name, fill, dist, arrow, lastDist: "", lastHp: -1, edge: false };
   }
 
   private newModel(kindIndex: number, color: string): Ship {
     const ship = buildShip(shipFromIndex(kindIndex));
-    ship.group.scale.setScalar(MIN_SCALE); ship.group.visible = false;
+    ship.group.scale.setScalar(SHIP_SCALE); ship.group.visible = false;
     ship.outline.color.set(color);
     this.scene.add(ship.group); ship.lights.forEach(l => { l.visible = true; this.scene.add(l); });
     return ship;
@@ -162,7 +162,7 @@ export class RemoteWorld {
     const color = SLOT_COLORS[Math.max(0, Math.min(3, slot))];
     const plate = this.makePlate(color);
     plate.name.textContent = name;
-    s = { ship: this.newModel(0, color), plate, name, slot, color, pose: null, at: 0, target: new THREE.Vector3(), shown: false, dead: false, scale: MIN_SCALE };
+    s = { ship: this.newModel(0, color), plate, name, slot, color, pose: null, at: 0, target: new THREE.Vector3(), shown: false, dead: false, scale: SHIP_SCALE };
     this.ships.set(id, s);
     return s;
   }
@@ -182,7 +182,9 @@ export class RemoteWorld {
   addShot(id: string, shot: ShotMsg): void {
     if (this.bolts.length >= MAX_BOLTS) this.bolts.shift();
     const o = new THREE.Vector3(...shot.o), d = new THREE.Vector3(...shot.d).normalize();
-    this.bolts.push({ owner: id, id: shot.id, kind: shot.w === 1 ? 1 : 0, o, d, travelled: 0, head: o.clone(), prev: o.clone() });
+    const kind: 0 | 1 = shot.w === 1 ? 1 : 0, speed = weaponStats(kind).speed + (shot.s ?? 0); // a bolt inherits its ship's speed, as it does on the shooter's screen
+    const lead = speed * LATENCY_LEAD;
+    this.bolts.push({ owner: id, id: shot.id, kind, speed, o, d, travelled: lead, head: o.clone().addScaledVector(d, lead), prev: o.clone() });
   }
 
   showHit(hit: HitMsg): void { this.burst(hit.at[0], hit.at[1], hit.at[2], 6, "#ffb27a"); }
@@ -190,7 +192,7 @@ export class RemoteWorld {
   remove(id: string): void {
     this.removeMap(id);
     const s = this.ships.get(id);
-    if (s) { this.dropModel(s.ship); s.plate.root.remove(); this.ships.delete(id); }
+    if (s) { this.dropModel(s.ship); s.plate.root.remove(); s.plate.pip.remove(); this.ships.delete(id); }
     this.bolts = this.bolts.filter(b => b.owner !== id);
   }
 
@@ -216,15 +218,13 @@ export class RemoteWorld {
     for (const [id, s] of this.ships) {
       const p = s.pose, alive = !!p && p.ac && !s.dead && now - s.at < POSE_STALE_MS;
       s.ship.group.visible = alive; s.shown = alive;
-      if (!alive || !p) { s.plate.root.toggleClass("cg-hidden", true); continue; }
+      if (!alive || !p) { s.plate.root.toggleClass("cg-hidden", true); s.plate.pip.toggleClass("cg-hidden", true); continue; }
       const age = Math.min(0.25, (now - s.at) / 1000); // ease toward where the pilot is now (their last pose, carried forward by their speed)
       s.target.set(p.p[0] + p.v[0] * age, p.p[1] + p.v[1] * age, p.p[2] + p.v[2] * age);
       const k = 1 - Math.exp(-dt * 14), g = s.ship.group;
       g.position.lerp(s.target, k);
       g.quaternion.slerp(this.q.set(...p.q).normalize(), k);
-      const dist = cam.distanceTo(g.position); // bigger the further away they are, so a pilot across the gap is still a ship you can see
-      s.scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, dist * SCALE_PER_UNIT));
-      g.scale.setScalar(s.scale);
+      const dist = cam.distanceTo(g.position); // the same size as your own ship, wherever they are
       g.updateMatrixWorld(true);
       const speed = Math.hypot(p.v[0], p.v[1], p.v[2]);
       const len = 0.35 + Math.min(1, speed / 350) * 2 + (p.bo ? 1.2 : 0);
@@ -254,6 +254,9 @@ export class RemoteWorld {
       sx = w / 2 + (dx / len) * sc; sy = h / 2 + (dy / len) * sc;
       el.arrow.style.transform = `rotate(${Math.atan2(dy, dx)}rad)`;
     }
+    const showPip = !off && dist > PIP_FROM;
+    el.pip.toggleClass("cg-hidden", !showPip);
+    if (showPip) el.pip.style.transform = `translate(${Math.round((this.tmp.x * 0.5 + 0.5) * w)}px, ${Math.round((-this.tmp.y * 0.5 + 0.5) * h)}px) translate(-50%, -50%)`;
     if (off !== el.edge) { el.edge = off; el.root.classList.toggle("cg-plate-edge", off); }
     el.root.toggleClass("cg-hidden", false);
     const d = fmtDist(dist); if (d !== el.lastDist) { el.lastDist = d; el.dist.textContent = d; }
@@ -266,10 +269,10 @@ export class RemoteWorld {
     for (let k = this.bolts.length - 1; k >= 0; k--) {
       const b = this.bolts[k];
       const w = weaponStats(b.kind);
-      b.prev.copy(b.head); b.travelled += w.speed * dt;
+      b.prev.copy(b.head); b.travelled += b.speed * dt;
       b.head.copy(b.o).addScaledVector(b.d, b.travelled);
-      if (b.travelled > BOLT_RANGE) { this.bolts.splice(k, 1); continue; }
-      if (this.hooks.hitTest(b.prev, b.head, b.kind)) { // it hit you
+      if (b.travelled > BOLT_REACH) { this.bolts.splice(k, 1); continue; }
+      if (this.hooks.hitTest(b.prev, b.head, b.kind, b.travelled)) { // it hit you
         this.hooks.struck(b.owner, b.id, [b.head.x, b.head.y, b.head.z]);
         this.burst(b.head.x, b.head.y, b.head.z, 5, "#ff8a6a");
         this.bolts.splice(k, 1); continue;
