@@ -5,7 +5,7 @@ import { buildShip, shipIndex, SHIP_SCALE, type Ship, type ShipKind } from "./sh
 import { buildCockpit, type Cockpit } from "./cockpit";
 import { SpeedFx } from "./speedfx";
 import type { Pose, ShotMsg } from "./multiplayer";
-import { BLASTER, CANNON, damageAt, hitRadius, inSweetSpot, interceptPoint, weaponStats } from "./weapons";
+import { BLASTER, CANNON, HULL_MAX, SHIELD_DELAY, SHIELD_MAX, SHIELD_REGEN, damageAt, hitRadius, inSweetSpot, interceptPoint, weaponStats } from "./weapons";
 
 /** What the pilot needs from the renderer. Kept narrow so the controller never reaches into renderer state. */
 export interface PilotHost {
@@ -77,7 +77,7 @@ const MIN_CRUISE = 12;     // scene units per second, so a tiny vault is still f
 
 // ---- flight model. The ship is a rigid body: it has a velocity and a spin, and the controls only apply forces and torques to them.
 const ACCEL = 0.7;         // main engine thrust, in cruise-speeds per second squared
-const BOOST_ACCEL = 11;    // afterburner multiplier on the main engine
+const BOOST_ACCEL = 8;     // afterburner multiplier on the main engine (top speed under afterburner is its square root, in cruise speeds)
 const BOOST_TOP = Math.sqrt(BOOST_ACCEL); // top speed under afterburner, in cruise speeds (drag grows with speed squared)
 const REVERSE = 0.45;      // reverse thrusters are weaker than the main engine
 const SIDE = 0.35;         // so are the side and vertical thrusters
@@ -101,9 +101,9 @@ const MOUSE_RAD = 0.0022;  // radians the ship turns per pixel of mouse movement
 const MOUSE_MAX_RATE = 9;  // ...but never faster than this many radians per second, so a wild flick cannot spin the ship
 const AIM_RESP = 16;       // cursor steering: how quickly the spin follows the stick (per second); high, so aiming is crisp
 const AIM_ANG_ACC = 14;    // and how fast the spin may change (radians per second squared)
-const BOOST_DRAIN = 0.28;  // afterburner energy per second (1 is full)
+const BOOST_DRAIN = 0.33;  // afterburner energy per second (1 is full)
 const BOOST_REGEN = 0.16;
-const BOOST_HOLD = 3.0;    // seconds the tank stays completely empty after it runs dry, before it starts to refill
+const BOOST_HOLD = 3.5;    // seconds the tank stays completely empty after it runs dry, before it starts to refill
 const BOOST_RELOCK = 0.3;  // and then the afterburner stays off until the tank has refilled this far
 const AFK_SECONDS = 30;    // no keys pressed for this long in a room and you start watching the other pilots
 const CAM_RATE = 8;        // how tightly the chase camera follows the ship's orientation; lower trails more
@@ -118,6 +118,7 @@ const HEAT_PER_SHOT = 0.1; // blaster: how much each shot heats it (it overheats
 const HEAT_COOL = 0.26;    // blaster: how fast it cools, per second
 const HEAT_RESET = 0.4;    // after overheating, it works again once it is this cool
 const CANNON_GAP = 0.5;    // cannon: seconds between rounds
+const BOOST_COMBAT_PAUSE = 2.0; // seconds the afterburner tank does not refill after you are hit: you cannot simply run, recharge and return
 const KILL_HEAL = 30;      // health you get back for destroying another pilot (out of 100)
 const AMMO_MAX = 36;       // cannon: rounds per life
 const BOLT_FADE = 0.12;    // seconds a bolt lingers after it lands
@@ -235,6 +236,9 @@ export class PilotController {
   private aimX = 0; private aimY = 0;          // where the nose points, on screen (CSS px)
   private firing = false;
   private died = false;
+  private shield = SHIELD_MAX;
+  private lastHitAt = -1e9;
+  private shieldBar!: HTMLDivElement;
   // spectator mode and the lead pip
   private watching: string | null = null;
   private idleFor = 0;
@@ -286,6 +290,7 @@ export class PilotController {
   private energyFill: HTMLDivElement;
   private healthBar: HTMLDivElement;
   private healthFill: HTMLDivElement;
+  private shieldFill!: HTMLDivElement;
   private destroyedText: HTMLDivElement;
   private flags: HTMLDivElement;
   private ringInner: HTMLDivElement;
@@ -367,6 +372,8 @@ export class PilotController {
     this.weaponLabel = this.weaponBox.createSpan({ cls: "cg-pilot-weapon-label" });
     this.weaponFill = this.weaponBox.createDiv({ cls: "cg-pilot-weapon-bar" }).createDiv({ cls: "cg-pilot-weapon-fill" });
     this.healthBar = this.hud.createDiv({ cls: "cg-pilot-health" });
+    this.shieldBar = this.healthBar.createDiv({ cls: "cg-pilot-shield" });
+    this.shieldFill = this.shieldBar.createDiv({ cls: "cg-pilot-shield-fill" });
     this.healthFill = this.healthBar.createDiv({ cls: "cg-pilot-health-fill" });
     this.healthBar.hidden = true;
     this.destroyedText = this.hud.createDiv({ cls: "cg-pilot-destroyed", attr: { role: "status" } });
@@ -767,7 +774,7 @@ export class PilotController {
     } else if (this.holdLeft > 0) {
       this.holdLeft = Math.max(0, this.holdLeft - dt); // empty and not refilling yet
     } else {
-      this.energy = Math.min(1, this.energy + BOOST_REGEN * (wantBoost && !this.boostLocked ? 0.4 : 1) * dt);
+      if (this.clock - this.lastHitAt > BOOST_COMBAT_PAUSE * 1000) this.energy = Math.min(1, this.energy + BOOST_REGEN * (wantBoost && !this.boostLocked ? 0.4 : 1) * dt);
       if (this.boostLocked && this.energy >= BOOST_RELOCK) this.boostLocked = false;
     }
     if (this.boosting && !was) this.audio.afterburner();
@@ -794,6 +801,7 @@ export class PilotController {
     this.cooldown = Math.max(0, this.cooldown - dt);
     this.heat = Math.max(0, this.heat - HEAT_COOL * dt);
     if (this.overheated && this.heat <= HEAT_RESET) this.overheated = false;
+    if (this.health > 0 && this.clock - this.lastHitAt > SHIELD_DELAY * 1000) this.shield = Math.min(SHIELD_MAX, this.shield + SHIELD_REGEN * dt);
     if (!this.opts.multiplayer && this.ammo < AMMO_MAX) { this.ammoAcc += dt; if (this.ammoAcc > 0.6) { this.ammoAcc = 0; this.ammo++; } } // on your own the rounds trickle back; in a room only a new life refills them
     if ((this.firing || k.has("KeyF")) && this.cooldown <= 0 && (this.locked || k.has("KeyF") || this.opts.mouse === "cursor")) this.fire();
 
@@ -1062,7 +1070,8 @@ export class PilotController {
     this.weaponBox.classList.toggle("cg-hot", this.weapon === 0 && (this.overheated || this.heat > 0.75));
     this.weaponBox.classList.toggle("cg-cannon", this.weapon === 1);
     this.healthBar.hidden = !this.opts.multiplayer;
-    this.healthFill.style.width = (clamp(this.health / 100, 0, 1) * 100).toFixed(1) + "%";
+    this.healthFill.style.width = (clamp(this.health / HULL_MAX, 0, 1) * 100).toFixed(1) + "%";
+    this.shieldFill.style.width = (clamp(this.shield / SHIELD_MAX, 0, 1) * 100).toFixed(1) + "%";
     this.destroyedText.hidden = this.health > 0;
     if (this.health <= 0) this.destroyedText.textContent = `SHIP DESTROYED. BACK IN ${Math.max(0, Math.ceil((this.respawnAt - this.clock) / 1000))}`;
     const text = this.health <= 0 ? "DESTROYED" : this.clock < this.protectedUntil && this.opts.multiplayer ? "SPAWN PROTECTED" : this.boosting ? "AFTERBURNER" : this.boostLocked ? (this.holdLeft > 0 ? `EMPTY ${this.holdLeft.toFixed(1)}s` : "RECHARGING") : "";
@@ -1207,7 +1216,7 @@ export class PilotController {
   private makePose(active: boolean): Pose {
     return {
       p: [this.pos.x, this.pos.y, this.pos.z], q: [this.quat.x, this.quat.y, this.quat.z, this.quat.w], v: [this.vel.x, this.vel.y, this.vel.z],
-      hp: Math.max(0, Math.min(100, Math.round(this.health))), en: clamp(this.energy, 0, 1), bo: this.boosting, ac: active && this.health > 0 && !this.watching, pr: this.clock < this.protectedUntil, sh: shipIndex(this.opts.ship),
+      hp: Math.max(0, Math.min(100, Math.round(this.health))), sd: Math.max(0, Math.min(100, Math.round(this.shield))), en: clamp(this.energy, 0, 1), bo: this.boosting, ac: active && this.health > 0 && !this.watching, pr: this.clock < this.protectedUntil, sh: shipIndex(this.opts.ship),
     };
   }
 
@@ -1221,7 +1230,11 @@ export class PilotController {
     const ab = this.hitA.copy(b).sub(a), len2 = ab.lengthSq();
     const t = len2 > 0 ? clamp(this.hitB.copy(this.pos).sub(a).dot(ab) / len2, 0, 1) : 0;
     if (this.hitC.copy(a).addScaledVector(ab, t).distanceTo(this.pos) > hitRadius(travelled, this.vel.length())) return false;
-    this.health = Math.max(0, this.health - damageAt(kind, travelled));
+    let dmg = damageAt(kind, travelled);
+    const soaked = Math.min(this.shield, dmg); // the shield takes the hit first
+    this.shield -= soaked; dmg -= soaked;
+    this.health = Math.max(0, this.health - dmg);
+    this.lastHitAt = this.clock;
     this.shake = Math.max(this.shake, 0.8);
     if (this.health <= 0) this.destroyed(); else this.audio.bump(0.5);
     return true;
@@ -1230,7 +1243,7 @@ export class PilotController {
   /** You destroyed another pilot: a reward of some health back (never past full). */
   healOnKill(): void {
     if (!this.active || this.health <= 0 || this.watching) return;
-    this.health = Math.min(100, this.health + KILL_HEAL);
+    this.health = Math.min(HULL_MAX, this.health + KILL_HEAL); this.shield = SHIELD_MAX; // a kill patches the hull and recharges the shield
     this.audio.lock(true);
     this.host.onState(true, `Kill: +${KILL_HEAL} health`);
   }
@@ -1251,7 +1264,7 @@ export class PilotController {
   }
 
   private respawn(): void {
-    this.health = 100; this.energy = 1; this.boostLocked = false; this.holdLeft = 0; this.boosting = false;
+    this.health = HULL_MAX; this.shield = SHIELD_MAX; this.energy = 1; this.boostLocked = false; this.holdLeft = 0; this.boosting = false;
     this.heat = 0; this.overheated = false; this.ammo = AMMO_MAX; // a new life, with a full magazine
     this.protectedUntil = this.clock + PROTECT_MS;
     this.placeAtSpawn(); this.applyLook();

@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import type { AnonymousTopology, HitMsg, Pose, ShotMsg } from "./multiplayer";
 import { buildShip, shipFromIndex, shipIndex, SHIP_SCALE, type Ship } from "./ship";
-import { BOLT_REACH, weaponStats } from "./weapons";
+import { BOLT_REACH, SHIELD_MAX, weaponStats } from "./weapons";
 
 /**
  * Where each pilot's constellation sits in the shared space. The first three form a triangle 1,500 units on a side, which is
@@ -22,7 +22,7 @@ const POSE_STALE_MS = 2500;  // a pilot we have not heard from for this long is 
 const EDGE_MARGIN = 38;      // how far in from the edge of the view an off-screen pilot's marker sits
 
 interface RemoteMap { points: THREE.Points; lines: THREE.LineSegments; ends: Int32Array; pos: Float32Array; ready: boolean }
-interface Plate { pip: HTMLDivElement; root: HTMLDivElement; name: HTMLDivElement; fill: HTMLDivElement; dist: HTMLDivElement; arrow: HTMLDivElement; lastDist: string; lastHp: number; edge: boolean }
+interface Plate { shield: HTMLDivElement; lastSd: number; pip: HTMLDivElement; root: HTMLDivElement; name: HTMLDivElement; fill: HTMLDivElement; dist: HTMLDivElement; arrow: HTMLDivElement; lastDist: string; lastHp: number; edge: boolean }
 interface RemoteShip { ship: Ship; plate: Plate; name: string; slot: number; color: string; pose: Pose | null; at: number; target: THREE.Vector3; shown: boolean; dead: boolean; scale: number }
 interface RemoteBolt { owner: string; id: string; kind: 0 | 1; speed: number; o: THREE.Vector3; d: THREE.Vector3; travelled: number; head: THREE.Vector3; prev: THREE.Vector3 }
 interface Burst { line: THREE.LineSegments; age: number; size: number; live: boolean }
@@ -139,11 +139,12 @@ export class RemoteWorld {
     root.style.setProperty("--plate", color);
     const arrow = root.createDiv({ cls: "cg-plate-arrow" });
     const name = root.createDiv({ cls: "cg-plate-name" });
+    const shield = root.createDiv({ cls: "cg-plate-shieldbar" }).createDiv({ cls: "cg-plate-shieldfill" });
     const bar = root.createDiv({ cls: "cg-plate-bar" });
     const fill = bar.createDiv({ cls: "cg-plate-fill" });
     const dist = root.createDiv({ cls: "cg-plate-dist" });
     root.toggleClass("cg-hidden", true);
-    return { pip, root, name, fill, dist, arrow, lastDist: "", lastHp: -1, edge: false };
+    return { shield, lastSd: -1, pip, root, name, fill, dist, arrow, lastDist: "", lastHp: -1, edge: false };
   }
 
   private newModel(kindIndex: number, color: string): Ship {
@@ -230,7 +231,7 @@ export class RemoteWorld {
       const len = 0.35 + Math.min(1, speed / 350) * 2 + (p.bo ? 1.2 : 0);
       for (const f of s.ship.flames) f.scale.set(f.scale.x, len, f.scale.z);
       s.ship.outline.opacity = p.pr ? 0.35 + 0.35 * Math.sin(now * 0.02) : 0.9; // a ship that has just respawned shimmers
-      this.plate(s, g.position, dist, p.hp, width, height);
+      this.plate(s, g.position, dist, p.hp, p.sd ?? 0, width, height);
       let t = this.targetList[targets];
       if (!t) { t = { id, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, dist: 0 }; this.targetList[targets] = t; }
       t.id = id; t.x = g.position.x; t.y = g.position.y; t.z = g.position.z; t.vx = p.v[0]; t.vy = p.v[1]; t.vz = p.v[2]; t.dist = dist; targets++;
@@ -241,7 +242,7 @@ export class RemoteWorld {
   }
 
   /** The nameplate: name, health and distance above the ship, or pinned to the edge of the view with an arrow when the pilot is off-screen. */
-  private plate(s: RemoteShip, pos: THREE.Vector3, dist: number, hp: number, w: number, h: number): void {
+  private plate(s: RemoteShip, pos: THREE.Vector3, dist: number, hp: number, sd: number, w: number, h: number): void {
     const el = s.plate, cam = this.camera.position, look = this.look;
     const ahead = (pos.x - cam.x) * look.x + (pos.y - cam.y) * look.y + (pos.z - cam.z) * look.z > 1;
     this.tmp.copy(pos).project(this.camera);
@@ -260,6 +261,7 @@ export class RemoteWorld {
     if (off !== el.edge) { el.edge = off; el.root.classList.toggle("cg-plate-edge", off); }
     el.root.toggleClass("cg-hidden", false);
     const d = fmtDist(dist); if (d !== el.lastDist) { el.lastDist = d; el.dist.textContent = d; }
+    const sdi = Math.round(sd); if (sdi !== el.lastSd) { el.lastSd = sdi; el.shield.style.width = `${Math.round((sdi / SHIELD_MAX) * 100)}%`; }
     const hpi = Math.round(hp); if (hpi !== el.lastHp) { el.lastHp = hpi; el.fill.style.width = `${hpi}%`; el.root.classList.toggle("cg-plate-low", hpi <= 30); }
     el.root.style.transform = `translate(${Math.round(sx)}px, ${Math.round(sy)}px) translate(-50%, ${off ? "-50%" : "-100%"})`;
   }

@@ -54,3 +54,13 @@ export function damageAt(kind: 0 | 1, dist: number): number {
 export function hitRadius(travelled: number, victimSpeed: number): number {
   return 2.2 + Math.min(9, travelled * 0.012) + Math.min(5, victimSpeed * 0.03);
 }
+
+/**
+ * Damage model: a ship has a shield and a hull. Hits take the shield first; the shield comes back on its own after a few
+ * seconds without being hit, the hull does not (only a kill heals it, or a new life). So a fight is won by landing a burst,
+ * not by trading single shots, and a pilot who breaks off for a moment is back at full shield.
+ */
+export const SHIELD_MAX = 40;
+export const SHIELD_DELAY = 3.5;  // seconds without a hit before the shield starts to come back
+export const SHIELD_REGEN = 14;   // shield points per second once it does
+export const HULL_MAX = 100;

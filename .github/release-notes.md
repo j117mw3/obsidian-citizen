@@ -12,6 +12,9 @@ Pilot mode becomes a sandbox, and you can now fly together.
 - **One size for every ship:** your ship and everyone else's are the same size wherever they are, with a ring that stays visible on screen when a pilot is far away.
 - **Direct mouse aim:** the nose now turns exactly as far as the mouse moves and stops when it stops, with a tighter chase camera, so lining up a shot is easy. Cursor steering is crisper too.
 - **Kill announcements and a scoreboard:** when someone is destroyed everyone sees who did it, and holding Tab shows kills and deaths (also listed in the Fly together panel).
+- **Damage rework:** every ship now has a 40-point shield on top of a 100-point hull. Hits take the shield first and it recharges by itself after 3.5 seconds without a hit; the hull never heals, except that a kill patches it by 30 and recharges your shield. Shields show on the HUD and on other pilots' nameplates.
+- **Movement balance:** the afterburner is a little slower and drains a little faster, and does not refill for two seconds after you are hit, so a fight cannot be escaped by simply running.
+- **Fix:** a pilot's nameplate no longer stays stuck where they died; it is hidden while they are destroyed and follows them when they respawn.
 - **Heal on kill:** destroying another pilot gives you back 30 health.
 - **Names only where you look:** while flying, only the note you are aiming at or have locked, the notes close to your ship, and the vault's centre are named.
 - **Layout controls:** new Node size, Link brightness and Spacing settings (like Obsidian's own graph forces) to tidy a vault whose groups sit too tight or too far apart.

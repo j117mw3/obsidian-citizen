@@ -272,3 +272,11 @@
 .cg-board-row.cg-mine { color: #7fe8ff; font-weight: 700; }
 .cg-board-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (prefers-reduced-motion: reduce) { .cg-feed-item { animation: none; } }
+
+/* a nameplate that is hidden (its pilot was destroyed, or is gone) must really be hidden: .cg-plate sets display after .cg-hidden */
+.cg-plate.cg-hidden, .cg-pip.cg-hidden { display: none; }
+.cg-plate-shieldbar { width: 54px; height: 3px; border-radius: 2px; background: rgba(255, 255, 255, 0.12); overflow: hidden; margin-bottom: -1px; }
+.cg-plate-shieldfill { height: 100%; width: 0; background: #8fd8ff; }
+.cg-pilot-health { overflow: visible; }
+.cg-pilot-shield { position: absolute; left: 0; right: 0; top: -6px; height: 3px; border-radius: 2px; background: rgba(255, 255, 255, 0.12); overflow: hidden; }
+.cg-pilot-shield-fill { height: 100%; width: 100%; background: linear-gradient(90deg, #5ad2ff, #c8f0ff); }
