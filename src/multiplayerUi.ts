@@ -6,6 +6,8 @@ import { SLOT_COLORS } from "./remote";
 export interface PanelHost {
   name(): string;
   saveName(name: string): void;
+  ship(): string;
+  saveShip(kind: string): void;
   create(name: string): Promise<void>;
   join(code: string, name: string): Promise<void>;
   leave(): void;
@@ -38,6 +40,7 @@ export class MultiplayerPanel {
   private joinBtn: HTMLButtonElement;
   private busy = false;
   private code = "";
+  private shipSelect: HTMLSelectElement;
 
   constructor(parent: HTMLElement, private host: PanelHost, private onClose: () => void) {
     this.el = parent.createDiv({ cls: "cg-multiplayer", attr: { role: "dialog", "aria-label": "Fly together" } });
@@ -55,6 +58,12 @@ export class MultiplayerPanel {
     this.nameInput = createEl("input", { attr: { type: "text", maxlength: "24", autocomplete: "off", spellcheck: "false" } });
     label.appendChild(this.nameInput);
     this.nameInput.addEventListener("change", () => this.host.saveName(this.nameInput.value));
+    const shipLabel = this.el.createEl("label", { cls: "cg-multiplayer-name", text: "Your ship" });
+    this.shipSelect = createEl("select", { attr: { "aria-label": "Your ship" } });
+    for (const [value, text] of [["striker", "Striker (four wings)"], ["dart", "Dart (delta wing)"], ["bulwark", "Bulwark (heavy gunship)"]]) this.shipSelect.appendChild(createEl("option", { text, attr: { value } }));
+    shipLabel.appendChild(this.shipSelect);
+    this.shipSelect.addEventListener("change", () => this.host.saveShip(this.shipSelect.value));
+    this.shipSelect.addEventListener("keydown", e => e.stopPropagation());
 
     this.startRow = this.el.createDiv({ cls: "cg-multiplayer-actions" });
     this.makeBtn = createEl("button", { cls: "cg-btn", text: "Make a room", attr: { type: "button" } });
@@ -101,7 +110,7 @@ export class MultiplayerPanel {
 
   setOpen(open: boolean): void {
     this.el.hidden = !open;
-    if (open) { this.nameInput.value = this.host.name(); (this.code ? this.el : this.nameInput).focus?.({ preventScroll: true }); }
+    if (open) { this.nameInput.value = this.host.name(); this.shipSelect.value = this.host.ship(); (this.code ? this.el : this.nameInput).focus?.({ preventScroll: true }); }
   }
   get open(): boolean { return !this.el.hidden; }
 

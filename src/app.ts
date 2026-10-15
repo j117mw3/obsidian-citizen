@@ -161,6 +161,12 @@ export class ConstellationApp {
     this.panel = new MultiplayerPanel(this.root, {
       name: () => this.settings.multiplayerName,
       saveName: name => { const n = name.trim().slice(0, 24) || "Pilot"; if (n !== this.settings.multiplayerName) { this.settings = { ...this.settings, multiplayerName: n }; this.host.updateSettings?.({ multiplayerName: n }); } },
+      ship: () => this.settings.pilotShip,
+      saveShip: kind => {
+        const ship = kind === "dart" || kind === "bulwark" ? kind : "striker";
+        if (ship === this.settings.pilotShip) return;
+        this.settings = { ...this.settings, pilotShip: ship }; this.host.updateSettings?.({ pilotShip: ship }); this.renderer.applySettings(this.settings);
+      },
       create: async name => { await this.session.create(name); },
       join: (code, name) => this.session.join(code, name),
       leave: () => this.session.leave(),

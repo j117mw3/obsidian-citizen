@@ -140,6 +140,7 @@ export class ConstellationRenderer implements GraphRenderer {
   private age = 0;
   private frameNo = 0;
   private resumeTimer = 0;
+  private zoomGoal = 0; // the distance from the orbit target the wheel is heading for (0: not zooming)
   private slow = 0;
   private pointer = { x: -1, y: -1, inside: false, moved: false };
   private press: { i: number; x: number; y: number; t: number; id: number; c: number } | null = null; // the button is down; i is the note under it (-1 for none)
@@ -187,7 +188,7 @@ export class ConstellationRenderer implements GraphRenderer {
     this.controls = new OrbitControls(this.camera, this.canvas);
     this.controls.dampingFactor = 0.07;
     this.controls.rotateSpeed = 0.6;
-    this.controls.zoomSpeed = 0.9;
+    this.controls.enableZoom = false; // the wheel is handled below: it glides toward a goal distance instead of jumping a notch per click
     this.controls.minDistance = 30;
     this.controls.maxDistance = 3000;
     this.controls.addEventListener("start", this.onControlStart);
@@ -237,6 +238,7 @@ export class ConstellationRenderer implements GraphRenderer {
     });
 
     this.canvas.addEventListener("pointermove", this.onPointerMove);
+    this.canvas.addEventListener("wheel", this.onWheel, { passive: false });
     this.canvas.addEventListener("pointerleave", this.onPointerLeave);
     this.canvas.addEventListener("pointerdown", this.onPointerDown, true); // capture: claim a drag before the orbit controls do
     this.canvas.addEventListener("pointercancel", this.onPointerCancel);
@@ -381,7 +383,7 @@ export class ConstellationRenderer implements GraphRenderer {
     if (this.drag || this.contextLost || !this.sim.nodes.length) return;
     if (this.reveal) this.endAnimation(false);
     if (this.nova) this.novaStop(false);
-    this.tween = null; this.follow = -1; this.autoFrame = false;
+    this.tween = null; this.follow = -1; this.autoFrame = false; this.zoomGoal = 0;
     window.clearTimeout(this.resumeTimer);
     this.controls.enabled = false; this.controls.autoRotate = false;
     this.frameB = this.sim.bounds();
@@ -539,6 +541,7 @@ export class ConstellationRenderer implements GraphRenderer {
       ["webglcontextlost", this.onContextLost], ["webglcontextrestored", this.onContextRestored],
     ] as [string, EventListener][]) this.canvas.removeEventListener(ev, fn);
     this.canvas.removeEventListener("pointerdown", this.onPointerDown, true);
+    this.canvas.removeEventListener("wheel", this.onWheel);
     this.pilot.destroy(); this.remote.dispose();
     this.disposeNodes();
     this.stars.geometry.dispose(); (this.stars.material as THREE.Material).dispose();
@@ -645,6 +648,28 @@ export class ConstellationRenderer implements GraphRenderer {
 
   private onContextLost = (e: Event) => { e.preventDefault(); this.contextLost = true; };
   private onContextRestored = () => { this.contextLost = false; this.stale = true; this.resize(); };
+
+  private onWheel = (e: WheelEvent) => {
+    if (this.pilot.active || this.drag) return;
+    e.preventDefault();
+    const cur = this.camera.position.distanceTo(this.controls.target) || 1;
+    const dy = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaMode === 2 ? e.deltaY * 100 : e.deltaY;
+    const base = this.zoomGoal > 0 ? this.zoomGoal : cur;
+    this.zoomGoal = Math.min(this.controls.maxDistance, Math.max(this.controls.minDistance, base * Math.exp(Math.max(-400, Math.min(400, dy)) * 0.00046)));
+    this.onControlStart(); this.onControlEnd(); // a zoom counts as the reader steering, so the camera drift waits and the auto-framing lets go
+    this.stale = true;
+  };
+
+  /** Ease the camera toward the wheel's goal distance. True while it is still moving. */
+  private stepZoom(dt: number): boolean {
+    if (this.zoomGoal <= 0) return false;
+    const t = this.controls.target, cp = this.camera.position;
+    const cur = cp.distanceTo(t) || 1, k = 1 - Math.exp(-dt * 12);
+    let next = cur + (this.zoomGoal - cur) * k;
+    if (Math.abs(this.zoomGoal - next) < Math.max(0.05, cur * 0.0008)) { next = this.zoomGoal; this.zoomGoal = 0; }
+    cp.sub(t).multiplyScalar(next / cur).add(t);
+    return true;
+  }
 
   private onControlStart = () => { window.clearTimeout(this.resumeTimer); this.controls.autoRotate = false; this.tween = null; this.autoFrame = false; this.userActive = true; this.updateRotate(); };
   private onControlEnd = () => {
@@ -835,6 +860,7 @@ export class ConstellationRenderer implements GraphRenderer {
   }
 
   private startTween(p1: THREE.Vector3, t1: THREE.Vector3, dur: number): void {
+    this.zoomGoal = 0;
     if (effectiveMotion(this.settings) === "off") { // reduced motion: no flying, just arrive
       this.controls.target.copy(t1); this.camera.position.copy(p1); this.tween = null; this.stale = true; return;
     }
@@ -869,7 +895,8 @@ export class ConstellationRenderer implements GraphRenderer {
       this.stale = true;
     } else {
       this.updateCamera(now);
-      camMoved = this.controls.update(dt);
+      const zoomed = this.stepZoom(dt);
+      camMoved = this.controls.update(dt) || zoomed;
     }
     if (this.remote.any) { this.remote.update(dt, this.canvas.clientWidth, this.canvas.clientHeight); this.stale = true; }
     if (!(moving || animating || camMoved || this.stale || this.tween || this.follow >= 0)) return; // fully at rest: draw nothing

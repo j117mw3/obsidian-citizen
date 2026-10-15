@@ -1,13 +1,46 @@
 # Constellation Graph
 
-A fluid, slowly orbiting 3D map of your notes for [Obsidian](https://obsidian.md), with a **Pilot mode**: a flying sandbox where you pilot a small starfighter through it, alone or with up to three friends. Notes glow as points of light, coloured by folder (or tag). Clusters swirl around their own centres and drift past one another, like a screensaver for your vault, while the camera slowly circles. Everything is built to stay usable: full keyboard control, screen-reader announcements, a searchable note list, a colour-blind-safe palette, a high-contrast mode, and no motion at all if your system asks for reduced motion.
+**Your vault as a living night sky, with a starfighter you can fly through it.** A fluid, slowly orbiting 3D map of your notes for [Obsidian](https://obsidian.md), with a flying sandbox you can share with up to three friends.
 
-> Early release. Listing and install details: [Constellation Graph on the Obsidian community site](https://community.obsidian.md/plugins/constellation-graph).
+![Your notes as glowing points of light, coloured by folder](https://raw.githubusercontent.com/xjusvibin/obsidian-constellation-graph/main/images/overview.png)
 
-## Use
+> **A screensaver for your vault.** Notes glow as points of light, coloured by folder or tag. Clusters swirl around their own centres and drift past one another while the camera slowly circles. It updates live as you add, rename and link notes.
 
-- Ribbon icon (orbit) or the command **Open constellation graph**.
-- It updates live as you add, remove, rename and link notes. Your selection and any hidden groups are kept.
+> **It never touches your notes.** The plugin reads note names and links only. It does not read note contents or write to your vault, and Pilot mode never selects, opens or changes a note.
+
+> **Built to stay usable.** Full keyboard control, screen-reader announcements, a searchable note list, a colour-blind-safe palette, a high-contrast mode, and no motion at all if your system asks for reduced motion.
+
+## Highlights
+
+| | |
+|---|---|
+| **Orbit, search and explore** | Drag to orbit, scroll to zoom, click a note to fly to it, double-click to open it. A searchable list and group legend sit alongside. |
+| **Animate and Supernova** | A timelapse that rebuilds your vault in the order you wrote it, and a one-flash supernova with a wave of light along the shortest paths. |
+| **Pilot mode** | Fly a starfighter through your notes in a sandbox with real weight and momentum, an afterburner, a blaster and a cannon, and three ships to choose from. |
+| **Folded groups** | Fold every folder or tag into one glowing point, then shoot it open and watch its notes fly back out. |
+| **Fly together** | Up to four pilots share one sky, each with their own constellation, through a code-sealed room. No server to run, and never a note title shared. |
+| **Private by design** | No network connections outside a room, no telemetry, no remote code. Everything is bundled into `main.js`. |
+
+## Gallery
+
+| | |
+|---|---|
+| ![Folders folded into single glowing points](https://raw.githubusercontent.com/xjusvibin/obsidian-constellation-graph/main/images/folded-groups.png) | ![Flying the Dart in chase view, with the flight controls panel](https://raw.githubusercontent.com/xjusvibin/obsidian-constellation-graph/main/images/pilot-chase.png) |
+| **Folded groups.** Every folder as one point, with its name and size. | **Pilot mode.** The Dart in chase view, with wireframe shells around each group and an on-screen controls panel. |
+| ![The Dart cockpit](https://raw.githubusercontent.com/xjusvibin/obsidian-constellation-graph/main/images/cockpit-dart.png) | ![The Bulwark cockpit](https://raw.githubusercontent.com/xjusvibin/obsidian-constellation-graph/main/images/cockpit-bulwark.png) |
+| **Cockpit view: Dart.** A slim bubble canopy and two guns on each wing. | **Cockpit view: Bulwark.** An armoured frame with four cannons in the nose. |
+| ![The Bulwark gunship in chase view](https://raw.githubusercontent.com/xjusvibin/obsidian-constellation-graph/main/images/ships-bulwark.png) | ![The Fly together panel with three pilots](https://raw.githubusercontent.com/xjusvibin/obsidian-constellation-graph/main/images/fly-together.png) |
+| **Three ships.** Striker, Dart and Bulwark: different looks and cockpits, the same flight and fight. | **Fly together.** Make a room, share the code, pick your ship. (Demo names.) |
+
+## Install
+
+Search for **Constellation Graph** in Settings, Community plugins, Browse. Or copy `main.js`, `manifest.json` and `styles.css` from a [release](https://github.com/xjusvibin/obsidian-constellation-graph/releases) into `<vault>/.obsidian/plugins/constellation-graph/` and enable it. Desktop only, Obsidian 1.7.2 or newer.
+
+Open it from the ribbon icon (orbit) or the command **Open constellation graph**.
+
+## Using the graph
+
+Your selection and any hidden groups are kept as the vault changes.
 
 ### Mouse
 
@@ -53,9 +86,9 @@ The graph area is focusable. Press **?** for this list in the app.
 | / | Focus search |
 | Esc | Clear selection, close a panel |
 
-### Pilot mode (a flying sandbox)
+## Pilot mode (a flying sandbox)
 
-Press **P** in the graph (or the plane button on the toolbar) and fly a small four-winged fighter through your notes. Pilot mode is a **sandbox**: it never selects, opens or changes a note, and the rest of the plugin works exactly as before outside it. The plane has weight: it takes a moment to start and stop a turn, it coasts when you let go of the throttle, a trailing camera follows it, and the afterburner draws on an energy tank. Notes are solid, so you bounce off them. Blaster bolts make a splash where they land and can open a folded group (below), nothing more.
+Press **P** in the graph (or the plane button on the toolbar) and fly a small starfighter through your notes. Pilot mode is a **sandbox**: it never selects, opens or changes a note, and the rest of the plugin works exactly as before outside it. The plane has weight: it takes a moment to start and stop a turn, it coasts when you let go of the throttle, a trailing camera follows it, and the afterburner draws on an energy tank. Notes are solid, so you bounce off them. Blaster bolts make a splash where they land and can open a folded group (below), nothing more.
 
 | Key | Action |
 |---|---|
@@ -78,6 +111,8 @@ Press **P** in the graph (or the plane button on the toolbar) and fly a small fo
 | Esc | Free the mouse (a second Esc leaves) |
 | P | Leave Pilot mode |
 
+![The Dart in chase view](https://raw.githubusercontent.com/xjusvibin/obsidian-constellation-graph/main/images/pilot-chase.png)
+
 The controls are also shown on screen as a small panel of key caps that light up as you press them, and fades after a few seconds.
 
 - **Mouse mode.** *Capture* hides the pointer and steers with its movement. *Cursor* keeps the pointer visible and steers by how far it is from the centre, with a dead zone and two faint rings to show it; over a panel or button it stops steering, so you can click the legend, toolbar and details panel while flying.
@@ -90,7 +125,7 @@ The controls are also shown on screen as a small panel of key caps that light up
 - **Wireframes and sound.** The plane has a glowing wireframe outline, and target brackets, impact bursts and faint shells around each group are drawn in wireframe too (they can be turned off). Engine, blaster, impact and warp sounds are synthesised in the plugin with the Web Audio API, nothing is loaded from a file, and they can be turned off or turned down. Sound mutes when the window loses focus.
 - Pilot mode needs motion, so it stays off when your system asks for reduced motion (the search, note list and details panel still work). It is not available without WebGL.
 
-### Fly together (multiplayer)
+## Fly together (multiplayer)
 
 Up to four pilots can share one sky, each with their own constellation. Click the people button on the toolbar, choose **Make a room**, and send the ten-character room code to your friends; they paste it under **Join**. Then everyone presses **P** to fly.
 
@@ -100,7 +135,7 @@ Up to four pilots can share one sky, each with their own constellation. Click th
 - **If it will not connect:** some networks block direct connections. You can enter your own TURN server in the settings and it will be used when a direct connection fails; nothing is set up for you. The free relay has usage limits, so a very busy day may need a different relay.
 - A room closes when the last pilot leaves. Your vault is never changed, and changes you make to it while in a room appear when you leave.
 
-### Accessibility
+## Accessibility
 
 - **Reduced motion.** If your operating system requests reduced motion, flow, orbiting and camera flights are turned off: the layout settles once and stays still, dragged notes return at once instead of bouncing, and Supernova just recomputes the layout instantly without the show. Animate still works because you asked for it, but without the pop-in effects. You can also set motion to *Off* yourself, or pause at any time.
 - **No strobing.** The Supernova has a single soft flash that fades over about a second, and it is skipped under reduced motion and in high-contrast mode.

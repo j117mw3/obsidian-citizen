@@ -315,7 +315,7 @@ export class PilotController {
     this.fx = new SpeedFx(scene);
 
     // the cockpit (first-person view)
-    this.cockpit = buildCockpit();
+    this.cockpit = buildCockpit(opts.ship);
     this.scene.add(this.cockpit.group);
 
     // the plane
@@ -427,6 +427,8 @@ export class PilotController {
       const old = this.ship;
       this.scene.remove(old.group); old.lights.forEach(l => this.scene.remove(l)); old.dispose();
       this.ship = this.makeShip(opts.ship);
+      this.scene.remove(this.cockpit.group); this.cockpit.dispose(); // each ship has its own cockpit
+      this.cockpit = buildCockpit(opts.ship); this.scene.add(this.cockpit.group);
     }
     if (mouseChanged && this.active) {
       this.stick.set(0, 0); this.mouseDX = this.mouseDY = this.smX = this.smY = 0;

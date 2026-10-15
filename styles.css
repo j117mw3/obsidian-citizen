@@ -211,7 +211,7 @@
 .cg-multiplayer h2 { margin: 0 0 6px; font-size: 15px; }
 .cg-multiplayer-privacy, .cg-multiplayer-status { margin: 6px 0; color: var(--cg-dim); font-size: 12px; }
 .cg-multiplayer-name { display: flex; flex-direction: column; gap: 4px; margin: 8px 0; color: var(--cg-dim); font-size: 11px; }
-.cg-multiplayer-name input, .cg-multiplayer-code { height: 30px; padding: 0 8px; border: 1px solid var(--cg-border); border-radius: 7px; background: rgba(0, 0, 0, 0.25); color: var(--cg-ink); font: inherit; }
+.cg-multiplayer-name input, .cg-multiplayer-name select, .cg-multiplayer-code { height: 30px; padding: 0 8px; border: 1px solid var(--cg-border); border-radius: 7px; background: rgba(0, 0, 0, 0.25); color: var(--cg-ink); font: inherit; }
 .cg-multiplayer-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .cg-multiplayer-actions[hidden] { display: none; }
 .cg-multiplayer-actions .cg-btn { width: auto; min-width: 56px; padding: 0 9px; font-size: 12px; }
