@@ -338,7 +338,7 @@ export class ConstellationApp {
     }
     this.syncShowButtons();
     // a room is a public lobby: the note list and the group list (which show your folder and note names) are put away while you are in one
-    this.legend.classList.toggle("cg-hidden", this.mpActive); this.listBtn.classList.toggle("cg-hidden", this.mpActive);
+    this.legend.classList.toggle("cg-hidden", this.mpActive || this.renderer.pilotActive); this.listBtn.classList.toggle("cg-hidden", this.mpActive);
     if (this.mpActive) this.toggleList(false);
     this.refreshPanel();
   }
@@ -412,6 +412,7 @@ export class ConstellationApp {
     this.pilotBtn.classList.toggle("cg-on", active);
     if (active) this.detail.hidden = true; // no note details in the sandbox
     this.syncShowButtons();
+    this.legend.classList.toggle("cg-hidden", active || this.mpActive); // the group list is put away while you fly
     if (text) this.announce(text);
     if (!active) this.stage.focus({ preventScroll: true });
   }

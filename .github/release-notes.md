@@ -1,4 +1,4 @@
-**Constellation Graph is now Starfield Graph.** Same plugin and same id, so your settings and updates carry over; the new name says what it has become.
+**Starfield Graph** (formerly Constellation Graph). Same plugin and same id, so your settings and updates carry over; the new name says what it has become.
 
 Pilot mode becomes a sandbox, and you can now fly together.
 
@@ -12,6 +12,7 @@ Pilot mode becomes a sandbox, and you can now fly together.
 - **One size for every ship:** your ship and everyone else's are the same size wherever they are, with a ring that stays visible on screen when a pilot is far away.
 - **Direct mouse aim:** the nose now turns exactly as far as the mouse moves and stops when it stops, with a tighter chase camera, so lining up a shot is easy. Cursor steering is crisper too.
 - **Kill announcements and a scoreboard:** when someone is destroyed everyone sees who did it, and holding Tab shows kills and deaths (also listed in the Fly together panel).
+- **A clearer view when flying:** the group list is hidden in Pilot mode.
 - **Lobbies keep your notes private:** the note list and group list are put away while you are in a room.
 - **Calmer stars:** distant stars dim and bright ones level off instead of clipping to white, so a room with several constellations is no longer blinding.
 - **Dogfighting in a room:** same-size ships with a ring that stays visible far away, nameplates with name, health and distance, arrows to pilots off-screen, and a lead pip for aiming at a moving target.
