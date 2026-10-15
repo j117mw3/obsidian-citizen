@@ -55,7 +55,7 @@ function baseRadius(deg: number): number {
 }
 
 function pilotOptions(s: ConstellationSettings, multiplayer = false) {
-  return { multiplayer, sensitivity: s.pilotSensitivity, invertY: s.pilotInvertY, view: s.pilotView, sound: s.pilotSound, volume: s.pilotVolume, wireframe: s.pilotWireframe, agility: s.pilotAgility, speed: s.pilotSpeed, mouse: s.pilotMouse, map: s.pilotMap };
+  return { multiplayer, sensitivity: s.pilotSensitivity, invertY: s.pilotInvertY, view: s.pilotView, ship: s.pilotShip, sound: s.pilotSound, volume: s.pilotVolume, wireframe: s.pilotWireframe, agility: s.pilotAgility, speed: s.pilotSpeed, mouse: s.pilotMouse };
 }
 
 export function webglAvailable(): boolean {
@@ -212,9 +212,6 @@ export class ConstellationRenderer implements GraphRenderer {
       bounds: () => this.sim.bounds(),
       fitDistance: r => this.fitDistance(r),
       baseFov: () => FOV,
-      groupColor: gi => this.groups[gi]?.color ?? "#8b93a7",
-      linkEnds: () => ({ a: this.sim.srcs, b: this.sim.dsts }),
-      collapsed: () => this.collapsedBodies().map(c => ({ x: c.x, z: c.z, r: c.r, color: c.color, name: c.name })),
       pickClusterAt: (x, y, slack) => this.pickClusterAt(x, y, slack),
       clusterBodies: () => this.collapsedBodies(),
       expandGroup: g => this.expandGroup(g),
@@ -229,10 +226,13 @@ export class ConstellationRenderer implements GraphRenderer {
       leave: () => this.setPilot(false),
       onNetworkPose: pose => this.cb.onNetworkPose?.(pose),
       onNetworkShot: shot => this.cb.onNetworkShot?.(shot),
+      remoteTargets: () => this.remote.targets,
+      watchable: () => this.remote.watchable,
+      followState: (id, p, q, v) => this.remote.followState(id, p, q, v),
     }, pilotOptions(settings));
 
     this.remote = new RemoteWorld(this.scene, this.labelLayer, this.camera, () => this.nodeMaterial(), {
-      hitTest: (a, b) => this.pilot.hitTest(a, b),
+      hitTest: (a, b, kind) => this.pilot.hitTest(a, b, kind),
       struck: (id, shotId, at) => this.cb.onNetworkHit?.(id, shotId, at),
     });
 
@@ -352,7 +352,7 @@ export class ConstellationRenderer implements GraphRenderer {
     if (active === this.multiplayer) return;
     if (this.pilot.active) this.pilot.exit(false); // flying starts over with the room's rules
     this.multiplayer = active;
-    if (!active) { this.remote.clear(); this.pilot.setRemotePilots([]); this.sim.setOrigin(0, 0, 0); this.frameB = null; this.dirty = true; }
+    if (!active) { this.remote.clear(); this.sim.setOrigin(0, 0, 0); this.frameB = null; this.dirty = true; }
     this.applySettings(this.settings);
     this.stale = true;
   }
@@ -368,7 +368,7 @@ export class ConstellationRenderer implements GraphRenderer {
   setRemotePose(id: string, pose: Pose): void { this.remote.setPose(id, pose); this.stale = true; }
   addRemoteShot(id: string, shot: ShotMsg): void { this.remote.addShot(id, shot); this.stale = true; }
   showRemoteHit(hit: HitMsg): void { this.remote.showHit(hit); this.stale = true; }
-  removeRemote(id: string): void { this.remote.remove(id); this.pilot.setRemotePilots(this.remote.pilots()); this.stale = true; }
+  removeRemote(id: string): void { this.remote.remove(id); this.stale = true; }
 
   /** Enter or leave free flight. The orbit controls are parked while it runs, and the view eases back out when it ends. */
   setPilot(on: boolean): void {
@@ -453,6 +453,7 @@ export class ConstellationRenderer implements GraphRenderer {
 
   /** Timelapse: every note disappears, then returns in the order it was created, with each new link flashing as it forms. */
   animate(): void {
+    if (this.pilot.active || this.multiplayer) return; // not while flying or in a room
     if (this.reveal) { this.endAnimation(false); return; }
     if (this.nova) this.novaStop(false);
     const nodes = this.sim.nodes, N = nodes.length;
@@ -477,6 +478,7 @@ export class ConstellationRenderer implements GraphRenderer {
    * the main hub outward. With motion off there is no show: the layout is simply recomputed at once.
    */
   supernova(): void {
+    if (this.pilot.active || this.multiplayer) return;
     if (this.nova) { this.novaStop(false); return; }
     if (this.reveal) this.endAnimation(false);
     if (this.drag || !this.sim.nodes.length) return;
@@ -869,7 +871,7 @@ export class ConstellationRenderer implements GraphRenderer {
       this.updateCamera(now);
       camMoved = this.controls.update(dt);
     }
-    if (this.remote.any) { this.remote.update(dt, this.canvas.clientWidth, this.canvas.clientHeight); this.pilot.setRemotePilots(this.remote.pilots()); this.stale = true; }
+    if (this.remote.any) { this.remote.update(dt, this.canvas.clientWidth, this.canvas.clientHeight); this.stale = true; }
     if (!(moving || animating || camMoved || this.stale || this.tween || this.follow >= 0)) return; // fully at rest: draw nothing
     this.stale = false;
 

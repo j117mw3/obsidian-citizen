@@ -34,9 +34,9 @@ export interface AnonymousNode { id: string; group: number; degree: number }
 export interface AnonymousTopology { revision: number; nodes: AnonymousNode[]; groups: AnonymousGroup[]; links: [string, string][] }
 
 /** Where a pilot's ship is and how it is doing. Sent about twenty times a second. */
-export interface Pose { p: [number, number, number]; q: [number, number, number, number]; v: [number, number, number]; hp: number; en: number; bo: boolean; ac: boolean; pr: boolean }
+export interface Pose { p: [number, number, number]; q: [number, number, number, number]; v: [number, number, number]; hp: number; en: number; bo: boolean; ac: boolean; pr: boolean; sh?: number }
 /** A blaster bolt: where it started and which way it flies. */
-export interface ShotMsg { id: string; o: [number, number, number]; d: [number, number, number] }
+export interface ShotMsg { id: string; o: [number, number, number]; d: [number, number, number]; w?: 0 | 1 }
 /** "You hit me." Sent by the pilot who was hit, so the shooter can show the impact. */
 export interface HitMsg { shooter: string; target: string; shotId: string; at: [number, number, number] }
 
@@ -126,12 +126,13 @@ export function validPose(value: unknown): value is Pose {
   return finite3(p.p, MAX_COORDINATE) && finite3(p.v, 20_000)
     && Array.isArray(p.q) && p.q.length === 4 && p.q.every(x => typeof x === "number" && Number.isFinite(x) && Math.abs(x) <= 1.01) && p.q.some(x => x !== 0)
     && typeof p.hp === "number" && Number.isFinite(p.hp) && p.hp >= 0 && p.hp <= 100 && typeof p.en === "number" && Number.isFinite(p.en) && p.en >= 0 && p.en <= 1
-    && typeof p.bo === "boolean" && typeof p.ac === "boolean" && typeof p.pr === "boolean";
+    && typeof p.bo === "boolean" && typeof p.ac === "boolean" && typeof p.pr === "boolean"
+    && (p.sh === undefined || (Number.isInteger(p.sh) && p.sh >= 0 && p.sh <= 2));
 }
 export function validShot(value: unknown): value is ShotMsg {
   if (!value || typeof value !== "object") return false;
   const s = value as ShotMsg;
-  return typeof s.id === "string" && s.id.length <= 64 && finite3(s.o, MAX_COORDINATE) && finite3(s.d, 1.01);
+  return typeof s.id === "string" && s.id.length <= 64 && finite3(s.o, MAX_COORDINATE) && finite3(s.d, 1.01) && (s.w === undefined || s.w === 0 || s.w === 1);
 }
 export function validHit(value: unknown, self: string): value is HitMsg {
   if (!value || typeof value !== "object") return false;

@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import type { AnonymousTopology, HitMsg, Pose, ShotMsg } from "./multiplayer";
-import type { MapPilot } from "./minimap";
-import { buildShip, type Ship } from "./ship";
+import { buildShip, shipFromIndex, shipIndex, type Ship } from "./ship";
+import { weaponStats } from "./weapons";
 
 /**
  * Where each pilot's constellation sits in the shared space. The first three form a triangle 1,500 units on a side, which is
@@ -13,25 +13,33 @@ export const WORLD_ORIGINS: [number, number, number][] = [[0, 0, 0], [1500, 0, 0
 export const SLOT_COLORS = ["#ffb347", "#c792ff", "#7dff9a", "#ff7a9a"];
 
 const CORE = 0.34;           // as in the renderer: the solid part of a note sprite
-const SHIP_SCALE = 0.34;
-const BOLT_SPEED = 1500;
-const BOLT_LENGTH = 22;
+const MIN_SCALE = 0.6;       // another pilot's ship is never drawn smaller than this...
+const MAX_SCALE = 14;        // ...and grows with distance (about 1.1 percent of it) so a pilot far away is still a visible ship
+const SCALE_PER_UNIT = 0.011;
+const REMOTE_STARS = 2.4;    // other constellations are drawn with larger, brighter stars, so they read from across the gap
 const BOLT_RANGE = 1100;
 const MAX_BOLTS = 48;
 const MAX_BURSTS = 6;
 const POSE_STALE_MS = 2500;  // a pilot we have not heard from for this long is hidden
+const EDGE_MARGIN = 38;      // how far in from the edge of the view an off-screen pilot's marker sits
 
 interface RemoteMap { points: THREE.Points; lines: THREE.LineSegments; ends: Int32Array; pos: Float32Array; ready: boolean }
-interface RemoteShip { ship: Ship; label: HTMLDivElement; name: string; slot: number; color: string; pose: Pose | null; at: number; target: THREE.Vector3; shown: boolean; dead: boolean }
-interface RemoteBolt { owner: string; id: string; o: THREE.Vector3; d: THREE.Vector3; travelled: number; head: THREE.Vector3; prev: THREE.Vector3 }
+interface Plate { root: HTMLDivElement; name: HTMLDivElement; fill: HTMLDivElement; dist: HTMLDivElement; arrow: HTMLDivElement; lastDist: string; lastHp: number; edge: boolean }
+interface RemoteShip { ship: Ship; plate: Plate; name: string; slot: number; color: string; pose: Pose | null; at: number; target: THREE.Vector3; shown: boolean; dead: boolean; scale: number }
+interface RemoteBolt { owner: string; id: string; kind: 0 | 1; o: THREE.Vector3; d: THREE.Vector3; travelled: number; head: THREE.Vector3; prev: THREE.Vector3 }
 interface Burst { line: THREE.LineSegments; age: number; size: number; live: boolean }
+
+/** Another pilot as a target: where their ship is drawn and how fast it is moving (for the lead pip). */
+export interface RemoteTarget { id: string; x: number; y: number; z: number; vx: number; vy: number; vz: number; dist: number }
 
 export interface RemoteHooks {
   /** Does this segment of a bolt's flight hit your own ship? (It also applies the damage.) */
-  hitTest(a: THREE.Vector3, b: THREE.Vector3): boolean;
+  hitTest(a: THREE.Vector3, b: THREE.Vector3, kind: 0 | 1): boolean;
   /** You were hit by a bolt from this pilot. */
   struck(shooterId: string, shotId: string, at: [number, number, number]): void;
 }
+
+const fmtDist = (d: number): string => d >= 1000 ? `${(d / 1000).toFixed(1)}k` : String(Math.round(d / 10) * 10);
 
 /**
  * Everything of the other pilots that is drawn in your scene: their constellations (as glowing points and faint links, in
@@ -48,8 +56,10 @@ export class RemoteWorld {
   private bursts: Burst[] = [];
   private burstGeo: THREE.BufferGeometry;
   private tmp = new THREE.Vector3();
-  private tmp2 = new THREE.Vector3();
+  private look = new THREE.Vector3();
   private q = new THREE.Quaternion();
+  private tmpC = new THREE.Color();
+  private targetList: RemoteTarget[] = [];
 
   constructor(
     private scene: THREE.Scene,
@@ -70,17 +80,30 @@ export class RemoteWorld {
 
   get any(): boolean { return this.maps.size > 0 || this.ships.size > 0 || this.bolts.length > 0; }
 
+  /** The other pilots who are flying right now, as targets. The list is reused every frame; do not keep it. */
+  get targets(): readonly RemoteTarget[] { return this.targetList; }
+
+  /** The pilots you could watch, in a steady order. */
+  get watchable(): string[] { return [...this.ships.entries()].filter(([, s]) => s.shown).map(([id]) => id); }
+
+  /** Where a pilot's ship is and which way it faces, for the spectator camera. */
+  followState(id: string, outPos: THREE.Vector3, outQuat: THREE.Quaternion, outVel: THREE.Vector3): { name: string; color: string; scale: number } | null {
+    const s = this.ships.get(id); if (!s || !s.shown || !s.pose) return null;
+    outPos.copy(s.ship.group.position); outQuat.copy(s.ship.group.quaternion); outVel.set(s.pose.v[0], s.pose.v[1], s.pose.v[2]);
+    return { name: s.name, color: s.color, scale: s.scale };
+  }
+
   // ----------------------------------------------------------------- what arrives
 
   setTopology(id: string, topology: AnonymousTopology, name: string, slot: number): void {
     this.removeMap(id);
     const n = topology.nodes.length, ids = new Map<string, number>();
-    const pos = new Float32Array(n * 3), col = new Float32Array(n * 3), size = new Float32Array(n), alpha = new Float32Array(n).fill(0.9), emph = new Float32Array(n);
+    const pos = new Float32Array(n * 3), col = new Float32Array(n * 3), size = new Float32Array(n), alpha = new Float32Array(n).fill(1), emph = new Float32Array(n);
     topology.nodes.forEach((node, i) => {
       ids.set(node.id, i);
       const c = new THREE.Color(topology.groups[node.group]?.color ?? "#8b93a7");
       col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
-      size[i] = (Math.min(5.5, 0.9 + Math.sqrt(node.degree) * 0.5) * 2) / CORE;
+      size[i] = ((Math.min(5.5, 0.9 + Math.sqrt(node.degree) * 0.5) * 2) / CORE) * REMOTE_STARS;
     });
     const geo = new THREE.BufferGeometry();
     geo.setAttribute("position", new THREE.BufferAttribute(pos, 3)); geo.setAttribute("aColor", new THREE.BufferAttribute(col, 3));
@@ -92,7 +115,7 @@ export class RemoteWorld {
     const lg = new THREE.BufferGeometry();
     lg.setAttribute("position", new THREE.BufferAttribute(new Float32Array(ends.length * 3), 3));
     const lc = new Float32Array(ends.length * 3);
-    for (let k = 0; k < ends.length; k++) { lc[k * 3] = col[ends[k] * 3] * 0.2; lc[k * 3 + 1] = col[ends[k] * 3 + 1] * 0.2; lc[k * 3 + 2] = col[ends[k] * 3 + 2] * 0.2; }
+    for (let k = 0; k < ends.length; k++) { lc[k * 3] = col[ends[k] * 3] * 0.3; lc[k * 3 + 1] = col[ends[k] * 3 + 1] * 0.3; lc[k * 3 + 2] = col[ends[k] * 3 + 2] * 0.3; }
     lg.setAttribute("color", new THREE.BufferAttribute(lc, 3));
     const lines = new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false }));
     lines.frustumCulled = false; lines.renderOrder = 1; lines.visible = false;
@@ -111,23 +134,46 @@ export class RemoteWorld {
     m.ready = true; m.points.visible = true; m.lines.visible = true;
   }
 
-  private ensureShip(id: string, name: string, slot: number): RemoteShip {
-    let s = this.ships.get(id);
-    if (s) { s.name = name; s.slot = slot; return s; }
-    const ship = buildShip(), color = SLOT_COLORS[Math.max(0, Math.min(3, slot))];
-    ship.group.scale.setScalar(SHIP_SCALE); ship.group.visible = false;
+  private makePlate(color: string): Plate {
+    const root = this.labelLayer.createDiv({ cls: "cg-plate" });
+    root.style.setProperty("--plate", color);
+    const arrow = root.createDiv({ cls: "cg-plate-arrow" });
+    const name = root.createDiv({ cls: "cg-plate-name" });
+    const bar = root.createDiv({ cls: "cg-plate-bar" });
+    const fill = bar.createDiv({ cls: "cg-plate-fill" });
+    const dist = root.createDiv({ cls: "cg-plate-dist" });
+    root.toggleClass("cg-hidden", true);
+    return { root, name, fill, dist, arrow, lastDist: "", lastHp: -1, edge: false };
+  }
+
+  private newModel(kindIndex: number, color: string): Ship {
+    const ship = buildShip(shipFromIndex(kindIndex));
+    ship.group.scale.setScalar(MIN_SCALE); ship.group.visible = false;
     ship.outline.color.set(color);
     this.scene.add(ship.group); ship.lights.forEach(l => { l.visible = true; this.scene.add(l); });
-    const label = this.labelLayer.createDiv({ cls: "cg-label cg-label-pilot" });
-    label.style.color = color; label.toggleClass("cg-hidden", true);
-    s = { ship, label, name, slot, color, pose: null, at: 0, target: new THREE.Vector3(), shown: false, dead: false };
+    return ship;
+  }
+
+  private dropModel(ship: Ship): void { this.scene.remove(ship.group); ship.lights.forEach(l => this.scene.remove(l)); ship.dispose(); }
+
+  private ensureShip(id: string, name: string, slot: number): RemoteShip {
+    let s = this.ships.get(id);
+    if (s) { s.name = name; s.slot = slot; s.plate.name.textContent = name; return s; }
+    const color = SLOT_COLORS[Math.max(0, Math.min(3, slot))];
+    const plate = this.makePlate(color);
+    plate.name.textContent = name;
+    s = { ship: this.newModel(0, color), plate, name, slot, color, pose: null, at: 0, target: new THREE.Vector3(), shown: false, dead: false, scale: MIN_SCALE };
     this.ships.set(id, s);
     return s;
   }
 
   setPose(id: string, pose: Pose): void {
     const s = this.ships.get(id); if (!s) return;
-    const wasDead = s.dead;
+    const wasDead = s.dead, want = pose.sh ?? 0;
+    if (shipIndex(s.ship.kind) !== want) { // they picked a different ship
+      const old = s.ship; s.ship = this.newModel(want, s.color);
+      s.ship.group.position.copy(old.group.position); s.ship.group.quaternion.copy(old.group.quaternion); this.dropModel(old);
+    }
     s.pose = pose; s.at = performance.now(); s.dead = pose.hp <= 0;
     if (s.dead && !wasDead && s.shown) this.burst(pose.p[0], pose.p[1], pose.p[2], 14, s.color);
     if (!s.shown && pose.ac && !s.dead) { s.ship.group.position.set(...pose.p); s.ship.group.quaternion.set(...pose.q).normalize(); }
@@ -136,7 +182,7 @@ export class RemoteWorld {
   addShot(id: string, shot: ShotMsg): void {
     if (this.bolts.length >= MAX_BOLTS) this.bolts.shift();
     const o = new THREE.Vector3(...shot.o), d = new THREE.Vector3(...shot.d).normalize();
-    this.bolts.push({ owner: id, id: shot.id, o, d, travelled: 0, head: o.clone(), prev: o.clone() });
+    this.bolts.push({ owner: id, id: shot.id, kind: shot.w === 1 ? 1 : 0, o, d, travelled: 0, head: o.clone(), prev: o.clone() });
   }
 
   showHit(hit: HitMsg): void { this.burst(hit.at[0], hit.at[1], hit.at[2], 6, "#ffb27a"); }
@@ -144,7 +190,7 @@ export class RemoteWorld {
   remove(id: string): void {
     this.removeMap(id);
     const s = this.ships.get(id);
-    if (s) { this.scene.remove(s.ship.group); s.ship.lights.forEach(l => this.scene.remove(l)); s.ship.dispose(); s.label.remove(); this.ships.delete(id); }
+    if (s) { this.dropModel(s.ship); s.plate.root.remove(); this.ships.delete(id); }
     this.bolts = this.bolts.filter(b => b.owner !== id);
   }
 
@@ -155,62 +201,82 @@ export class RemoteWorld {
     this.maps.delete(id);
   }
 
-  clear(): void { for (const id of [...new Set([...this.maps.keys(), ...this.ships.keys()])]) this.remove(id); this.bolts = []; for (const b of this.bursts) b.live = false; this.bursts.forEach(b => { b.line.visible = false; }); }
+  clear(): void {
+    for (const id of [...new Set([...this.maps.keys(), ...this.ships.keys()])]) this.remove(id);
+    this.bolts = []; this.targetList.length = 0;
+    for (const b of this.bursts) { b.live = false; b.line.visible = false; }
+  }
 
   // ----------------------------------------------------------------- per frame
 
   update(dt: number, width: number, height: number): void {
-    const now = performance.now();
-    // ships: ease toward where the pilot is now (their last pose, carried forward by their speed)
-    const cam = this.camera.position;
-    for (const s of this.ships.values()) {
+    const now = performance.now(), cam = this.camera.position;
+    this.look.set(0, 0, -1).applyQuaternion(this.camera.quaternion);
+    let targets = 0;
+    for (const [id, s] of this.ships) {
       const p = s.pose, alive = !!p && p.ac && !s.dead && now - s.at < POSE_STALE_MS;
-      s.ship.group.visible = alive; s.label.toggleClass("cg-hidden", !alive);
-      s.shown = alive;
-      if (!alive || !p) continue;
-      const age = Math.min(0.25, (now - s.at) / 1000);
+      s.ship.group.visible = alive; s.shown = alive;
+      if (!alive || !p) { s.plate.root.toggleClass("cg-hidden", true); continue; }
+      const age = Math.min(0.25, (now - s.at) / 1000); // ease toward where the pilot is now (their last pose, carried forward by their speed)
       s.target.set(p.p[0] + p.v[0] * age, p.p[1] + p.v[1] * age, p.p[2] + p.v[2] * age);
       const k = 1 - Math.exp(-dt * 14), g = s.ship.group;
       g.position.lerp(s.target, k);
       g.quaternion.slerp(this.q.set(...p.q).normalize(), k);
+      const dist = cam.distanceTo(g.position); // bigger the further away they are, so a pilot across the gap is still a ship you can see
+      s.scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, dist * SCALE_PER_UNIT));
+      g.scale.setScalar(s.scale);
       g.updateMatrixWorld(true);
       const speed = Math.hypot(p.v[0], p.v[1], p.v[2]);
       const len = 0.35 + Math.min(1, speed / 350) * 2 + (p.bo ? 1.2 : 0);
-      for (const f of s.ship.flames) f.scale.set(1, len, 1);
+      for (const f of s.ship.flames) f.scale.set(f.scale.x, len, f.scale.z);
       s.ship.outline.opacity = p.pr ? 0.35 + 0.35 * Math.sin(now * 0.02) : 0.9; // a ship that has just respawned shimmers
-      // the name above the ship
-      this.tmp.copy(g.position).project(this.camera);
-      const infront = (g.position.x - cam.x) * this.dirX() + (g.position.y - cam.y) * this.dirY() + (g.position.z - cam.z) * this.dirZ() > 1;
-      if (this.tmp.z > 1 || !infront || Math.abs(this.tmp.x) > 1.1 || Math.abs(this.tmp.y) > 1.1) { s.label.toggleClass("cg-hidden", true); continue; }
-      const dist = cam.distanceTo(g.position), hp = Math.round(p.hp);
-      const text = `${s.name}${hp < 100 ? ` · ${hp}` : ""}`;
-      if (s.label.textContent !== text) s.label.textContent = text;
-      s.label.style.opacity = String(Math.max(0.35, Math.min(1, 1.2 - dist / 2500)));
-      s.label.style.transform = `translate(${Math.round((this.tmp.x * 0.5 + 0.5) * width)}px, ${Math.round((-this.tmp.y * 0.5 + 0.5) * height - 22)}px) translate(-50%, -100%)`;
+      this.plate(s, g.position, dist, p.hp, width, height);
+      let t = this.targetList[targets];
+      if (!t) { t = { id, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, dist: 0 }; this.targetList[targets] = t; }
+      t.id = id; t.x = g.position.x; t.y = g.position.y; t.z = g.position.z; t.vx = p.v[0]; t.vy = p.v[1]; t.vz = p.v[2]; t.dist = dist; targets++;
     }
+    this.targetList.length = targets;
     this.stepBolts(dt);
     this.stepBursts(dt);
   }
 
-  private dirX(): number { this.tmp2.set(0, 0, -1).applyQuaternion(this.camera.quaternion); return this.tmp2.x; }
-  private dirY(): number { return this.tmp2.y; }
-  private dirZ(): number { return this.tmp2.z; }
+  /** The nameplate: name, health and distance above the ship, or pinned to the edge of the view with an arrow when the pilot is off-screen. */
+  private plate(s: RemoteShip, pos: THREE.Vector3, dist: number, hp: number, w: number, h: number): void {
+    const el = s.plate, cam = this.camera.position, look = this.look;
+    const ahead = (pos.x - cam.x) * look.x + (pos.y - cam.y) * look.y + (pos.z - cam.z) * look.z > 1;
+    this.tmp.copy(pos).project(this.camera);
+    let sx = (this.tmp.x * 0.5 + 0.5) * w, sy = (-this.tmp.y * 0.5 + 0.5) * h - 26;
+    const off = !ahead || this.tmp.z > 1 || sx < EDGE_MARGIN || sx > w - EDGE_MARGIN || sy < EDGE_MARGIN || sy > h - EDGE_MARGIN;
+    if (off) { // the direction to them in the camera's own space, so it is right even when they are behind you
+      this.tmp.copy(pos).applyMatrix4(this.camera.matrixWorldInverse);
+      const dx = this.tmp.x, dy = -this.tmp.y, len = Math.hypot(dx, dy) || 1;
+      const sc = Math.min((w / 2 - EDGE_MARGIN) / (Math.abs(dx / len) || 1e-6), (h / 2 - EDGE_MARGIN) / (Math.abs(dy / len) || 1e-6));
+      sx = w / 2 + (dx / len) * sc; sy = h / 2 + (dy / len) * sc;
+      el.arrow.style.transform = `rotate(${Math.atan2(dy, dx)}rad)`;
+    }
+    if (off !== el.edge) { el.edge = off; el.root.classList.toggle("cg-plate-edge", off); }
+    el.root.toggleClass("cg-hidden", false);
+    const d = fmtDist(dist); if (d !== el.lastDist) { el.lastDist = d; el.dist.textContent = d; }
+    const hpi = Math.round(hp); if (hpi !== el.lastHp) { el.lastHp = hpi; el.fill.style.width = `${hpi}%`; el.root.classList.toggle("cg-plate-low", hpi <= 30); }
+    el.root.style.transform = `translate(${Math.round(sx)}px, ${Math.round(sy)}px) translate(-50%, ${off ? "-50%" : "-100%"})`;
+  }
 
   private stepBolts(dt: number): void {
     let out = 0;
     for (let k = this.bolts.length - 1; k >= 0; k--) {
       const b = this.bolts[k];
-      b.prev.copy(b.head); b.travelled += BOLT_SPEED * dt;
+      const w = weaponStats(b.kind);
+      b.prev.copy(b.head); b.travelled += w.speed * dt;
       b.head.copy(b.o).addScaledVector(b.d, b.travelled);
       if (b.travelled > BOLT_RANGE) { this.bolts.splice(k, 1); continue; }
-      if (this.hooks.hitTest(b.prev, b.head)) { // it hit you
+      if (this.hooks.hitTest(b.prev, b.head, b.kind)) { // it hit you
         this.hooks.struck(b.owner, b.id, [b.head.x, b.head.y, b.head.z]);
         this.burst(b.head.x, b.head.y, b.head.z, 5, "#ff8a6a");
         this.bolts.splice(k, 1); continue;
       }
       if (out >= MAX_BOLTS) continue;
-      const tail = Math.max(0, b.travelled - BOLT_LENGTH), o = out * 6, color = this.ships.get(b.owner)?.color ?? "#ffb347";
-      const c = new THREE.Color(color);
+      const tail = Math.max(0, b.travelled - w.length), o = out * 6;
+      const c = this.tmpC.set(w.color[0], w.color[1], w.color[2]); // a blaster bolt is hot red-white, a cannon round is gold, whoever fired it
       this.boltPos[o] = b.o.x + b.d.x * tail; this.boltPos[o + 1] = b.o.y + b.d.y * tail; this.boltPos[o + 2] = b.o.z + b.d.z * tail;
       this.boltPos[o + 3] = b.head.x; this.boltPos[o + 4] = b.head.y; this.boltPos[o + 5] = b.head.z;
       this.boltCol[o] = c.r * 0.2; this.boltCol[o + 1] = c.g * 0.2; this.boltCol[o + 2] = c.b * 0.2;
@@ -243,17 +309,6 @@ export class RemoteWorld {
       b.line.scale.setScalar(b.size * (0.6 + 5 * (1 - Math.pow(1 - t, 3))));
       (b.line.material as THREE.LineBasicMaterial).opacity = 0.9 * (1 - t);
     }
-  }
-
-  /** The other pilots, as the map draws them. */
-  pilots(): MapPilot[] {
-    const out: MapPilot[] = [];
-    for (const s of this.ships.values()) {
-      if (!s.shown || !s.pose) continue;
-      const f = this.tmp2.set(0, 0, -1).applyQuaternion(this.q.set(...s.pose.q).normalize());
-      out.push({ x: s.pose.p[0], y: s.pose.p[1], z: s.pose.p[2], fx: f.x, fz: f.z, color: s.color, name: s.name });
-    }
-    return out;
   }
 
   dispose(): void {

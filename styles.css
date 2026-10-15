@@ -198,12 +198,6 @@
 .cg-contrast .cg-pilot-boostfx { display: none; }
 @media (prefers-reduced-motion: reduce) { .cg-pilot-boostfx { transition: none; } }
 
-/* Pilot mode: the map */
-.cg-minimap { position: absolute; top: 58px; left: 12px; border-radius: 10px; overflow: hidden; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35); transition: opacity 0.4s ease; }
-.cg-minimap[hidden] { display: none; }
-.cg-minimap canvas { display: block; }
-.cg-minimap-over { position: absolute; left: 0; top: 0; }
-.cg-minimap-caption { position: absolute; left: 8px; bottom: 5px; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--cg-dim); text-shadow: 0 0 4px #000; }
 .cg-contrast .cg-minimap { outline: 2px solid #fff; }
 @container (max-width: 560px) { .cg-minimap { display: none; } }
 
@@ -236,3 +230,26 @@
 .cg-pilot-destroyed { position: absolute; left: 50%; top: 44%; transform: translate(-50%, -50%); color: #ff6b72; font: 700 17px var(--font-interface, system-ui, sans-serif); letter-spacing: 0.14em; text-align: center; text-shadow: 0 2px 12px #000; white-space: nowrap; pointer-events: none; }
 .cg-pilot-destroyed[hidden] { display: none; }
 .cg-contrast .cg-multiplayer { background: #000; border-color: #fff; backdrop-filter: none; }
+
+.cg-btn:disabled, .cg-btn.cg-disabled { opacity: 0.35; cursor: not-allowed; }
+
+/* Pilot mode: the guns */
+.cg-pilot-weapon { position: absolute; left: calc(50% + 100px); bottom: 36px; width: 120px; font-size: 10px; letter-spacing: 0.08em; color: var(--cg-dim); text-shadow: 0 0 4px #000; }
+.cg-pilot-weapon-bar { margin-top: 3px; height: 3px; background: rgba(255, 255, 255, 0.14); border-radius: 2px; overflow: hidden; }
+.cg-pilot-weapon-fill { height: 100%; width: 0; background: linear-gradient(90deg, #5ad2ff, #ffffff); }
+.cg-pilot-weapon.cg-hot .cg-pilot-weapon-fill { background: linear-gradient(90deg, #ff9a3a, #ff4b3a); }
+.cg-pilot-weapon.cg-hot { color: #ff8a6a; }
+.cg-pilot-weapon.cg-cannon .cg-pilot-weapon-fill { background: linear-gradient(90deg, #ffb347, #ffe08a); }
+.cg-pilot-weapon.cg-cannon { color: #ffd37a; }
+.cg-contrast .cg-pilot-weapon { color: #fff; }
+
+/* Multiplayer: nameplates for other pilots */
+.cg-plate { position: absolute; left: 0; top: 0; display: flex; flex-direction: column; align-items: center; gap: 2px; pointer-events: none; color: var(--plate, #fff); font-weight: 700; font-size: 12px; letter-spacing: 0.03em; text-shadow: 0 0 6px rgba(0, 0, 0, 0.9); will-change: transform; }
+.cg-plate-name { white-space: nowrap; }
+.cg-plate-bar { width: 54px; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.18); overflow: hidden; }
+.cg-plate-fill { height: 100%; width: 100%; background: var(--plate, #fff); }
+.cg-plate-low .cg-plate-fill { background: #ff5a4a; }
+.cg-plate-dist { font-weight: 500; font-size: 11px; opacity: 0.75; }
+.cg-plate-arrow { display: none; width: 0; height: 0; border-left: 10px solid var(--plate, #fff); border-top: 6px solid transparent; border-bottom: 6px solid transparent; position: absolute; left: 50%; top: 50%; margin: -6px 0 0 -4px; transform-origin: 4px 6px; translate: 22px 0; }
+.cg-plate-edge .cg-plate-arrow { display: block; }
+.cg-plate-edge { gap: 1px; }

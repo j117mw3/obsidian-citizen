@@ -1,0 +1,33 @@
+/**
+ * The two guns. The blaster is quick and light and runs hot: hold the trigger and it overheats, then it is off for a moment.
+ * The cannon fires heavy rounds that hit three times as hard, but each ship carries a limited number of them per life
+ * (they come back when you respawn). Used by your own ship and by the bolts other pilots fire, so both sides agree.
+ */
+export interface WeaponStats { speed: number; length: number; damage: number; color: [number, number, number] }
+
+export const BLASTER: WeaponStats = { speed: 1500, length: 22, damage: 10, color: [1, 0.65, 0.55] };
+export const CANNON: WeaponStats = { speed: 900, length: 13, damage: 30, color: [1, 0.86, 0.38] };
+
+export function weaponStats(kind: 0 | 1): WeaponStats { return kind === 1 ? CANNON : BLASTER; }
+
+/** Where a bolt fired now will meet a target that is moving: the point to aim at, or null if it cannot catch it. */
+export function interceptPoint(
+  shooter: { x: number; y: number; z: number }, target: { x: number; y: number; z: number }, targetVel: { x: number; y: number; z: number },
+  boltSpeed: number, out: { x: number; y: number; z: number; t: number },
+): boolean {
+  const dx = target.x - shooter.x, dy = target.y - shooter.y, dz = target.z - shooter.z;
+  const a = targetVel.x * targetVel.x + targetVel.y * targetVel.y + targetVel.z * targetVel.z - boltSpeed * boltSpeed;
+  const b = 2 * (dx * targetVel.x + dy * targetVel.y + dz * targetVel.z);
+  const c = dx * dx + dy * dy + dz * dz;
+  let t: number;
+  if (Math.abs(a) < 1e-6) { if (Math.abs(b) < 1e-9) return false; t = -c / b; }
+  else {
+    const disc = b * b - 4 * a * c;
+    if (disc < 0) return false;
+    const sq = Math.sqrt(disc), t1 = (-b - sq) / (2 * a), t2 = (-b + sq) / (2 * a);
+    t = Math.min(t1 > 0 ? t1 : Infinity, t2 > 0 ? t2 : Infinity);
+  }
+  if (!Number.isFinite(t) || t <= 0 || t > 3) return false; // nothing can be caught that is more than three seconds away
+  out.x = target.x + targetVel.x * t; out.y = target.y + targetVel.y * t; out.z = target.z + targetVel.z * t; out.t = t;
+  return true;
+}

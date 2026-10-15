@@ -321,7 +321,14 @@ export class ConstellationApp {
       if (this.queuedData) { const d = this.queuedData; this.queuedData = null; this.setData(d); }
       this.announce("Left the room");
     }
+    this.syncShowButtons();
     this.refreshPanel();
+  }
+
+  /** Animate and Supernova re-lay-out the whole graph, so they are off while you fly or are in a room. */
+  private syncShowButtons(): void {
+    const off = this.renderer.pilotActive || this.mpActive;
+    for (const b of [this.animBtn, this.novaBtn]) { b.disabled = off; b.classList.toggle("cg-disabled", off); }
   }
 
   private toggleFold(): void {
@@ -338,6 +345,7 @@ export class ConstellationApp {
     this.pilotBtn.setAttribute("aria-pressed", String(active));
     this.pilotBtn.classList.toggle("cg-on", active);
     if (active) this.detail.hidden = true; // no note details in the sandbox
+    this.syncShowButtons();
     if (text) this.announce(text);
     if (!active) this.stage.focus({ preventScroll: true });
   }

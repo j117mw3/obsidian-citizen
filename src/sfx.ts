@@ -236,6 +236,27 @@ export class PilotAudio {
     this.env(g, t, 0.05, 0.003, 0.22); o.connect(g); g.connect(e); o.start(t); o.stop(t + 0.3);
   }
 
+  /** The cannon: a deep boom that drops through the floor, a crunch, and a crack on top. */
+  cannon(gun = 0): void {
+    if (!this.ok()) return;
+    const t = this.ctx!.currentTime, p = (0.95 + Math.random() * 0.1) * (1 + (gun % 4) * 0.02), pan = gun % 2 ? 0.3 : -0.3;
+    this.tone("sine", 130 * p, 26, 0.55, 0.85, { t, wet: 0.35, pan });
+    this.hiss("lowpass", 3200, 140, 0.4, 0.55, { t, wet: 0.5, pan });
+    this.tone("square", 560 * p, 70, 0.32, 0.22, { t, drive: 40, lp: [3000, 200], wet: 0.4, pan });
+    this.hiss("highpass", 4000, 4000, 0.015, 0.45, { t, wet: 0.1, pan });
+  }
+
+  /** The blaster has run too hot: a descending buzz and a hiss of steam. */
+  overheat(): void {
+    if (!this.ok()) return;
+    const t = this.ctx!.currentTime;
+    this.tone("square", 260, 90, 0.4, 0.16, { t, drive: 30, lp: [1800, 200], wet: 0.2 });
+    this.hiss("bandpass", 3000, 700, 0.5, 0.22, { t, q: 1.2, wet: 0.3 });
+  }
+
+  /** No more rounds: a dry click. */
+  empty(): void { if (this.ok()) this.tone("sine", 900, 600, 0.05, 0.1, { wet: 0.05 }); }
+
   /** A bolt landing on a note: a deep thump, a burst of low noise, and a bright ping. */
   hit(): void {
     if (!this.ok()) return;

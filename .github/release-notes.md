@@ -1,13 +1,12 @@
 Pilot mode becomes a sandbox, and you can now fly together.
 
-**Fly together (multiplayer).** Make a room, send the ten-character code to up to three friends, and share one sky, each pilot with their own constellation. Only the shape of a constellation (anonymous points, links, colours) and your ship's position are shared; never note titles, paths, tags or contents. Connections are set up through a public relay (ntfy.sh by default, or your own), with every message sealed by the room code, then pilots talk directly. There is no server to run and nothing is set up for you; you can add your own TURN server if your network blocks direct connections. Ships can shoot each other (10 of 100 health a hit, five seconds to respawn, three of protection) and pass through each other. Outside a room the plugin still makes no network connections. Thanks to j117mw3 for the multiplayer protocol work this builds on.
+**Fly together (multiplayer).** Make a room, send the ten-character code to up to three friends, and share one sky, each pilot with their own constellation. Only the shape of a constellation (anonymous points, links, colours) and your ship's position are shared; never note titles, paths, tags or contents. Connections are set up through a public relay (ntfy.sh by default, or your own), with every message sealed by the room code, then pilots talk directly. There is no server to run and nothing is set up for you; you can add your own TURN server if your network blocks direct connections. Outside a room the plugin still makes no network connections. Thanks to j117mw3 for the multiplayer protocol work this builds on.
 
-**Pilot mode is a sandbox.** It never selects or opens notes any more, and the rest of the plugin works as before outside it.
+**Pilot mode is a sandbox.** It never selects or opens notes, and the rest of the plugin works as before outside it. Animate and Supernova are off while you fly or are in a room.
 
-- A new sound engine: the Pulse XL blaster, a fuller engine, impacts, warp and afterburner sounds.
-- Speed you can see: the view widens under afterburner and dust streaks past.
-- A flat top-down map in the corner, with an arrow for each pilot.
-- Groups can be folded into one glowing point (shoot one to open it, B to fold, Shift+B for all). Big vaults start folded the first time you fly.
-- Cursor steering: keep the pointer visible and steer from the centre, so you can still click panels while flying.
-- An on-screen controls panel with key caps that light up (K shows or hides it).
-- Speed is scaled to the size of your vault, notes are a little easier to hit, and notes are solid, so you bounce off them.
+- **Two weapons:** a blaster that runs hot and overheats, and a cannon that hits three times as hard but carries limited rounds per life (R switches).
+- **Three ships to choose from:** Striker, Dart and Bulwark, shown to other pilots too.
+- **Dogfighting in a room:** larger ships that grow with distance, nameplates with name, health and distance, arrows to pilots off-screen, and a lead pip for aiming at a moving target.
+- **Spectator mode:** N watches the other pilots; after 30 seconds without input in a room you start watching automatically, and any flight key brings you back.
+- A new sound engine, speed effects, folded groups (shoot one to open it, B to fold), cursor steering and an on-screen controls panel.
+- The flat map was removed.

@@ -72,7 +72,8 @@ Press **P** in the graph (or the plane button on the toolbar) and fly a small fo
 | H | Warp back out to see the whole graph |
 | B | Fold the group of the note you are aiming at into one point (Shift+B folds every group, or opens them all) |
 | V | Switch between chase and cockpit view |
-| M | Map: small, large or off |
+| R | Switch blaster / cannon |
+| N | Watch other pilots (in a room) |
 | K | Show or hide the controls panel |
 | Esc | Free the mouse (a second Esc leaves) |
 | P | Leave Pilot mode |
@@ -82,7 +83,9 @@ The controls are also shown on screen as a small panel of key caps that light up
 - **Mouse mode.** *Capture* hides the pointer and steers with its movement. *Cursor* keeps the pointer visible and steers by how far it is from the centre, with a dead zone and two faint rings to show it; over a panel or button it stops steering, so you can click the legend, toolbar and details panel while flying.
 - **Scale.** Cruise speed is set from the size of your vault, so a bigger vault takes longer to cross: about 12 seconds across a 100-note vault at cruise speed, longer for larger ones. The *Flight speed* setting scales it. Warps take time in proportion to the distance.
 - **Folded groups.** Each group (a folder, or a tag) can be folded into one glowing point with its name and size. Shoot a folded group, or click it in the normal view, to open it and watch its notes fly back out. A vault of more than 400 notes starts folded the first time you fly (a setting). In the normal view, the toolbar button or **G** folds every group, or opens them all.
-- **Map.** A flat, top-down map of your notes in the corner, in the style of Obsidian's own graph, with an arrow for each pilot and a gauge for height.
+- **Weapons.** The blaster is quick and runs hot: hold the trigger and it overheats, then goes cold for a moment. The cannon hits three times as hard but each life carries a limited number of rounds (they return when you respawn).
+- **Ships.** Choose a Striker (four wings), Dart (delta wing) or Bulwark (heavy gunship) in the settings. They look different and fly and fight the same; other pilots see your choice.
+- **In a room.** Other ships are drawn larger the further away they are, with a nameplate (name, health, distance) and an edge arrow when off-screen. A lead pip shows where to aim at a moving pilot. **N** watches the other pilots; after 30 seconds without a key in a room you start watching automatically, and any flight key brings you back.
 - **Speed you can see.** The view widens under afterburner, and dust streaks past as you go faster.
 - **Wireframes and sound.** The plane has a glowing wireframe outline, and target brackets, impact bursts and faint shells around each group are drawn in wireframe too (they can be turned off). Engine, blaster, impact and warp sounds are synthesised in the plugin with the Web Audio API, nothing is loaded from a file, and they can be turned off or turned down. Sound mutes when the window loses focus.
 - Pilot mode needs motion, so it stays off when your system asks for reduced motion (the search, note list and details panel still work). It is not available without WebGL.
@@ -93,7 +96,7 @@ Up to four pilots can share one sky, each with their own constellation. Click th
 
 - **What is shared:** the *shape* of your constellation (anonymous points, links and group colours) and where your ship is. **Never** note titles, paths, tags or contents: remote constellations have no labels, and nothing a remote pilot sends can reach a note, a file or Obsidian itself.
 - **How it connects:** there is no server to run. Pilots find each other through a public relay (the free [ntfy.sh](https://ntfy.sh) service by default, or one you choose in the settings). Every message through the relay is sealed with a key made from the room code, so the relay sees only noise, and nobody without the code can listen or take part. The relay carries only a handful of connection-setup messages; after that, pilots talk to each other directly (WebRTC), and your computer's address is visible to the other pilots and to the STUN servers that help the connection through your router.
-- **The rules in a room:** every pilot flies their own ship with the full flight model, at the same cruise speed. Each constellation sits still in its own corner of the sky, and there is no warping. Ships can shoot each other: a hit costs 10 of 100 health, a destroyed ship comes back after five seconds with three seconds when nothing can hit it, and each pilot's own computer decides whether *they* were hit. There is no score. Ships pass through one another.
+- **The rules in a room:** every pilot flies their own ship with the full flight model, at the same cruise speed. Each constellation sits still in its own corner of the sky, and there is no warping. Ships can shoot each other: a blaster hit costs 10 of 100 health and a cannon round 30, a destroyed ship comes back after five seconds with three seconds when nothing can hit it, and each pilot's own computer decides whether *they* were hit. There is no score. Ships pass through one another.
 - **If it will not connect:** some networks block direct connections. You can enter your own TURN server in the settings and it will be used when a direct connection fails; nothing is set up for you. The free relay has usage limits, so a very busy day may need a different relay.
 - A room closes when the last pilot leaves. Your vault is never changed, and changes you make to it while in a room appear when you leave.
 
@@ -108,7 +111,7 @@ Up to four pilots can share one sky, each with their own constellation. Click th
 
 ## Settings
 
-Open on startup (off by default; saved in the vault, so it applies to anyone who opens it), flow (off, calm, lively), camera rotation and speed, glow and bloom, palette, label size and count, grouping (folder, first tag, none), folder depth, excluded folders, whether to show notes with no links, and whether to ring the open note. Pilot mode has its own section: enable, fold groups when flying, map, mouse mode (capture or cursor), mouse sensitivity, invert vertical look, flight speed, agility, view (chase or cockpit), wireframe effects, sound and volume. Multiplayer has its own too: your name, the relay, and an optional TURN server.
+Open on startup (off by default; saved in the vault, so it applies to anyone who opens it), flow (off, calm, lively), camera rotation and speed, glow and bloom, palette, label size and count, grouping (folder, first tag, none), folder depth, excluded folders, whether to show notes with no links, and whether to ring the open note. Pilot mode has its own section: enable, fold groups when flying, ship, mouse mode (capture or cursor), mouse sensitivity, invert vertical look, flight speed, agility, view (chase or cockpit), wireframe effects, sound and volume. Multiplayer has its own too: your name, the relay, and an optional TURN server.
 
 ## Privacy and safety
 
@@ -145,7 +148,7 @@ npm run harness -- "<path to a vault>"   # builds dev/harness.html, a browser pr
 npm run install-local -- "<path to a vault>"   # build and copy into <vault>/.obsidian/plugins/constellation-graph
 ```
 
-Source layout: `src/main.ts` (plugin), `view.ts` (Obsidian view), `data.ts` (vault to graph), `app.ts` (UI, keyboard, accessibility), `renderer.ts` (Three.js), `sim.ts` (layout and flow), `pilot.ts` (Pilot mode: flight, aiming, collisions, HUD), `ship.ts` and `cockpit.ts` (the plane and its cockpit, built from primitives), `speedfx.ts` (speed dust), `minimap.ts` (the map), `sfx.ts` (synthesised sound), `multiplayer.ts` (the room session: anonymous topology, position frames, checks), `room.ts`, `relay.ts` and `netcrypto.ts` (finding other pilots through a relay, sealed with the room code), `remote.ts` (other pilots' constellations, ships and bolts), `multiplayerUi.ts` (the Fly together panel), `fallback.ts` (no-WebGL mode), `settings.ts`, `palette.ts`.
+Source layout: `src/main.ts` (plugin), `view.ts` (Obsidian view), `data.ts` (vault to graph), `app.ts` (UI, keyboard, accessibility), `renderer.ts` (Three.js), `sim.ts` (layout and flow), `pilot.ts` (Pilot mode: flight, aiming, collisions, HUD), `ship.ts` and `cockpit.ts` (the plane and its cockpit, built from primitives), `speedfx.ts` (speed dust), `weapons.ts` (blaster, cannon, lead pip), `sfx.ts` (synthesised sound), `multiplayer.ts` (the room session: anonymous topology, position frames, checks), `room.ts`, `relay.ts` and `netcrypto.ts` (finding other pilots through a relay, sealed with the room code), `remote.ts` (other pilots' constellations, ships and bolts), `multiplayerUi.ts` (the Fly together panel), `fallback.ts` (no-WebGL mode), `settings.ts`, `palette.ts`.
 
 ## Credits
 

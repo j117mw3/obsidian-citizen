@@ -23,13 +23,13 @@ export interface ConstellationSettings {
   pilotSensitivity: number;
   pilotInvertY: boolean;
   pilotView: "chase" | "cockpit";
+  pilotShip: "striker" | "dart" | "bulwark";
   pilotSound: boolean;
   pilotVolume: number;
   pilotWireframe: boolean;
   pilotAgility: number;
   pilotSpeed: number;
   pilotMouse: "capture" | "cursor";
-  pilotMap: "off" | "small" | "large";
   pilotCollapse: "auto" | "never" | "always";
   multiplayerName: string;
   multiplayerRelayUrl: string;
@@ -59,13 +59,13 @@ export const DEFAULT_SETTINGS: ConstellationSettings = {
   pilotSensitivity: 1,
   pilotInvertY: false,
   pilotView: "chase",
+  pilotShip: "striker",
   pilotSound: true,
   pilotVolume: 0.5,
   pilotWireframe: true,
   pilotAgility: 1,
   pilotSpeed: 1,
   pilotMouse: "capture",
-  pilotMap: "small",
   pilotCollapse: "auto",
   multiplayerName: "Pilot",
   multiplayerRelayUrl: "https://ntfy.sh",
@@ -105,13 +105,13 @@ export function sanitizeSettings(raw: unknown): ConstellationSettings {
     pilotSensitivity: clamp(r.pilotSensitivity, 0.2, 3, d.pilotSensitivity),
     pilotInvertY: bool(r.pilotInvertY, d.pilotInvertY),
     pilotView: pick(r.pilotView, ["chase", "cockpit"] as const, d.pilotView),
+    pilotShip: pick(r.pilotShip, ["striker", "dart", "bulwark"] as const, d.pilotShip),
     pilotSound: bool(r.pilotSound, d.pilotSound),
     pilotVolume: clamp(r.pilotVolume, 0, 1, d.pilotVolume),
     pilotWireframe: bool(r.pilotWireframe, d.pilotWireframe),
     pilotAgility: clamp(r.pilotAgility, 0.5, 1.5, d.pilotAgility),
     pilotSpeed: clamp(r.pilotSpeed, 0.4, 3, d.pilotSpeed),
     pilotMouse: pick(r.pilotMouse, ["capture", "cursor"] as const, d.pilotMouse),
-    pilotMap: pick(r.pilotMap, ["off", "small", "large"] as const, d.pilotMap),
     pilotCollapse: pick(r.pilotCollapse, ["auto", "never", "always"] as const, d.pilotCollapse),
     multiplayerName: typeof r.multiplayerName === "string" ? r.multiplayerName.trim().slice(0, 24) || d.multiplayerName : d.multiplayerName,
     multiplayerRelayUrl: typeof r.multiplayerRelayUrl === "string" ? r.multiplayerRelayUrl.trim().slice(0, 300) || d.multiplayerRelayUrl : d.multiplayerRelayUrl,
