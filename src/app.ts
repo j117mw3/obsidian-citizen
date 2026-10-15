@@ -18,7 +18,8 @@ const HELP = [
   "Space: pause or resume motion",
   "A: animate, watching notes appear in the order they were created",
   "N: supernova, collapse everything, explode it and let it re-settle",
-  "P: Pilot mode. W A S D fly, mouse looks, Shift boosts, X brakes, click or F fires. T locks the target, G warps to it, H returns to the hub, V switches between chase and cockpit view. Esc frees the mouse, P leaves.",
+  "P: Pilot mode, a flying sandbox (it never selects or opens notes; the rest of the plugin works as usual outside it). W A S D fly, mouse looks, Shift boosts, X brakes, click or F fires. T locks the target, G warps to it, H returns to the hub, V switches between chase and cockpit view. Esc frees the mouse, P leaves.",
+  "G: fold every group into one point, or open them all (click a folded group to open it)",
   "R: reset the view · L: note list · /: search · Esc: clear",
   "Mouse: drag to orbit, scroll to zoom, click to select, double-click or Ctrl+click to open",
 ];
@@ -44,6 +45,7 @@ export class ConstellationApp {
   private animBtn: HTMLButtonElement;
   private novaBtn: HTMLButtonElement;
   private pilotBtn: HTMLButtonElement;
+  private foldBtn: HTMLButtonElement;
   private statsText = "";
   private activityKind: "animate" | "supernova" | null = null;
   private motionNote: HTMLElement;
@@ -91,13 +93,15 @@ export class ConstellationApp {
     this.novaBtn.setAttribute("aria-pressed", "false");
     this.pilotBtn = this.button("cg-btn", "Pilot mode: fly through your notes (P)", "\u2708\uFE0E");
     this.pilotBtn.setAttribute("aria-pressed", "false");
+    this.foldBtn = this.button("cg-btn", "Fold every group into one point, or open them all", "\u2295");
+    this.foldBtn.setAttribute("aria-pressed", "false");
     this.listBtn = this.button("cg-btn", "Show note list", "\u2630");
     this.listBtn.setAttribute("aria-expanded", "false");
     this.helpBtn = this.button("cg-btn", "Keyboard help", "?");
     this.helpBtn.setAttribute("aria-expanded", "false");
     this.helpBtn.setAttribute("aria-controls", this.helpId);
-    top.append(this.search, this.pauseBtn, resetBtn, this.animBtn, this.novaBtn, this.pilotBtn, this.listBtn, this.helpBtn);
-    if (this.flat) { this.pauseBtn.hidden = true; resetBtn.hidden = true; this.animBtn.hidden = true; this.novaBtn.hidden = true; this.pilotBtn.hidden = true; }
+    top.append(this.search, this.pauseBtn, resetBtn, this.animBtn, this.novaBtn, this.pilotBtn, this.foldBtn, this.listBtn, this.helpBtn);
+    if (this.flat) { this.pauseBtn.hidden = true; resetBtn.hidden = true; this.animBtn.hidden = true; this.novaBtn.hidden = true; this.pilotBtn.hidden = true; this.foldBtn.hidden = true; }
     this.root.appendChild(top);
     this.stats = el("div", "cg-stats");
     this.motionNote = el("div", "cg-motion-note");
@@ -138,6 +142,7 @@ export class ConstellationApp {
     this.animBtn.addEventListener("click", () => this.renderer.animate());
     this.novaBtn.addEventListener("click", () => this.renderer.supernova());
     this.pilotBtn.addEventListener("click", () => this.togglePilot());
+    this.foldBtn.addEventListener("click", () => this.toggleFold());
     this.helpBtn.addEventListener("click", () => this.setHelp(this.help.hidden));
     this.search.addEventListener("input", () => this.runSearch());
     this.search.addEventListener("keydown", e => {
@@ -249,12 +254,20 @@ export class ConstellationApp {
     if (text && !progress) this.announce(text);
   }
 
+  private toggleFold(): void {
+    this.renderer.toggleAllGroups?.();
+    const on = !!this.renderer.anyCollapsed;
+    this.foldBtn.setAttribute("aria-pressed", String(on)); this.foldBtn.classList.toggle("cg-on", on);
+    this.announce(on ? "Groups folded. Click a group to open it." : "Groups opened");
+  }
+
   private togglePilot(): void { this.renderer.setPilot(!this.renderer.pilotActive); }
 
   /** Pilot mode started or stopped (or could not start): mirror it on the button and tell screen readers. */
   private onPilot(active: boolean, text: string): void {
     this.pilotBtn.setAttribute("aria-pressed", String(active));
     this.pilotBtn.classList.toggle("cg-on", active);
+    if (active) this.detail.hidden = true; // no note details in the sandbox
     if (text) this.announce(text);
     if (!active) this.stage.focus({ preventScroll: true });
   }
@@ -353,6 +366,7 @@ export class ConstellationApp {
   // ----------------------------------------------------------------- behaviour
 
   private selectIndex(i: number, fly: boolean): void {
+    if (this.renderer.pilotActive) return;
     this.renderer.setSelected(i, fly);
     this.onSelect(i);
   }
@@ -378,11 +392,13 @@ export class ConstellationApp {
   };
 
   private openIndex(i: number, newTab: boolean): void {
+    if (this.renderer.pilotActive) return; // Pilot mode is a sandbox: it never opens a note
     const n = this.renderer.nodes[i]; if (n) this.host.openNote(n.id, newTab);
   }
 
   private onKey = (e: KeyboardEvent) => {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (this.renderer.pilotActive && e.key !== "p" && e.key !== "P" && e.key !== "?") return; // while flying, the note keys do nothing
     const sel = this.renderer.selectedIndex;
     const stepOrder = (d: number) => {
       if (!this.order.length) return;
@@ -410,6 +426,7 @@ export class ConstellationApp {
       case "a": case "A": this.renderer.animate(); break;
       case "n": case "N": this.renderer.supernova(); break;
       case "p": case "P": this.togglePilot(); break;
+      case "g": case "G": this.toggleFold(); break;
       case "Escape": if (!this.help.hidden) this.setHelp(false); else this.selectIndex(-1, false); break;
       case "r": case "R": this.renderer.resetView(); break;
       case "l": case "L": this.toggleList(); break;

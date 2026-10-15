@@ -87,5 +87,8 @@ export interface GraphRenderer {
   readonly canPilot: boolean;
   readonly pilotActive: boolean;
   setPilot(on: boolean): void;
+  /** Fold every group into one point, or open them all if any is folded. Not available without WebGL. */
+  toggleAllGroups?(): void;
+  readonly anyCollapsed?: boolean;
   destroy(): void;
 }

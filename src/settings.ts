@@ -29,6 +29,8 @@ export interface ConstellationSettings {
   pilotAgility: number;
   pilotSpeed: number;
   pilotMouse: "capture" | "cursor";
+  pilotMap: "off" | "small" | "large";
+  pilotCollapse: "auto" | "never" | "always";
 }
 
 export const DEFAULT_SETTINGS: ConstellationSettings = {
@@ -58,6 +60,8 @@ export const DEFAULT_SETTINGS: ConstellationSettings = {
   pilotAgility: 1,
   pilotSpeed: 1,
   pilotMouse: "capture",
+  pilotMap: "small",
+  pilotCollapse: "auto",
 };
 
 const clamp = (v: unknown, lo: number, hi: number, fallback: number): number =>
@@ -97,6 +101,8 @@ export function sanitizeSettings(raw: unknown): ConstellationSettings {
     pilotAgility: clamp(r.pilotAgility, 0.5, 1.5, d.pilotAgility),
     pilotSpeed: clamp(r.pilotSpeed, 0.4, 3, d.pilotSpeed),
     pilotMouse: pick(r.pilotMouse, ["capture", "cursor"] as const, d.pilotMouse),
+    pilotMap: pick(r.pilotMap, ["off", "small", "large"] as const, d.pilotMap),
+    pilotCollapse: pick(r.pilotCollapse, ["auto", "never", "always"] as const, d.pilotCollapse),
   };
 }
 

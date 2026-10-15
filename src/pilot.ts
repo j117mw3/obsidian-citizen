@@ -3,6 +3,8 @@ import type { SimNode } from "./types";
 import { PilotAudio } from "./sfx";
 import { buildShip, type Ship } from "./ship";
 import { buildCockpit, type Cockpit } from "./cockpit";
+import { SpeedFx } from "./speedfx";
+import { Minimap, type MapCluster, type MapMode, type MapPilot } from "./minimap";
 
 /** What the pilot needs from the renderer. Kept narrow so the controller never reaches into renderer state. */
 export interface PilotHost {
@@ -12,16 +14,31 @@ export interface PilotHost {
   groupLabel(gi: number): string;
   /** Visual radius of a note in scene units. */
   nodeRadius(i: number): number;
+  groupColor(gi: number): string;
+  /** Both ends of every link, as two parallel lists (for the map). */
+  linkEnds(): { a: SimNode[]; b: SimNode[] };
+  /** Groups that are collapsed into one point right now (for the map). */
+  collapsed(): MapCluster[];
+  /** The collapsed group under a screen point, or -1; and the solid bodies of every collapsed group. */
+  pickClusterAt(x: number, y: number, slack: number): number;
+  clusterBodies(): { x: number; y: number; z: number; r: number; color: string; name: string; g: number }[];
+  expandGroup(g: number): void;
+  collapseGroup(g: number): void;
+  toggleAllGroups(): void;
+  groupOf(noteIndex: number): number;
+  isCollapsed(g: number): boolean;
+  /** Tell the renderer which collapsed group the crosshair is on (it glows). */
+  setAimCluster(g: number): void;
   /** True if the ship can hit this note (it is showing, not hidden by a group filter or a search). */
   solid(i: number): boolean;
   /** One entry per visible group: its centre, rough radius and colour. */
   clusters(): { x: number; y: number; z: number; r: number; color: string }[];
   bounds(): { cx: number; cy: number; cz: number; radius: number };
   fitDistance(radius: number): number;
-  selectedIndex(): number;
+  /** The field of view the scene normally uses, and a way to widen it (the afterburner's kick). */
+  baseFov(): number;
+  setFov(deg: number): void;
   setAim(i: number): void;
-  select(i: number): void;
-  open(i: number, newTab: boolean): void;
   /** Pilot mode started or stopped, or has something to say (also read out by screen readers). */
   onState(active: boolean, text: string): void;
   /** The reader pressed Esc with the mouse already free: leave Pilot mode. */
@@ -39,6 +56,8 @@ export interface PilotOptions {
   agility: number;
   /** Scales cruise speed on top of the automatic scale for the size of the network. */
   speed: number;
+  /** The map in the corner: small, large or off. */
+  map: MapMode;
   /** Capture: the mouse is locked and its movement steers. Cursor: the pointer stays visible and its distance from the centre steers. */
   mouse: "capture" | "cursor";
 }
@@ -92,10 +111,11 @@ const BOLT_FADE = 0.12;    // seconds a bolt lingers after it lands
 const MAX_BOLTS = 10;
 const RANGE = 900;         // how far a shot at nothing travels
 const AIM_DIST = 600;      // how far ahead of the nose the crosshair is drawn
-const DOUBLE_HIT_MS = 2000; // a second hit on the selected note within this opens it
 const AIM_SLACK = 10;      // extra px of forgiveness when aiming
 const FIRE_SLACK = 14;    // and when firing
 const SHIP_SCALE = 0.34;
+const FOV_BOOST = 16;      // degrees the view widens under afterburner
+const FOV_SPEED = 6;       // and a little for plain speed
 const COCKPIT_SCALE = 2.2;
 const MAX_SHELLS = 24;
 const MAX_BURSTS = 4;
@@ -108,7 +128,7 @@ const Z_AXIS = new THREE.Vector3(0, 0, 1);
 /** Keys the pilot owns. Anything else (Enter, /, ?, L, ...) is left to the normal keyboard handling. */
 const OWNED = new Set([
   "KeyW", "KeyA", "KeyS", "KeyD", "Space", "KeyC", "KeyQ", "KeyE", "ShiftLeft", "ShiftRight",
-  "KeyX", "KeyF", "KeyT", "KeyG", "KeyH", "KeyV", "KeyK",
+  "KeyX", "KeyF", "KeyT", "KeyG", "KeyH", "KeyV", "KeyK", "KeyM", "KeyB",
 ]);
 
 type KeyRow = { caps: string[]; label: string | ((p: PilotController) => string); codes: (string | null)[] };
@@ -127,9 +147,11 @@ const KEY_GROUPS: { title: string; rows: KeyRow[] }[] = [
     { caps: ["T"], label: "Lock target", codes: ["KeyT"] },
     { caps: ["G"], label: "Warp to target", codes: ["KeyG"] },
     { caps: ["H"], label: "Back to the hub", codes: ["KeyH"] },
+    { caps: ["B"], label: "Fold a group (Shift: all)", codes: ["KeyB"] },
   ] },
   { title: "View", rows: [
     { caps: ["V"], label: "Chase / cockpit", codes: ["KeyV"] },
+    { caps: ["M"], label: "Map: small / large / off", codes: ["KeyM"] },
     { caps: ["K"], label: "Show / hide this", codes: ["KeyK"] },
     { caps: ["Esc"], label: p => p.cursorMode ? "Leave" : "Free the mouse", codes: [null] },
     { caps: ["P"], label: "Leave Pilot mode", codes: [null] },
@@ -140,12 +162,13 @@ interface Warp {
   t0: number; dur: number;
   p0: THREE.Vector3; q0: THREE.Quaternion;
   node: number;                 // -1 for the whole constellation
+  group: number;                // a folded group to follow (its middle keeps drifting), or -1
   centre: THREE.Vector3;        // used when node is -1
   dir: THREE.Vector3;           // which side of the target to arrive on
   dist: number;                 // how far from the target to stop
 }
 /** A bolt flies from the gun to the note it was aimed at, and the shot counts when it lands. */
-interface Bolt { from: THREE.Vector3; node: number; point: THREE.Vector3; travelled: number; ctrl: boolean; landed: boolean; fade: number }
+interface Bolt { from: THREE.Vector3; node: number; cluster: number; point: THREE.Vector3; travelled: number; landed: boolean; fade: number }
 interface Burst { age: number; pos: THREE.Vector3; size: number; line: THREE.LineSegments }
 
 const clamp = (v: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, v));
@@ -186,11 +209,12 @@ export class PilotController {
   private camQuat = new THREE.Quaternion();
 
   private aim = -1;
+  private aimC = -1;                         // the collapsed group under the crosshair
   private aimX = 0; private aimY = 0;          // where the nose points, on screen (CSS px)
   private firing = false;
   private cooldown = 0;
   private gun = 0;
-  private lastShot = { i: -1, t: -1e9 };
+  private lockedNode = -1;                 // a note locked as a flight target. Pilot mode is a sandbox: it never selects or opens notes.
   private warp: Warp | null = null;
   private bolts: Bolt[] = [];
   private bursts: Burst[] = [];
@@ -204,6 +228,11 @@ export class PilotController {
   private audio = new PilotAudio();
   private ship: Ship;
   private cockpit: Cockpit;
+  private fx: SpeedFx;
+  private minimap: Minimap;
+  private remotes: MapPilot[] = [];
+  private fov = 55;
+  private boostFx: HTMLDivElement;
   private boltLines: THREE.LineSegments;
   private boltPos = new Float32Array(MAX_BOLTS * 3 * 6);
   private boltCol = new Float32Array(MAX_BOLTS * 3 * 6);
@@ -252,6 +281,8 @@ export class PilotController {
     this.opts = { ...opts };
     this.audio.setOptions(opts.sound, opts.volume);
 
+    this.fx = new SpeedFx(scene);
+
     // the cockpit (first-person view)
     this.cockpit = buildCockpit();
     this.scene.add(this.cockpit.group);
@@ -285,6 +316,7 @@ export class PilotController {
     // the HUD is plain DOM, hidden from screen readers (the live region carries what matters)
     this.hud = container.createDiv({ cls: "cg-pilot", attr: { "aria-hidden": "true" } });
     this.hud.hidden = true;
+    this.boostFx = this.hud.createDiv({ cls: "cg-pilot-boostfx" });
     this.ringOuter = this.hud.createDiv({ cls: "cg-pilot-steer cg-pilot-steer-outer" });
     this.ringInner = this.hud.createDiv({ cls: "cg-pilot-steer cg-pilot-steer-inner" });
     this.cross = this.hud.createDiv({ cls: "cg-pilot-cross" });
@@ -299,7 +331,15 @@ export class PilotController {
     this.energyFill = energy.createDiv({ cls: "cg-pilot-energy-fill" });
     this.readout.hidden = true;
     this.keysPanel = this.buildKeysPanel();
+    this.minimap = new Minimap(this.hud, {
+      nodes: () => host.nodes(), solid: i => host.solid(i), groupColor: gi => host.groupColor(gi), bounds: () => host.bounds(),
+      linkEnds: () => host.linkEnds(), collapsed: () => host.collapsed(),
+      selectedIndex: () => this.lockedNode, // the map rings the note you have locked
+    });
   }
+
+  /** The other pilots in the world (from a visit), drawn on the map. */
+  setRemotePilots(list: MapPilot[]): void { this.remotes = list; }
 
   /** The controls, drawn as key caps in a quiet glass panel. The caps light up as you press the keys. */
   private buildKeysPanel(): HTMLDivElement {
@@ -344,7 +384,9 @@ export class PilotController {
 
   setOptions(opts: PilotOptions): void {
     const mouseChanged = opts.mouse !== this.opts.mouse;
+    const mapChanged = opts.map !== this.opts.map;
     this.opts = { ...opts };
+    if (mapChanged && this.active) this.minimap.setMode(opts.map, this.container.clientHeight);
     if (mouseChanged && this.active) {
       this.stick.set(0, 0); this.mouseDX = this.mouseDY = this.smX = this.smY = 0;
       if (opts.mouse === "cursor" && this.locked) document.exitPointerLock();
@@ -373,6 +415,7 @@ export class PilotController {
     this.ship.group.visible = on && this.opts.view === "chase";
     this.ship.lights.forEach(l => { l.visible = on && this.opts.view === "chase"; });
     this.cockpit.group.visible = on && this.opts.view === "cockpit";
+    this.fx.show(on);
     this.ringOuter.hidden = this.ringInner.hidden = !(on && this.opts.mouse === "cursor");
     this.refreshKeyLabels();
     this.container.classList.toggle("cg-cursor", on && this.opts.mouse === "cursor");
@@ -393,8 +436,10 @@ export class PilotController {
     this.active = true;
     this.vel.set(0, 0, 0); this.spin.set(0, 0, 0); this.stick.set(0, 0);
     this.keys.clear(); this.firing = false; this.warp = null; this.cooldown = 0;
-    this.lastShot = { i: -1, t: -1e9 }; this.aim = -1; this.frame = 0; this.clock = 0;
+    this.lockedNode = -1; this.aim = -1; this.frame = 0; this.clock = 0;
     this.energy = 1; this.boostLocked = false; this.boosting = false; this.bank = this.tilt = 0;
+    this.fov = this.host.baseFov();
+    this.minimap.setMode(this.opts.map, this.container.clientHeight);
     this.holdLeft = 0; this.shake = 0; this.mouseDX = this.mouseDY = this.smX = this.smY = 0; this.dtS = 0;
     this.cursor.inside = false; this.ringW = this.ringH = 0;
     this.showKeys(true);
@@ -462,6 +507,8 @@ export class PilotController {
     this.hud.hidden = true;
     this.container.classList.remove("cg-piloting", "cg-cursor");
     this.host.setAim(-1); this.aim = -1;
+    this.host.setFov(this.host.baseFov()); this.boostFx.classList.remove("cg-on");
+    this.minimap.setMode("off");
     if (say) this.host.onState(false, "Pilot mode off");
     else this.host.onState(false, "");
   }
@@ -475,6 +522,7 @@ export class PilotController {
       (l.material as THREE.Material | undefined)?.dispose?.();
     };
     this.scene.remove(this.cockpit.group); this.cockpit.dispose();
+    this.fx.dispose(); this.minimap.destroy();
     this.scene.remove(this.ship.group);
     this.ship.lights.forEach(l => this.scene.remove(l));
     this.ship.dispose();
@@ -505,6 +553,23 @@ export class PilotController {
     this.beginWarp(i, new THREE.Vector3(n.x, n.y, n.z), from.normalize().clone(), 70 + this.host.nodeRadius(i) * 6);
   }
 
+  /** Fly to a folded group and stop a little way off it. */
+  warpToGroup(g: number): void {
+    const b = this.host.clusterBodies().find(x => x.g === g); if (!b) return;
+    const c = new THREE.Vector3(b.x, b.y, b.z), from = this.tmpV.copy(this.pos).sub(c);
+    if (from.lengthSq() < 1) from.set(0.3, 0.2, 1);
+    this.beginWarp(-1, c, from.normalize().clone(), 50 + b.r * 3, g);
+  }
+
+  /** B folds the group of the note you are aiming at (or have locked); Shift+B folds every group, or opens them all. */
+  private foldGroup(all: boolean): void {
+    if (all) { this.host.toggleAllGroups(); this.audio.lock(true); this.host.onState(true, "Toggled every group"); return; }
+    const note = this.aim >= 0 ? this.aim : this.lockedNode;
+    if (note < 0) { this.host.onState(true, "Aim at a note to fold its group, or press Shift+B to fold them all"); return; }
+    const g = this.host.groupOf(note);
+    if (g >= 0 && !this.host.isCollapsed(g)) { this.host.collapseGroup(g); this.audio.lock(false); this.host.onState(true, "Group folded"); }
+  }
+
   /** Back out to where the whole constellation fits in view. */
   returnToHub(): void {
     const b = this.host.bounds();
@@ -515,11 +580,11 @@ export class PilotController {
   }
 
   /** A warp is fast, not instant: it takes time in proportion to the distance, so a long trip across a big vault is felt. */
-  private beginWarp(node: number, centre: THREE.Vector3, dir: THREE.Vector3, dist: number): void {
+  private beginWarp(node: number, centre: THREE.Vector3, dir: THREE.Vector3, dist: number, group = -1): void {
     const p0 = this.pos.clone();
     const travel = p0.distanceTo(this.tmpV.copy(centre).addScaledVector(dir, dist));
     const dur = clamp(800 + (travel / (this.cruise * WARP_SPEED)) * 1000, WARP_MIN_MS, WARP_MAX_MS);
-    this.warp = { t0: this.clock, dur, p0, q0: this.quat.clone(), node, centre, dir, dist };
+    this.warp = { t0: this.clock, dur, p0, q0: this.quat.clone(), node, group, centre, dir, dist };
     this.vel.set(0, 0, 0); this.spin.set(0, 0, 0); this.stick.set(0, 0);
     this.audio.warp(dur);
   }
@@ -549,8 +614,15 @@ export class PilotController {
     this.lightKey(e.code, true);
     switch (e.code) {
       case "KeyK": this.showKeys(!this.keysShown); break;
+      case "KeyM": { const next: MapMode = this.minimap.currentMode === "small" ? "large" : this.minimap.currentMode === "large" ? "off" : "small"; this.minimap.setMode(next, this.container.clientHeight); break; }
       case "KeyT": this.toggleLock(); break;
-      case "KeyG": { const t = this.host.selectedIndex() >= 0 ? this.host.selectedIndex() : this.aim; if (t >= 0) this.warpToNode(t); break; }
+      case "KeyG": {
+        const t = this.lockedNode >= 0 ? this.lockedNode : this.aim;
+        if (this.aimC >= 0 && this.aim < 0) { this.warpToGroup(this.aimC); break; }
+        if (t >= 0) this.warpToNode(t);
+        break;
+      }
+      case "KeyB": this.foldGroup(e.shiftKey); break;
       case "KeyH": this.returnToHub(); break;
       case "KeyV": this.opts = { ...this.opts, view: this.chase ? "cockpit" : "chase" }; this.applyLook(); this.host.onState(true, this.chase ? "Chase view" : "Cockpit view"); break;
     }
@@ -559,10 +631,11 @@ export class PilotController {
   private onKeyUp = (e: KeyboardEvent) => { this.keys.delete(e.code); this.lightKey(e.code, false); };
   private onBlur = () => { this.keys.clear(); this.firing = false; for (const list of this.keyCaps.values()) for (const el of list) el.classList.remove("cg-down"); };
 
+  /** T locks the note under the crosshair as a flight target (G warps to it); T again, or T over nothing, lets go. */
   private toggleLock(): void {
-    if (this.aim < 0) return;
-    const on = this.host.selectedIndex() !== this.aim;
-    this.host.select(on ? this.aim : -1);
+    if (this.aim < 0) { if (this.lockedNode >= 0) { this.lockedNode = -1; this.audio.lock(false); } return; }
+    const on = this.lockedNode !== this.aim;
+    this.lockedNode = on ? this.aim : -1;
     this.audio.lock(on);
   }
 
@@ -571,7 +644,7 @@ export class PilotController {
     if (this.opts.mouse === "capture" && !this.locked) { this.requestLock(); return; }
     this.container.focus({ preventScroll: true });
     this.firing = true; this.clickCap?.classList.add("cg-down");
-    this.fire(e.ctrlKey || e.metaKey);
+    this.fire();
   };
   private onPointerUp = () => { this.firing = false; this.clickCap?.classList.remove("cg-down"); };
 
@@ -647,16 +720,24 @@ export class PilotController {
 
     this.updateCamera(dt);
     const speed = this.vel.length();
-    this.updateShip(dt, strafe, lift, clamp(speed / (this.cruise * BOOST_TOP), 0, 1));
+    const sp01 = clamp(speed / (this.cruise * BOOST_TOP), 0, 1);
+    this.updateShip(dt, strafe, lift, sp01);
+    // speed you can see: the view widens a little with speed and a lot under afterburner, and dust streaks past
+    const fovTarget = this.host.baseFov() + (this.boosting ? FOV_BOOST : 0) + sp01 * FOV_SPEED;
+    this.fov += (fovTarget - this.fov) * (1 - Math.exp(-dt * 4));
+    this.host.setFov(this.fov);
+    this.fx.update(this.pos, this.vel, sp01, this.boosting);
+    this.boostFx.classList.toggle("cg-on", this.boosting);
     this.audio.update(Math.min(1, speed / (this.cruise * 1.6)), this.boosting, thrust !== 0 || strafe !== 0 || lift !== 0);
 
     this.updateAimPoint();
     this.cooldown = Math.max(0, this.cooldown - dt);
-    if ((this.firing || k.has("KeyF")) && this.cooldown <= 0 && (this.locked || k.has("KeyF") || this.opts.mouse === "cursor")) this.fire(false);
+    if ((this.firing || k.has("KeyF")) && this.cooldown <= 0 && (this.locked || k.has("KeyF") || this.opts.mouse === "cursor")) this.fire();
 
     if (this.frame % 2 === 0) this.updateAim();
     this.updateBolts(dt);
     this.updateWireframes(dt);
+    this.minimap.update(dt, [{ x: this.pos.x, y: this.pos.y, z: this.pos.z, fx: this.fwdV.set(0, 0, -1).applyQuaternion(this.quat).x, fz: this.fwdV.z, color: "#7fe8ff", name: "You", self: true }, ...this.remotes]);
     this.updateHud(speed / (this.cruise * BOOST_TOP));
     if (this.keysShown && !this.keysQuiet && this.clock > this.keysQuietAt) { this.keysQuiet = true; this.keysPanel.classList.add("cg-quiet"); }
   }
@@ -757,7 +838,7 @@ export class PilotController {
       const r = this.collide();
       if (r.impact > impact) { impact = r.impact; hit = r.node; }
     }
-    if (hit >= 0) this.bump(impact, hit);
+    if (impact > 0) this.bump(impact, hit);
   }
 
   /** Push the ship out of any note it is inside and bounce its velocity off. Returns how hard the worst impact was. */
@@ -781,6 +862,17 @@ export class PilotController {
         if (-vn > impact) { impact = -vn; node = i; }
       }
     }
+    for (const b of this.host.clusterBodies()) { // a folded group is one solid thing
+      const rad = b.r * 0.85 * HIT_SCALE + SHIP_RADIUS, dx = p.x - b.x, dy = p.y - b.y, dz = p.z - b.z, d2 = dx * dx + dy * dy + dz * dz;
+      if (d2 >= rad * rad) continue;
+      const d = Math.sqrt(d2) || 1e-3, nx = dx / d, ny = dy / d, nz = dz / d;
+      p.x += nx * (rad - d); p.y += ny * (rad - d); p.z += nz * (rad - d);
+      const vn = this.vel.x * nx + this.vel.y * ny + this.vel.z * nz;
+      if (vn < 0) {
+        this.vel.x -= (1 + BOUNCE) * vn * nx; this.vel.y -= (1 + BOUNCE) * vn * ny; this.vel.z -= (1 + BOUNCE) * vn * nz;
+        if (-vn > impact) { impact = -vn; node = -1; }
+      }
+    }
     return { impact, node };
   }
 
@@ -792,7 +884,7 @@ export class PilotController {
     this.vel.multiplyScalar(1 - 0.25 * hard);
     this.spin.x += (Math.random() - 0.5) * 3 * hard; this.spin.y += (Math.random() - 0.5) * 3 * hard; this.spin.z += (Math.random() - 0.5) * 4 * hard;
     if (this.clock - this.lastBump > 150) { this.lastBump = this.clock; this.audio.bump(Math.min(1, hard * 3)); }
-    this.spawnBurst(node);
+    if (node >= 0) this.spawnBurst(node);
   }
 
   /** The ship cannot wander off into nothing: past four radii a soft spring pulls it back, and it loses the speed it was carrying outward. */
@@ -822,6 +914,7 @@ export class PilotController {
     const nodes = this.host.nodes();
     let target = w.centre;
     if (w.node >= 0 && nodes[w.node]) { const n = nodes[w.node]; target = this.tmpV2.set(n.x, n.y, n.z); } // the note keeps drifting; keep aiming at it
+    else if (w.group >= 0) { const b = this.host.clusterBodies().find(x => x.g === w.group); if (b) target = this.tmpV2.set(b.x, b.y, b.z); } // and so does a group
     const p1 = this.tmpV.copy(target).addScaledVector(w.dir, w.dist);
     this.tmpM.lookAt(p1, target, Y_AXIS);
     this.tmpQ2.setFromRotationMatrix(this.tmpM);
@@ -906,8 +999,20 @@ export class PilotController {
   // ----------------------------------------------------------------- aim and fire
 
   private updateAim(): void {
-    const i = this.host.pickAt(this.aimX, this.aimY, AIM_SLACK);
+    const c = this.host.pickClusterAt(this.aimX, this.aimY, AIM_SLACK);
+    const i = c >= 0 ? -1 : this.host.pickAt(this.aimX, this.aimY, AIM_SLACK); // a folded group is one big thing; its notes are not there to hit
+    if (c !== this.aimC) { this.aimC = c; this.host.setAimCluster(c); if (c >= 0) this.audio.tick(); }
     if (i !== this.aim) { this.aim = i; this.host.setAim(i); if (i >= 0) this.audio.tick(); }
+    if (c >= 0) {
+      const b = this.host.clusterBodies().find(x => x.g === c);
+      this.readout.hidden = !b;
+      if (b) {
+        const dist = this.camera.position.distanceTo(this.tmpV.set(b.x, b.y, b.z));
+        if (this.readName.textContent !== b.name) this.readName.textContent = b.name;
+        this.readMeta.textContent = `Folded group · shoot to open · ${Math.round(dist)} away`;
+      }
+      return;
+    }
     const n = i >= 0 ? this.host.nodes()[i] : null;
     this.readout.hidden = !n;
     if (!n) return;
@@ -922,33 +1027,31 @@ export class PilotController {
     return out.copy(this.cockpit.tips[gun % this.cockpit.tips.length]).applyMatrix4(this.cockpit.group.matrixWorld);
   }
 
-  private fire(ctrl: boolean): void {
+  private fire(): void {
     if (this.cooldown > 0) return;
     this.cooldown = FIRE_GAP;
-    const i = this.host.pickAt(this.aimX, this.aimY, FIRE_SLACK);
+    const cl = this.host.pickClusterAt(this.aimX, this.aimY, FIRE_SLACK);
+    const i = cl >= 0 ? -1 : this.host.pickAt(this.aimX, this.aimY, FIRE_SLACK);
     const point = new THREE.Vector3(0, 0, -RANGE).applyQuaternion(this.quat).add(this.pos);
     // guns fire in a rotating pattern: upper-left, lower-right, upper-right, lower-left
     const order = [0, 3, 1, 2], gun = order[this.gun++ % 4];
     if (this.bolts.length >= MAX_BOLTS) this.bolts.shift();
-    this.bolts.push({ from: this.muzzle(gun, new THREE.Vector3()), node: i, point, travelled: 0, ctrl, landed: false, fade: 0 });
+    this.bolts.push({ from: this.muzzle(gun, new THREE.Vector3()), node: i, cluster: cl, point, travelled: 0, landed: false, fade: 0 });
     this.audio.laser(gun);
   }
 
-  /** A bolt has reached the note it was aimed at. The first hit selects it; a second hit soon after opens it. */
+  /** A bolt has reached a folded group: it opens, and its notes fly back out. */
+  private landOnGroup(g: number, body: { x: number; y: number; z: number; r: number; name: string }): void {
+    this.audio.open();
+    this.spawnBurstAt(body.x, body.y, body.z, Math.max(6, body.r * 1.4));
+    this.host.expandGroup(g);
+    this.host.onState(true, `${body.name} opened`);
+  }
+
+  /** A bolt has reached a note. It only makes a splash: Pilot mode is a sandbox and never selects or opens a note. */
   private land(b: Bolt): void {
-    const i = b.node;
     this.audio.hit();
-    this.spawnBurst(i);
-    if (b.ctrl) { this.host.open(i, true); return; }
-    const now = this.clock;
-    if (this.lastShot.i === i && now - this.lastShot.t < DOUBLE_HIT_MS && this.host.selectedIndex() === i) {
-      this.lastShot = { i: -1, t: -1e9 };
-      this.audio.open();
-      this.host.open(i, false); // the second hit on the same note opens it
-      return;
-    }
-    this.lastShot = { i, t: now };
-    this.host.select(i);
+    this.spawnBurst(b.node);
   }
 
   private updateBolts(dt: number): void {
@@ -958,12 +1061,13 @@ export class PilotController {
     for (let k = this.bolts.length - 1; k >= 0; k--) {
       const b = this.bolts[k];
       const n = b.node >= 0 ? nodes[b.node] : null;
-      const end = n ? this.tmpV2.set(n.x, n.y, n.z) : b.point;
+      const body = b.cluster >= 0 ? this.host.clusterBodies().find(x => x.g === b.cluster) : undefined;
+      const end = n ? this.tmpV2.set(n.x, n.y, n.z) : body ? this.tmpV2.set(body.x, body.y, body.z) : b.point;
       const dir = this.tmpV.copy(end).sub(b.from), dist = dir.length() || 1;
       dir.divideScalar(dist);
       if (!b.landed) {
         b.travelled += (BOLT_SPEED + this.vel.length()) * dt; // a bolt inherits the ship's speed, so it never lags behind a fast ship
-        if (b.travelled >= dist) { b.landed = true; b.travelled = dist; if (b.node >= 0) this.land(b); }
+        if (b.travelled >= dist) { b.landed = true; b.travelled = dist; if (b.node >= 0) this.land(b); else if (body) this.landOnGroup(b.cluster, body); }
       } else { b.fade += dt; if (b.fade >= BOLT_FADE) { this.bolts.splice(k, 1); continue; } }
       if (out >= MAX_BOLTS) continue;
       const head = Math.min(b.travelled, dist), tail = Math.max(0, head - BOLT_LENGTH);
@@ -995,8 +1099,12 @@ export class PilotController {
 
   /** A burst of wireframe where a bolt lands: an icosahedron that swells and fades. */
   private spawnBurst(i: number): void {
-    if (!this.opts.wireframe) return;
     const n = this.host.nodes()[i]; if (!n) return;
+    this.spawnBurstAt(n.x, n.y, n.z, Math.max(3, this.host.nodeRadius(i) * 2));
+  }
+
+  private spawnBurstAt(x: number, y: number, z: number, size: number): void {
+    if (!this.opts.wireframe) return;
     let b = this.bursts.find(x => !x.line.visible);
     if (!b && this.bursts.length < MAX_BURSTS) {
       const line = new THREE.LineSegments(this.burstGeo, this.wireMaterial(0xffb27a, 0.9));
@@ -1006,7 +1114,7 @@ export class PilotController {
       this.bursts.push(b);
     }
     if (!b) b = this.bursts[0];
-    b.age = 0; b.pos.set(n.x, n.y, n.z); b.size = Math.max(3, this.host.nodeRadius(i) * 2);
+    b.age = 0; b.pos.set(x, y, z); b.size = size;
     b.line.visible = true;
   }
 
@@ -1042,7 +1150,15 @@ export class PilotController {
       r.rotation.y += dt * spin; r.rotation.x += dt * spin * 0.6;
     };
     place(this.aimReticle, this.aim, 1, 1.3);
-    place(this.lockReticle, this.host.selectedIndex(), 1.45, -0.9);
+    if (this.aimC >= 0 && on) { // bracket a folded group
+      const b = this.host.clusterBodies().find(x => x.g === this.aimC);
+      if (b) {
+        const r = this.aimReticle, dist = this.camera.position.distanceTo(this.tmpV.set(b.x, b.y, b.z));
+        r.visible = true; r.position.set(b.x, b.y, b.z); r.scale.setScalar(Math.max(b.r * 1.7, dist * 0.03));
+        r.rotation.y += dt * 1.3; r.rotation.x += dt * 0.8;
+      }
+    }
+    place(this.lockReticle, this.lockedNode, 1.45, -0.9);
 
     for (const b of this.bursts) {
       if (!b.line.visible) continue;

@@ -38,6 +38,7 @@ void main() {
 }`;
 
 const FOV = 55;
+const PILOT_AUTO_COLLAPSE = 400; // a vault with more notes than this starts folded into its groups when you first fly
 const CORE = 0.34; // fraction of a point sprite that is the solid disc
 
 // A press on a note is a click unless it clearly becomes a drag. Quick taps with a shaky hand stay clicks.
@@ -52,7 +53,7 @@ function baseRadius(deg: number): number {
 }
 
 function pilotOptions(s: ConstellationSettings) {
-  return { sensitivity: s.pilotSensitivity, invertY: s.pilotInvertY, view: s.pilotView, sound: s.pilotSound, volume: s.pilotVolume, wireframe: s.pilotWireframe, agility: s.pilotAgility, speed: s.pilotSpeed, mouse: s.pilotMouse };
+  return { sensitivity: s.pilotSensitivity, invertY: s.pilotInvertY, view: s.pilotView, sound: s.pilotSound, volume: s.pilotVolume, wireframe: s.pilotWireframe, agility: s.pilotAgility, speed: s.pilotSpeed, mouse: s.pilotMouse, map: s.pilotMap };
 }
 
 export function webglAvailable(): boolean {
@@ -105,6 +106,18 @@ export class ConstellationRenderer implements GraphRenderer {
   private active = -1;
   private search: Set<number> | null = null;
   private hidden = new Set<number>();
+
+  // groups collapsed into a single "star system" point. The notes stay in the layout; they fade and fly in to the middle of their
+  // group, and a bright point stands in for them until the group is opened again.
+  private collapsedKeys = new Set<string>();
+  private gCollapsed: boolean[] = [];
+  private exp = new Float32Array(1).fill(1);        // per group: 1 = open, 0 = collapsed (animated)
+  private gc = { x: new Float64Array(1), y: new Float64Array(1), z: new Float64Array(1), n: new Float64Array(1) };
+  private clusterPts: THREE.Points | null = null;
+  private cpos = new Float32Array(0); private ccol = new Float32Array(0); private csize = new Float32Array(0);
+  private calpha = new Float32Array(0); private cemph = new Float32Array(0);
+  private clusterLabels: HTMLDivElement[] = [];
+  private autoCollapsed = false;
   private follow = -1;
   private dirty = true;
   private stale = true; // buffers need re-uploading / a frame needs drawing
@@ -127,7 +140,7 @@ export class ConstellationRenderer implements GraphRenderer {
   private resumeTimer = 0;
   private slow = 0;
   private pointer = { x: -1, y: -1, inside: false, moved: false };
-  private press: { i: number; x: number; y: number; t: number; id: number } | null = null; // the button is down; i is the note under it (-1 for none)
+  private press: { i: number; x: number; y: number; t: number; id: number; c: number } | null = null; // the button is down; i is the note under it (-1 for none)
   private lastClick: { i: number; t: number } | null = null;
   private drag: { i: number; plane: THREE.Plane; offset: THREE.Vector3; moved: boolean; pointerId: number } | null = null;
   private ray = new THREE.Raycaster();
@@ -148,6 +161,7 @@ export class ConstellationRenderer implements GraphRenderer {
   private flashEl: HTMLDivElement;
   private pilot: PilotController;
   private aim = -1; // the note under the Pilot crosshair
+  private pilotAimCluster = -1; // the collapsed group under it
   private fwd = new THREE.Vector3();
 
   constructor(private container: HTMLElement, private cb: RendererCallbacks, settings: ConstellationSettings) {
@@ -193,10 +207,20 @@ export class ConstellationRenderer implements GraphRenderer {
       clusters: () => this.clusterShells(),
       bounds: () => this.sim.bounds(),
       fitDistance: r => this.fitDistance(r),
-      selectedIndex: () => this.selected,
+      baseFov: () => FOV,
+      groupColor: gi => this.groups[gi]?.color ?? "#8b93a7",
+      linkEnds: () => ({ a: this.sim.srcs, b: this.sim.dsts }),
+      collapsed: () => this.collapsedBodies().map(c => ({ x: c.x, z: c.z, r: c.r, color: c.color, name: c.name })),
+      pickClusterAt: (x, y, slack) => this.pickClusterAt(x, y, slack),
+      clusterBodies: () => this.collapsedBodies(),
+      expandGroup: g => this.expandGroup(g),
+      collapseGroup: g => this.collapseGroup(g),
+      toggleAllGroups: () => this.toggleAllGroups(),
+      groupOf: i => this.groupOf(i),
+      isCollapsed: g => this.isCollapsed(g),
+      setAimCluster: g => { if (g !== this.pilotAimCluster) { this.pilotAimCluster = g; this.stale = true; } },
+      setFov: deg => this.setFov(deg),
       setAim: i => this.setAim(i),
-      select: i => { this.setSelected(i, false); this.cb.onSelect(i); },
-      open: (i, newTab) => this.cb.onOpen(i, newTab),
       onState: (active, text) => this.onPilotState(active, text),
       leave: () => this.setPilot(false),
     }, pilotOptions(settings));
@@ -228,6 +252,7 @@ export class ConstellationRenderer implements GraphRenderer {
   get isPaused(): boolean { return this.paused; }
 
   setData(data: GraphData): void {
+    const oldExp = new Map<string, number>(this.groups.map((g, i) => [g.key, this.exp[i] ?? 1]));
     // remember how each existing note currently looks so a live refresh does not blink
     const prev = new Map<string, [number, number, number]>();
     this.sim.nodes.forEach((p, i) => prev.set(p.id, [this.alpha[i], this.size[i], this.emph[i]]));
@@ -235,6 +260,10 @@ export class ConstellationRenderer implements GraphRenderer {
     this.reveal = null;
     if (this.nova) { this.sim.novaCancel(); this.nova = null; this.novaBloom = 0; this.uniforms.uPulse.value = 1; this.uniforms.uNova.value = 0; }
     this.groups = data.groups;
+    this.gCollapsed = this.groups.map(g => this.collapsedKeys.has(g.key));
+    this.exp = new Float32Array(Math.max(1, this.groups.length));
+    this.groups.forEach((g, i) => { this.exp[i] = oldExp.get(g.key) ?? (this.gCollapsed[i] ? 0 : 1); });
+    for (const k of ["x", "y", "z", "n"] as const) this.gc[k] = new Float64Array(Math.max(1, this.groups.length));
     this.sim.setData(data);
     const n = this.sim.nodes.length;
     this.sim.setScale(n);
@@ -316,6 +345,9 @@ export class ConstellationRenderer implements GraphRenderer {
     window.clearTimeout(this.resumeTimer);
     this.controls.enabled = false; this.controls.autoRotate = false;
     this.frameB = this.sim.bounds();
+    if (this.selected >= 0) { this.setSelected(-1, false); this.cb.onSelect(-1); } // Pilot mode is a sandbox: nothing stays selected
+    const mode = this.settings.pilotCollapse, big = this.sim.nodes.length > PILOT_AUTO_COLLAPSE;
+    if (mode === "always" || (mode === "auto" && big && !this.autoCollapsed)) { this.collapseAll(true); this.autoCollapsed = true; } // a big vault starts folded up, so there is somewhere to start
     this.pilot.enter();
   }
 
@@ -325,6 +357,7 @@ export class ConstellationRenderer implements GraphRenderer {
       const b = this.sim.bounds();
       this.controls.target.copy(this.camera.position).addScaledVector(dir, Math.max(60, this.camera.position.distanceTo(this.tmp2.set(b.cx, b.cy, b.cz))));
       this.controls.enabled = true;
+      this.setFov(FOV);
       this.aim = -1; this.dirty = true; this.stale = true;
       this.autoFrame = true;
       this.updateRotate();
@@ -487,11 +520,11 @@ export class ConstellationRenderer implements GraphRenderer {
   }
 
   private disposeNodes(): void {
-    for (const o of [this.nodePoints, this.lines]) {
+    for (const o of [this.nodePoints, this.lines, this.clusterPts]) {
       if (!o) continue;
       this.scene.remove(o); o.geometry.dispose(); (o.material as THREE.Material).dispose();
     }
-    this.nodePoints = null; this.lines = null;
+    this.nodePoints = null; this.lines = null; this.clusterPts = null;
   }
 
   private allocate(n: number, l: number): void {
@@ -514,6 +547,21 @@ export class ConstellationRenderer implements GraphRenderer {
     this.nodePoints.renderOrder = 2;
     this.scene.add(this.nodePoints);
 
+    // one bright point per group, drawn only while the group is collapsed
+    const G = Math.max(1, this.groups.length);
+    this.cpos = new Float32Array(G * 3); this.ccol = new Float32Array(G * 3); this.csize = new Float32Array(G);
+    this.calpha = new Float32Array(G); this.cemph = new Float32Array(G);
+    const cg = new THREE.BufferGeometry();
+    const mkc = (name: string, arr: Float32Array, item: number) => { const at = new THREE.BufferAttribute(arr, item); at.setUsage(THREE.DynamicDrawUsage); cg.setAttribute(name, at); };
+    mkc("position", this.cpos, 3); mkc("aColor", this.ccol, 3); mkc("aSize", this.csize, 1); mkc("aAlpha", this.calpha, 1); mkc("aEmph", this.cemph, 1);
+    this.clusterPts = new THREE.Points(cg, new THREE.ShaderMaterial({
+      uniforms: this.uniforms, vertexShader: VERT, fragmentShader: FRAG,
+      transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending,
+    }));
+    this.clusterPts.frustumCulled = false;
+    this.clusterPts.renderOrder = 2;
+    this.scene.add(this.clusterPts);
+
     this.linePos = new Float32Array(l * 6); this.lineCol = new Float32Array(l * 6);
     const lg = new THREE.BufferGeometry();
     const lp = new THREE.BufferAttribute(this.linePos, 3); lp.setUsage(THREE.DynamicDrawUsage); lg.setAttribute("position", lp);
@@ -529,6 +577,8 @@ export class ConstellationRenderer implements GraphRenderer {
     this.nodeRgb = nodes.map(p => new THREE.Color(this.groups[p.gi]?.color ?? "#8b93a7"));
     nodes.forEach((_, i) => { const c = this.nodeRgb[i]; this.col[i * 3] = c.r; this.col[i * 3 + 1] = c.g; this.col[i * 3 + 2] = c.b; });
     if (this.nodePoints) (this.nodePoints.geometry.getAttribute("aColor") as THREE.BufferAttribute).needsUpdate = true;
+    this.groups.forEach((g, i) => { const c = new THREE.Color(g.color); this.ccol[i * 3] = c.r; this.ccol[i * 3 + 1] = c.g; this.ccol[i * 3 + 2] = c.b; });
+    if (this.clusterPts) (this.clusterPts.geometry.getAttribute("aColor") as THREE.BufferAttribute).needsUpdate = true;
   }
 
   private resize(): void {
@@ -537,7 +587,15 @@ export class ConstellationRenderer implements GraphRenderer {
     this.composer.setPixelRatio(this.renderer.getPixelRatio());
     this.composer.setSize(w, h); // also resizes every pass
     this.camera.aspect = w / h; this.camera.updateProjectionMatrix();
-    this.uniforms.uScale.value = (h * this.renderer.getPixelRatio()) / (2 * Math.tan((FOV * Math.PI) / 360));
+    this.uniforms.uScale.value = (h * this.renderer.getPixelRatio()) / (2 * Math.tan((this.camera.fov * Math.PI) / 360));
+    this.stale = true;
+  }
+
+  /** Widen or narrow the view (the afterburner's kick). The size of the glowing notes follows, so they do not seem to change size. */
+  private setFov(deg: number): void {
+    if (Math.abs(this.camera.fov - deg) < 0.02) return;
+    this.camera.fov = deg; this.camera.updateProjectionMatrix();
+    this.uniforms.uScale.value = (Math.max(1, this.container.clientHeight) * this.renderer.getPixelRatio()) / (2 * Math.tan((deg * Math.PI) / 360));
     this.stale = true;
   }
 
@@ -579,7 +637,8 @@ export class ConstellationRenderer implements GraphRenderer {
     let hit = this.pick();
     if (hit < 0) hit = this.pick(PRESS_SLACK_PX); // notes drift while the hand travels, so a press may land just beside one
     this.setHover(hit); // touch taps never fire a move first
-    this.press = { i: this.hover, x: e.clientX, y: e.clientY, t: performance.now(), id: e.pointerId };
+    const cl = this.hover < 0 ? this.pickClusterAt(this.pointer.x, this.pointer.y, PRESS_SLACK_PX) : -1; // a collapsed group, if no note is there
+    this.press = { i: this.hover, x: e.clientX, y: e.clientY, t: performance.now(), id: e.pointerId, c: cl };
     if (this.hover >= 0 && !this.nova) {
       this.controls.enabled = false; // otherwise the orbit controls start turning the camera under a click
       try { this.canvas.setPointerCapture(e.pointerId); } catch { /* not fatal */ }
@@ -591,6 +650,7 @@ export class ConstellationRenderer implements GraphRenderer {
     if (this.drag) { this.dragEnd(); return; }
     this.endPress(p);
     if (!p) return;
+    if (p.c >= 0 && Math.hypot(e.clientX - p.x, e.clientY - p.y) <= 8) { this.expandGroup(p.c); return; } // a click on a collapsed group opens it
     // Not a drag, so it is a click. It belongs to the note that was pressed, even if that note drifted a little
     // or the hand shook: nothing is re-aimed at release.
     const now = performance.now(), last = this.lastClick;
@@ -678,6 +738,60 @@ export class ConstellationRenderer implements GraphRenderer {
     return best;
   }
 
+  /** The collapsed group under a point of the canvas, or -1. */
+  private pickClusterAt(px: number, py: number, slack = 0): number {
+    const w = this.canvas.clientWidth, h = this.canvas.clientHeight, dpr = this.renderer.getPixelRatio();
+    const v = this.tmp, cam = this.camera.position;
+    const fx = this.fwd.set(0, 0, -1).applyQuaternion(this.camera.quaternion);
+    let best = -1, bestScore = 1e9;
+    for (let g = 0; g < this.groups.length; g++) {
+      if (this.hidden.has(g) || this.exp[g] > 0.5) continue;
+      const cx = this.gc.x[g], cy = this.gc.y[g], cz = this.gc.z[g];
+      if ((cx - cam.x) * fx.x + (cy - cam.y) * fx.y + (cz - cam.z) * fx.z < 1) continue;
+      v.set(cx, cy, cz).project(this.camera);
+      if (v.z > 1) continue;
+      const d = Math.hypot((v.x * 0.5 + 0.5) * w - px, (-v.y * 0.5 + 0.5) * h - py);
+      const dist = cam.distanceTo(this.tmp2.set(cx, cy, cz)) || 1;
+      const sprite = Math.min(190, Math.max(9, (((this.clusterRadius(g) * 2) / CORE) * this.uniforms.uScale.value) / dist)) / dpr;
+      const reach = Math.max(22, sprite * CORE * 0.5 * 1.3 + 12) + slack;
+      if (d < reach) { const score = d + dist * 0.01; if (score < bestScore) { bestScore = score; best = g; } }
+    }
+    return best;
+  }
+
+  /** Open a collapsed group: its notes fly back out from the middle. */
+  expandGroup(g: number): void { this.setGroupCollapsed(g, false); }
+  collapseGroup(g: number): void { this.setGroupCollapsed(g, true); }
+  toggleGroup(g: number): void { this.setGroupCollapsed(g, !this.gCollapsed[g]); }
+  isCollapsed(g: number): boolean { return !!this.gCollapsed[g]; }
+  get anyCollapsed(): boolean { return this.gCollapsed.some(Boolean); }
+  groupOf(noteIndex: number): number { return this.sim.nodes[noteIndex]?.gi ?? -1; }
+
+  private setGroupCollapsed(g: number, collapsed: boolean, instant = false): void {
+    const info = this.groups[g]; if (!info || !!this.gCollapsed[g] === collapsed) return;
+    this.gCollapsed[g] = collapsed;
+    collapsed ? this.collapsedKeys.add(info.key) : this.collapsedKeys.delete(info.key);
+    if (collapsed) this.measureGroups(); // so the notes know where to fly to
+    if (instant) this.exp[g] = collapsed ? 0 : 1;
+    if (collapsed && this.selected >= 0 && this.sim.nodes[this.selected]?.gi === g) { this.setSelected(-1, false); this.cb.onSelect(-1); }
+    this.dirty = true; this.stale = true;
+  }
+
+  collapseAll(instant = false): void { for (let g = 0; g < this.groups.length; g++) this.setGroupCollapsed(g, true, instant); }
+  expandAll(instant = false): void { for (let g = 0; g < this.groups.length; g++) this.setGroupCollapsed(g, false, instant); }
+  /** Collapse everything, or open everything if something is already collapsed. */
+  toggleAllGroups(): void { this.anyCollapsed ? this.expandAll() : this.collapseAll(); }
+
+  /** Collapsed groups, for the map and for collisions. */
+  private collapsedBodies(): { x: number; y: number; z: number; r: number; color: string; name: string; g: number }[] {
+    const out: { x: number; y: number; z: number; r: number; color: string; name: string; g: number }[] = [];
+    for (let g = 0; g < this.groups.length; g++) {
+      if (this.hidden.has(g) || this.exp[g] > 0.5) continue;
+      out.push({ x: this.gc.x[g], y: this.gc.y[g], z: this.gc.z[g], r: this.clusterRadius(g), color: this.groups[g].color, name: `${this.groups[g].label} (${this.groups[g].count})`, g });
+    }
+    return out;
+  }
+
   private startTween(p1: THREE.Vector3, t1: THREE.Vector3, dur: number): void {
     if (this.still) { // reduced motion: no flying, just arrive
       this.controls.target.copy(t1); this.camera.position.copy(p1); this.tween = null; this.stale = true; return;
@@ -699,7 +813,7 @@ export class ConstellationRenderer implements GraphRenderer {
     if (!this.drag && !this.pilot.active && (this.pointer.moved || (this.pointer.inside && moving && this.frameNo % 8 === 0))) {
       this.pointer.moved = false;
       this.setHover(this.pointer.inside ? this.pick() : -1);
-      this.canvas.style.cursor = this.hover >= 0 ? "pointer" : "grab";
+      this.canvas.style.cursor = this.hover >= 0 || (this.anyCollapsed && this.pickClusterAt(this.pointer.x, this.pointer.y) >= 0) ? "pointer" : "grab";
     }
     this.updateShows(dt);
     if (this.dirty) this.recomputeTargets();
@@ -785,7 +899,7 @@ export class ConstellationRenderer implements GraphRenderer {
     if (primary >= 0) { lit.add(primary); for (const j of this.adj[primary]) lit.add(j); }
     for (let i = 0; i < N; i++) {
       let a = 1;
-      if (this.hidden.has(nodes[i].gi) || (this.reveal && this.reveal.rank[i] >= this.reveal.count)) a = 0;
+      if (this.hidden.has(nodes[i].gi) || this.gCollapsed[nodes[i].gi] || (this.reveal && this.reveal.rank[i] >= this.reveal.count)) a = 0;
       else {
         if (primary >= 0 && !lit.has(i) && !this.pilot.active) a *= 0.13; // in flight nothing dims, or the notes you have not selected could not be aimed at
         if (this.search && !this.search.has(i)) a *= 0.14;
@@ -819,10 +933,25 @@ export class ConstellationRenderer implements GraphRenderer {
         this.alpha[i] += da * k; this.size[i] += ds * k; this.emph[i] += de * k;
       } else { this.alpha[i] = this.tAlpha[i]; this.size[i] = this.tSize[i]; this.emph[i] = this.tEmph[i]; }
     }
-    if (!positionsChanged && !animating) return false;
+    // groups opening and closing: each has a number from 1 (open) to 0 (collapsed) that eases toward its goal
+    let opening = false;
+    for (let g = 0; g < this.exp.length; g++) {
+      const goal = this.gCollapsed[g] ? 0 : 1, d = goal - this.exp[g];
+      if (Math.abs(d) > 0.002) { this.exp[g] += d * (this.still ? 1 : Math.min(1, dt * 5)); opening = true; } else this.exp[g] = goal;
+    }
+    const anyClosed = this.exp.some(e => e < 1);
+    if (anyClosed) this.measureGroups();
+    if (opening) animating = true;
+    if (!positionsChanged && !animating && !anyClosed) return false;
 
     const geo = this.nodePoints!.geometry;
-    for (let i = 0; i < nodes.length; i++) { const p = nodes[i]; this.pos[i * 3] = p.x; this.pos[i * 3 + 1] = p.y; this.pos[i * 3 + 2] = p.z; }
+    for (let i = 0; i < nodes.length; i++) {
+      const p = nodes[i], e = this.exp[p.gi];
+      if (e < 1) { // on its way into, or out of, the middle of its group
+        const cx = this.gc.x[p.gi], cy = this.gc.y[p.gi], cz = this.gc.z[p.gi];
+        this.pos[i * 3] = cx + (p.x - cx) * e; this.pos[i * 3 + 1] = cy + (p.y - cy) * e; this.pos[i * 3 + 2] = cz + (p.z - cz) * e;
+      } else { this.pos[i * 3] = p.x; this.pos[i * 3 + 1] = p.y; this.pos[i * 3 + 2] = p.z; }
+    }
     (geo.getAttribute("position") as THREE.BufferAttribute).needsUpdate = true;
     (geo.getAttribute("aSize") as THREE.BufferAttribute).needsUpdate = true;
     (geo.getAttribute("aAlpha") as THREE.BufferAttribute).needsUpdate = true;
@@ -833,13 +962,14 @@ export class ConstellationRenderer implements GraphRenderer {
     const primary = this.hover >= 0 ? this.hover : this.selected;
     for (let l = 0; l < src.length; l++) {
       const s = src[l], d = dst[l], a = s.index, b = d.index, o = l * 6;
-      this.linePos[o] = s.x; this.linePos[o + 1] = s.y; this.linePos[o + 2] = s.z;
-      this.linePos[o + 3] = d.x; this.linePos[o + 4] = d.y; this.linePos[o + 5] = d.z;
-      let f = base * Math.min(this.alpha[a], this.alpha[b]);
-      if (primary >= 0 && (a === primary || b === primary)) f = Math.min(1, base * boost) * Math.min(1, this.alpha[a] + this.alpha[b]);
+      this.linePos[o] = this.pos[a * 3]; this.linePos[o + 1] = this.pos[a * 3 + 1]; this.linePos[o + 2] = this.pos[a * 3 + 2];
+      this.linePos[o + 3] = this.pos[b * 3]; this.linePos[o + 4] = this.pos[b * 3 + 1]; this.linePos[o + 5] = this.pos[b * 3 + 2];
+      const va = this.vis(a), vb = this.vis(b); // a link stays lit while its note is folded into a group point
+      let f = base * Math.min(va, vb);
+      if (primary >= 0 && (a === primary || b === primary)) f = Math.min(1, base * boost) * Math.min(1, va + vb);
       if (this.reveal || this.age - Math.max(this.birth[a], this.birth[b]) < 1) { // a link flashes the moment both ends exist
         const born = this.age - Math.max(this.birth[a], this.birth[b]);
-        if (born >= 0 && born < 1) f += base * 3.5 * (1 - born) * Math.min(this.alpha[a], this.alpha[b]);
+        if (born >= 0 && born < 1) f += base * 3.5 * (1 - born) * Math.min(va, vb);
       }
       const nv = this.nova;
       if (nv && nv.stage === "trace") {
@@ -853,7 +983,40 @@ export class ConstellationRenderer implements GraphRenderer {
     const lg = this.lines!.geometry;
     (lg.getAttribute("position") as THREE.BufferAttribute).needsUpdate = true;
     (lg.getAttribute("color") as THREE.BufferAttribute).needsUpdate = true;
+    this.updateClusterPoints();
     return animating;
+  }
+
+  /** How visible a note is, counting the point its group becomes when it is collapsed. */
+  private vis(i: number): number {
+    const gi = this.sim.nodes[i].gi;
+    return this.hidden.has(gi) ? this.alpha[i] : Math.max(this.alpha[i], 1 - this.exp[gi]);
+  }
+
+  /** The middle of every group, from where its notes are right now. */
+  private measureGroups(): void {
+    const G = this.exp.length, { x, y, z, n } = this.gc;
+    x.fill(0); y.fill(0); z.fill(0); n.fill(0);
+    for (const p of this.sim.nodes) { x[p.gi] += p.x; y[p.gi] += p.y; z[p.gi] += p.z; n[p.gi]++; }
+    for (let g = 0; g < G; g++) { const c = n[g] || 1; x[g] /= c; y[g] /= c; z[g] /= c; }
+  }
+
+  /** How big a collapsed group looks, in scene units, from how many notes it holds. */
+  private clusterRadius(g: number): number {
+    return Math.min(15, 3.4 + 2.2 * Math.log2(1 + (this.groups[g]?.count ?? 1)));
+  }
+
+  private updateClusterPoints(): void {
+    if (!this.clusterPts) return;
+    const aimC = this.pilot.active ? this.pilotAimCluster : -1;
+    for (let g = 0; g < this.groups.length; g++) {
+      const shown = this.hidden.has(g) ? 0 : Math.min(1, Math.max(0, 1 - this.exp[g]) * 1.15);
+      this.cpos[g * 3] = this.gc.x[g]; this.cpos[g * 3 + 1] = this.gc.y[g]; this.cpos[g * 3 + 2] = this.gc.z[g];
+      this.csize[g] = ((this.clusterRadius(g) * 2) / CORE) * (g === aimC ? 1.25 : 1);
+      this.calpha[g] = shown; this.cemph[g] = g === aimC ? 0.9 : 0.35;
+    }
+    const geo = this.clusterPts.geometry;
+    for (const k of ["position", "aSize", "aAlpha", "aEmph"]) (geo.getAttribute(k) as THREE.BufferAttribute).needsUpdate = true;
   }
 
   private updateCamera(now: number): void {
@@ -892,7 +1055,7 @@ export class ConstellationRenderer implements GraphRenderer {
     if (this.nova && this.nova.stage !== "trace") { for (const l of this.labels) l.toggleClass("cg-hidden", true); return; }
     const want: number[] = [];
     const seen = new Set<number>();
-    const add = (i: number) => { if (i >= 0 && !seen.has(i) && !this.hidden.has(nodes[i].gi)) { seen.add(i); want.push(i); } };
+    const add = (i: number) => { if (i >= 0 && !seen.has(i) && !this.hidden.has(nodes[i].gi) && !this.gCollapsed[nodes[i].gi]) { seen.add(i); want.push(i); } };
     if (this.reveal) for (let k = this.reveal.count - 1; k >= Math.max(0, this.reveal.count - 3); k--) add(this.reveal.order[k]); // the newest arrivals
     add(this.hover); add(this.selected); add(this.active); add(this.pilot.active ? this.aim : -1);
     const primary = this.hover >= 0 ? this.hover : this.selected;
@@ -934,5 +1097,25 @@ export class ConstellationRenderer implements GraphRenderer {
       used++;
     }
     for (let k = used; k < this.labels.length; k++) this.labels[k].toggleClass("cg-hidden", true);
+
+    // a name and a count on every collapsed group
+    let shownClusters = 0;
+    for (let g = 0; g < this.groups.length; g++) {
+      if (this.hidden.has(g) || this.exp[g] > 0.6) continue;
+      const cx = this.gc.x[g], cy = this.gc.y[g], cz = this.gc.z[g];
+      v.set(cx, cy, cz).project(this.camera);
+      if (v.z > 1 || Math.abs(v.x) > 1.05 || Math.abs(v.y) > 1.05) continue;
+      if (this.pilot.active && (cx - cx0) * fx0 + (cy - cy0) * fy0 + (cz - cz0) * fz0 < 1) continue;
+      let el = this.clusterLabels[shownClusters];
+      if (!el) { el = this.labelLayer.createDiv({ cls: "cg-label cg-label-cluster" }); this.clusterLabels[shownClusters] = el; }
+      const text = `${this.groups[g].label} (${this.groups[g].count})`;
+      if (el.textContent !== text) el.textContent = text;
+      const rise = this.clusterRadius(g) * 1.2 + 8;
+      el.style.opacity = String(Math.min(1, (1 - this.exp[g]) * 1.4));
+      el.style.transform = `translate(${Math.round((v.x * 0.5 + 0.5) * w)}px, ${Math.round((-v.y * 0.5 + 0.5) * h - rise)}px) translate(-50%, -100%)`;
+      el.toggleClass("cg-hidden", false);
+      shownClusters++;
+    }
+    for (let k = shownClusters; k < this.clusterLabels.length; k++) this.clusterLabels[k].toggleClass("cg-hidden", true);
   }
 }
