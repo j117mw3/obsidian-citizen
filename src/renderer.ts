@@ -5,6 +5,8 @@ import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { Simulation } from "./sim";
 import { PilotController } from "./pilot";
+import { RemoteWorld, WORLD_ORIGINS } from "./remote";
+import type { AnonymousTopology, HitMsg, Pose, ShotMsg } from "./multiplayer";
 import type { GraphData, GraphRenderer, RendererCallbacks, SimNode } from "./types";
 import { ConstellationSettings, effectiveAutoRotate, effectiveHighContrast, effectiveMotion, prefersReducedMotion } from "./settings";
 
@@ -52,8 +54,8 @@ function baseRadius(deg: number): number {
   return Math.min(5.5, 0.9 + Math.sqrt(deg) * 0.5);
 }
 
-function pilotOptions(s: ConstellationSettings) {
-  return { sensitivity: s.pilotSensitivity, invertY: s.pilotInvertY, view: s.pilotView, sound: s.pilotSound, volume: s.pilotVolume, wireframe: s.pilotWireframe, agility: s.pilotAgility, speed: s.pilotSpeed, mouse: s.pilotMouse, map: s.pilotMap };
+function pilotOptions(s: ConstellationSettings, multiplayer = false) {
+  return { multiplayer, sensitivity: s.pilotSensitivity, invertY: s.pilotInvertY, view: s.pilotView, sound: s.pilotSound, volume: s.pilotVolume, wireframe: s.pilotWireframe, agility: s.pilotAgility, speed: s.pilotSpeed, mouse: s.pilotMouse, map: s.pilotMap };
 }
 
 export function webglAvailable(): boolean {
@@ -160,6 +162,8 @@ export class ConstellationRenderer implements GraphRenderer {
   private treeLink = new Uint8Array(0); // links on the shortest-path tree during the trace
   private flashEl: HTMLDivElement;
   private pilot: PilotController;
+  private remote: RemoteWorld;
+  private multiplayer = false;
   private aim = -1; // the note under the Pilot crosshair
   private pilotAimCluster = -1; // the collapsed group under it
   private fwd = new THREE.Vector3();
@@ -223,7 +227,14 @@ export class ConstellationRenderer implements GraphRenderer {
       setAim: i => this.setAim(i),
       onState: (active, text) => this.onPilotState(active, text),
       leave: () => this.setPilot(false),
+      onNetworkPose: pose => this.cb.onNetworkPose?.(pose),
+      onNetworkShot: shot => this.cb.onNetworkShot?.(shot),
     }, pilotOptions(settings));
+
+    this.remote = new RemoteWorld(this.scene, this.labelLayer, this.camera, () => this.nodeMaterial(), {
+      hitTest: (a, b) => this.pilot.hitTest(a, b),
+      struck: (id, shotId, at) => this.cb.onNetworkHit?.(id, shotId, at),
+    });
 
     this.canvas.addEventListener("pointermove", this.onPointerMove);
     this.canvas.addEventListener("pointerleave", this.onPointerLeave);
@@ -291,7 +302,7 @@ export class ConstellationRenderer implements GraphRenderer {
 
   applySettings(s: ConstellationSettings): void {
     this.settings = s;
-    const level = effectiveMotion(s);
+    const level = this.multiplayer ? "off" : effectiveMotion(s); // in a room every constellation holds still, so everyone sees the same thing
     this.still = level === "off";
     this.sim.setMotion(level);
     const hc = effectiveHighContrast(s);
@@ -304,7 +315,7 @@ export class ConstellationRenderer implements GraphRenderer {
     this.stars.visible = !hc;
     this.container.classList.toggle("cg-contrast", hc);
     this.container.style.setProperty("--cg-label-size", s.labelSize + "px");
-    this.pilot.setOptions(pilotOptions(s));
+    this.pilot.setOptions(pilotOptions(s, this.multiplayer));
     if (!s.pilotEnabled && this.pilot.active) this.setPilot(false);
     this.dirty = true; this.stale = true;
   }
@@ -329,6 +340,35 @@ export class ConstellationRenderer implements GraphRenderer {
 
   get canPilot(): boolean { return true; }
   get pilotActive(): boolean { return this.pilot.active; }
+
+  // ----------------------------------------------------------------- multiplayer
+
+  private nodeMaterial(): THREE.ShaderMaterial {
+    return new THREE.ShaderMaterial({ uniforms: this.uniforms, vertexShader: VERT, fragmentShader: FRAG, transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending });
+  }
+
+  /** Start or stop a room: every constellation holds still, and flying follows the room's rules. */
+  setMultiplayer(active: boolean): void {
+    if (active === this.multiplayer) return;
+    if (this.pilot.active) this.pilot.exit(false); // flying starts over with the room's rules
+    this.multiplayer = active;
+    if (!active) { this.remote.clear(); this.pilot.setRemotePilots([]); this.sim.setOrigin(0, 0, 0); this.frameB = null; this.dirty = true; }
+    this.applySettings(this.settings);
+    this.stale = true;
+  }
+
+  /** Move your constellation to your corner of the shared space (the corner depends on your place in the room). */
+  setWorldOrigin(slot: number): void {
+    const o = WORLD_ORIGINS[Math.max(0, Math.min(3, Math.floor(slot)))];
+    this.sim.setOrigin(o[0], o[1], o[2]); this.frameB = null; this.dirty = true; this.stale = true;
+  }
+
+  setRemoteTopology(id: string, topology: AnonymousTopology, name: string, slot: number): void { this.remote.setTopology(id, topology, name, slot); this.stale = true; }
+  setRemotePositions(id: string, positions: Float32Array): void { this.remote.setPositions(id, positions); this.stale = true; }
+  setRemotePose(id: string, pose: Pose): void { this.remote.setPose(id, pose); this.stale = true; }
+  addRemoteShot(id: string, shot: ShotMsg): void { this.remote.addShot(id, shot); this.stale = true; }
+  showRemoteHit(hit: HitMsg): void { this.remote.showHit(hit); this.stale = true; }
+  removeRemote(id: string): void { this.remote.remove(id); this.pilot.setRemotePilots(this.remote.pilots()); this.stale = true; }
 
   /** Enter or leave free flight. The orbit controls are parked while it runs, and the view eases back out when it ends. */
   setPilot(on: boolean): void {
@@ -497,7 +537,7 @@ export class ConstellationRenderer implements GraphRenderer {
       ["webglcontextlost", this.onContextLost], ["webglcontextrestored", this.onContextRestored],
     ] as [string, EventListener][]) this.canvas.removeEventListener(ev, fn);
     this.canvas.removeEventListener("pointerdown", this.onPointerDown, true);
-    this.pilot.destroy();
+    this.pilot.destroy(); this.remote.dispose();
     this.disposeNodes();
     this.stars.geometry.dispose(); (this.stars.material as THREE.Material).dispose();
     // EffectComposer.dispose() does not free its passes, and browsers cap live WebGL contexts
@@ -829,6 +869,7 @@ export class ConstellationRenderer implements GraphRenderer {
       this.updateCamera(now);
       camMoved = this.controls.update(dt);
     }
+    if (this.remote.any) { this.remote.update(dt, this.canvas.clientWidth, this.canvas.clientHeight); this.pilot.setRemotePilots(this.remote.pilots()); this.stale = true; }
     if (!(moving || animating || camMoved || this.stale || this.tween || this.follow >= 0)) return; // fully at rest: draw nothing
     this.stale = false;
 

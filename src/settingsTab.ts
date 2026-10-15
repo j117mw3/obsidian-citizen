@@ -95,6 +95,20 @@ const SECTIONS: Section[] = [
     ],
   },
   {
+    heading: "Multiplayer",
+    items: [
+      { key: "multiplayerName", name: "Your name", control: { kind: "text", placeholder: "Pilot" },
+        desc: "Shown to the other pilots in a room (up to 24 characters)." },
+      { key: "multiplayerRelayUrl", name: "Relay", control: { kind: "text", placeholder: "https://ntfy.sh" },
+        desc: "A public relay used only to set up connections: a few small messages, each sealed with the room code, so the relay cannot read them. The default is the free ntfy.sh service, which has usage limits; you can use your own ntfy server instead. Nothing else goes through it." },
+      { key: "multiplayerTurnUrl", name: "Your own TURN server (optional)", control: { kind: "text", placeholder: "turn:turn.example.com:3478" },
+        desc: "Some networks block direct connections. If you run a TURN server, enter it here (with its user name and password below) and it will be used when a direct connection fails. Nothing is set up for you: without one, those networks cannot connect." },
+      { key: "multiplayerTurnUser", name: "TURN user name", control: { kind: "text", placeholder: "" } },
+      { key: "multiplayerTurnCredential", name: "TURN password", control: { kind: "text", placeholder: "" },
+        desc: "Saved in this vault's plugin settings, as plain text." },
+    ],
+  },
+  {
     heading: "Notes",
     items: [
       { key: "groupBy", name: "Group by", control: { kind: "dropdown", options: { folder: "Folder", tag: "First tag", none: "Nothing" } }, rebuild: true },

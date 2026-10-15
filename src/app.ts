@@ -1,4 +1,7 @@
 import { ConstellationRenderer, webglAvailable } from "./renderer";
+import { MultiplayerSession, type LinkState } from "./multiplayer";
+import { MultiplayerPanel } from "./multiplayerUi";
+import type { RoomMember } from "./room";
 import { FallbackRenderer } from "./fallback";
 import type { GraphData, GraphRenderer, Host, RendererCallbacks } from "./types";
 import { ConstellationSettings, effectiveHighContrast, effectiveMotion, prefersReducedMotion } from "./settings";
@@ -46,6 +49,15 @@ export class ConstellationApp {
   private novaBtn: HTMLButtonElement;
   private pilotBtn: HTMLButtonElement;
   private foldBtn: HTMLButtonElement;
+  private multiBtn: HTMLButtonElement;
+  private session: MultiplayerSession;
+  private panel: MultiplayerPanel;
+  private members: RoomMember[] = [];
+  private link = new Map<string, LinkState>();
+  private health = new Map<string, { hp: number; flying: boolean }>();
+  private mpStatus = ""; private mpError = false;
+  private mpActive = false;               // true while you are in a room
+  private queuedData: GraphData | null = null; // vault changes that arrive during a room wait until it ends
   private statsText = "";
   private activityKind: "animate" | "supernova" | null = null;
   private motionNote: HTMLElement;
@@ -73,6 +85,9 @@ export class ConstellationApp {
       onOpen: (i, t) => this.openIndex(i, t),
       onActivity: (k, text) => this.onActivity(k, text),
       onPilot: (a, text) => this.onPilot(a, text),
+      onNetworkPose: pose => this.session.sendPose(pose),
+      onNetworkShot: shot => this.session.sendShot(shot),
+      onNetworkHit: (shooter, shotId, at) => this.session.sendHit({ shooter, target: this.session.selfId, shotId, at }),
     };
     let made: GraphRenderer | null = null;
     if (webglAvailable()) {
@@ -95,13 +110,15 @@ export class ConstellationApp {
     this.pilotBtn.setAttribute("aria-pressed", "false");
     this.foldBtn = this.button("cg-btn", "Fold every group into one point, or open them all", "\u2295");
     this.foldBtn.setAttribute("aria-pressed", "false");
+    this.multiBtn = this.button("cg-btn", "Fly together with friends", "\u{1F465}\uFE0E");
+    this.multiBtn.setAttribute("aria-expanded", "false");
     this.listBtn = this.button("cg-btn", "Show note list", "\u2630");
     this.listBtn.setAttribute("aria-expanded", "false");
     this.helpBtn = this.button("cg-btn", "Keyboard help", "?");
     this.helpBtn.setAttribute("aria-expanded", "false");
     this.helpBtn.setAttribute("aria-controls", this.helpId);
-    top.append(this.search, this.pauseBtn, resetBtn, this.animBtn, this.novaBtn, this.pilotBtn, this.foldBtn, this.listBtn, this.helpBtn);
-    if (this.flat) { this.pauseBtn.hidden = true; resetBtn.hidden = true; this.animBtn.hidden = true; this.novaBtn.hidden = true; this.pilotBtn.hidden = true; this.foldBtn.hidden = true; }
+    top.append(this.search, this.pauseBtn, resetBtn, this.animBtn, this.novaBtn, this.pilotBtn, this.foldBtn, this.multiBtn, this.listBtn, this.helpBtn);
+    if (this.flat) { this.pauseBtn.hidden = true; resetBtn.hidden = true; this.animBtn.hidden = true; this.novaBtn.hidden = true; this.pilotBtn.hidden = true; this.foldBtn.hidden = true; this.multiBtn.hidden = true; }
     this.root.appendChild(top);
     this.stats = el("div", "cg-stats");
     this.motionNote = el("div", "cg-motion-note");
@@ -130,6 +147,24 @@ export class ConstellationApp {
         "The 3D view needs WebGL, which is not available here. Search, the note list and the details panel still work."));
     }
 
+    this.session = new MultiplayerSession({
+      status: (text, error) => { this.mpStatus = text; this.mpError = !!error; this.refreshPanel(); if (error) this.announce(text); },
+      members: (members, selfId) => this.onMembers(members, selfId),
+      link: (id, state) => { this.link.set(id, state); this.refreshPanel(); },
+      topology: (id, topology) => { const m = this.members.find(x => x.id === id); this.renderer.setRemoteTopology?.(id, topology, m?.name ?? "Pilot", m?.slot ?? 1); },
+      positions: (id, positions) => this.renderer.setRemotePositions?.(id, positions),
+      pose: (id, pose) => { this.health.set(id, { hp: pose.hp, flying: pose.ac }); this.renderer.setRemotePose?.(id, pose); this.refreshPanel(); },
+      shot: (id, shot) => this.renderer.addRemoteShot?.(id, shot),
+      hit: (_id, hit) => this.renderer.showRemoteHit?.(hit),
+      removed: id => { this.link.delete(id); this.health.delete(id); this.renderer.removeRemote?.(id); this.refreshPanel(); },
+    }, () => ({ data: this.data, nodes: this.renderer.nodes }), () => this.sessionOptions());
+    this.panel = new MultiplayerPanel(this.root, {
+      name: () => this.settings.multiplayerName,
+      saveName: name => { const n = name.trim().slice(0, 24) || "Pilot"; if (n !== this.settings.multiplayerName) { this.settings = { ...this.settings, multiplayerName: n }; this.host.updateSettings?.({ multiplayerName: n }); } },
+      create: async name => { await this.session.create(name); },
+      join: (code, name) => this.session.join(code, name),
+      leave: () => this.session.leave(),
+    }, () => this.closePanel());
     this.live = el("div", "cg-sr", { "aria-live": "polite", "aria-atomic": "true", role: "status" });
     this.root.appendChild(this.live);
     this.tip = el("div", "cg-tip", { "aria-hidden": "true" });
@@ -143,6 +178,7 @@ export class ConstellationApp {
     this.novaBtn.addEventListener("click", () => this.renderer.supernova());
     this.pilotBtn.addEventListener("click", () => this.togglePilot());
     this.foldBtn.addEventListener("click", () => this.toggleFold());
+    this.multiBtn.addEventListener("click", () => { const open = !this.panel.open; this.panel.setOpen(open); this.multiBtn.setAttribute("aria-expanded", String(open)); });
     this.helpBtn.addEventListener("click", () => this.setHelp(this.help.hidden));
     this.search.addEventListener("input", () => this.runSearch());
     this.search.addEventListener("keydown", e => {
@@ -167,6 +203,7 @@ export class ConstellationApp {
   // ----------------------------------------------------------------- public
 
   setData(data: GraphData): void {
+    if (this.mpActive) { this.queuedData = data; return; } // the layout holds still while you are in a room; changes wait
     const r = this.renderer;
     // a live refresh must not undo what the reader is doing
     const selId = r.selectedIndex >= 0 ? r.nodes[r.selectedIndex]?.id ?? null : null;
@@ -201,6 +238,7 @@ export class ConstellationApp {
   }
 
   destroy(): void {
+    this.session.leave();
     this.mqs.forEach(m => m.removeEventListener("change", this.onMq));
     this.renderer.destroy();
     this.root.remove();
@@ -252,6 +290,38 @@ export class ConstellationApp {
     this.novaBtn.classList.toggle("cg-on", kind === "supernova");
     this.stats.textContent = kind ? text : this.statsText;
     if (text && !progress) this.announce(text);
+  }
+
+  private closePanel(): void { this.panel.setOpen(false); this.multiBtn.setAttribute("aria-expanded", "false"); this.multiBtn.focus({ preventScroll: true }); }
+
+  private sessionOptions() {
+    const s = this.settings, turn = s.multiplayerTurnUrl.trim() && s.multiplayerTurnUser && s.multiplayerTurnCredential
+      ? { url: s.multiplayerTurnUrl.trim(), username: s.multiplayerTurnUser, credential: s.multiplayerTurnCredential } : undefined;
+    return { post: this.host.post?.bind(this.host), relayUrl: s.multiplayerRelayUrl, stun: ["stun:stun.l.google.com:19302", "stun:stun.cloudflare.com:3478"], turn };
+  }
+
+  private refreshPanel(): void {
+    this.panel.setState({ code: this.session.code, selfId: this.session.selfId, members: this.members, link: this.link, health: this.health, status: this.mpStatus, error: this.mpError });
+  }
+
+  /** The room's pilots changed. The first time you are in one: put your constellation in your corner, and share its shape. */
+  private onMembers(members: RoomMember[], selfId: string): void {
+    this.members = members;
+    const inRoom = !!selfId && members.some(m => m.id === selfId);
+    if (inRoom && !this.mpActive) {
+      this.mpActive = true;
+      this.renderer.setMultiplayer?.(true);
+      this.renderer.setWorldOrigin?.(members.find(m => m.id === selfId)?.slot ?? 0);
+      this.session.publishGraph();
+      this.announce("In a room. Press P to fly.");
+    } else if (!inRoom && this.mpActive) {
+      this.mpActive = false;
+      this.renderer.setMultiplayer?.(false);
+      this.health.clear(); this.link.clear();
+      if (this.queuedData) { const d = this.queuedData; this.queuedData = null; this.setData(d); }
+      this.announce("Left the room");
+    }
+    this.refreshPanel();
   }
 
   private toggleFold(): void {

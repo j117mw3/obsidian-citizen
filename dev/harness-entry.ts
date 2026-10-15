@@ -14,7 +14,7 @@ interface HarnessWindow extends Window {
 const host = document.getElementById("app");
 if (host) {
   const log: string[] = [];
-  const app = new ConstellationApp(host, { openNote: (id, tab) => { log.push(`open ${id} ${tab ? "(tab)" : ""}`); } }, { ...DEFAULT_SETTINGS });
+  const app = new ConstellationApp(host, { openNote: (id, tab) => { log.push(`open ${id} ${tab ? "(tab)" : ""}`); }, post: async (url, body) => (await fetch(url, { method: "POST", body })).status }, { ...DEFAULT_SETTINGS });
   app.setData(__MOCK__);
   const w = window as HarnessWindow; // handles for tests
   w.__app = app;

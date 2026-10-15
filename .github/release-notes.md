@@ -1,10 +1,13 @@
-Pilot mode.
+Pilot mode becomes a sandbox, and you can now fly together.
 
-- Press P in the graph (or the new plane button) to fly a small four-winged fighter through your notes. Shoot a note to select it, shoot it again to open it. Pilot mode never edits a note.
-- The plane has weight and momentum: turns build up and ease off, it coasts when you let go of the throttle, sharp turns cost a little speed, and a trailing camera follows it. Notes are solid, so you bounce off them.
-- Afterburner uses an energy tank; when it runs dry it stays empty for a few seconds before it refills.
-- Mouse mode: capture the mouse, or keep the pointer visible and steer by its distance from the centre so you can still click panels and buttons while flying.
-- Speed is scaled to the size of your vault, so a bigger vault takes longer to cross. There is a Flight speed setting.
-- Chase and cockpit views, a wireframe outline and target brackets, an on-screen controls panel (K shows or hides it), and synthesised engine, blaster and warp sounds that can be turned off.
-- Notes are a little easier to click: the click and aim target is slightly larger than the drawn note.
-- Pilot mode stays off when the system asks for reduced motion.
+**Fly together (multiplayer).** Make a room, send the ten-character code to up to three friends, and share one sky, each pilot with their own constellation. Only the shape of a constellation (anonymous points, links, colours) and your ship's position are shared; never note titles, paths, tags or contents. Connections are set up through a public relay (ntfy.sh by default, or your own), with every message sealed by the room code, then pilots talk directly. There is no server to run and nothing is set up for you; you can add your own TURN server if your network blocks direct connections. Ships can shoot each other (10 of 100 health a hit, five seconds to respawn, three of protection) and pass through each other. Outside a room the plugin still makes no network connections. Thanks to j117mw3 for the multiplayer protocol work this builds on.
+
+**Pilot mode is a sandbox.** It never selects or opens notes any more, and the rest of the plugin works as before outside it.
+
+- A new sound engine: the Pulse XL blaster, a fuller engine, impacts, warp and afterburner sounds.
+- Speed you can see: the view widens under afterburner and dust streaks past.
+- A flat top-down map in the corner, with an arrow for each pilot.
+- Groups can be folded into one glowing point (shoot one to open it, B to fold, Shift+B for all). Big vaults start folded the first time you fly.
+- Cursor steering: keep the pointer visible and steer from the centre, so you can still click panels while flying.
+- An on-screen controls panel with key caps that light up (K shows or hides it).
+- Speed is scaled to the size of your vault, notes are a little easier to hit, and notes are solid, so you bounce off them.

@@ -1,4 +1,5 @@
 import type { ConstellationSettings } from "./settings";
+import type { AnonymousTopology, HitMsg, Pose, ShotMsg } from "./multiplayer";
 
 export interface RawNode {
   id: string;
@@ -47,6 +48,10 @@ export interface SimNode extends RawNode {
 /** What the view needs from its host (Obsidian, or the dev harness). */
 export interface Host {
   openNote(id: string, newTab: boolean): void;
+  /** Save a setting (the room panel remembers your name). Not available in the browser preview. */
+  updateSettings?(patch: Partial<ConstellationSettings>): void;
+  /** Send a web request (Obsidian's requestUrl); resolves with the status. Used only to set up multiplayer connections. */
+  post?(url: string, body: string): Promise<number>;
 }
 
 export interface RendererCallbacks {
@@ -57,6 +62,10 @@ export interface RendererCallbacks {
   onActivity?(kind: "animate" | "supernova" | null, text: string): void;
   /** Pilot mode started or stopped; `text` is a message for the reader (read out by screen readers too). */
   onPilot?(active: boolean, text: string): void;
+  /** Multiplayer: your ship's pose (about twenty times a second), a bolt you fired, and a bolt that hit you. */
+  onNetworkPose?(pose: Pose): void;
+  onNetworkShot?(shot: ShotMsg): void;
+  onNetworkHit?(shooterId: string, shotId: string, at: [number, number, number]): void;
 }
 
 /** The 3D renderer and the list-only fallback expose the same surface, so the UI never has to care which it has. */
@@ -89,6 +98,15 @@ export interface GraphRenderer {
   setPilot(on: boolean): void;
   /** Fold every group into one point, or open them all if any is folded. Not available without WebGL. */
   toggleAllGroups?(): void;
+  /** Multiplayer (not available without WebGL). */
+  setMultiplayer?(active: boolean, selfId?: string): void;
+  setWorldOrigin?(slot: number): void;
+  setRemoteTopology?(id: string, topology: AnonymousTopology, name: string, slot: number): void;
+  setRemotePositions?(id: string, positions: Float32Array): void;
+  setRemotePose?(id: string, pose: Pose): void;
+  addRemoteShot?(id: string, shot: ShotMsg): void;
+  showRemoteHit?(hit: HitMsg): void;
+  removeRemote?(id: string): void;
   readonly anyCollapsed?: boolean;
   destroy(): void;
 }

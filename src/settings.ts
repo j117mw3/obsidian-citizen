@@ -31,6 +31,11 @@ export interface ConstellationSettings {
   pilotMouse: "capture" | "cursor";
   pilotMap: "off" | "small" | "large";
   pilotCollapse: "auto" | "never" | "always";
+  multiplayerName: string;
+  multiplayerRelayUrl: string;
+  multiplayerTurnUrl: string;
+  multiplayerTurnUser: string;
+  multiplayerTurnCredential: string;
 }
 
 export const DEFAULT_SETTINGS: ConstellationSettings = {
@@ -62,6 +67,11 @@ export const DEFAULT_SETTINGS: ConstellationSettings = {
   pilotMouse: "capture",
   pilotMap: "small",
   pilotCollapse: "auto",
+  multiplayerName: "Pilot",
+  multiplayerRelayUrl: "https://ntfy.sh",
+  multiplayerTurnUrl: "",
+  multiplayerTurnUser: "",
+  multiplayerTurnCredential: "",
 };
 
 const clamp = (v: unknown, lo: number, hi: number, fallback: number): number =>
@@ -103,6 +113,11 @@ export function sanitizeSettings(raw: unknown): ConstellationSettings {
     pilotMouse: pick(r.pilotMouse, ["capture", "cursor"] as const, d.pilotMouse),
     pilotMap: pick(r.pilotMap, ["off", "small", "large"] as const, d.pilotMap),
     pilotCollapse: pick(r.pilotCollapse, ["auto", "never", "always"] as const, d.pilotCollapse),
+    multiplayerName: typeof r.multiplayerName === "string" ? r.multiplayerName.trim().slice(0, 24) || d.multiplayerName : d.multiplayerName,
+    multiplayerRelayUrl: typeof r.multiplayerRelayUrl === "string" ? r.multiplayerRelayUrl.trim().slice(0, 300) || d.multiplayerRelayUrl : d.multiplayerRelayUrl,
+    multiplayerTurnUrl: typeof r.multiplayerTurnUrl === "string" ? r.multiplayerTurnUrl.trim().slice(0, 300) : d.multiplayerTurnUrl,
+    multiplayerTurnUser: typeof r.multiplayerTurnUser === "string" ? r.multiplayerTurnUser.slice(0, 300) : d.multiplayerTurnUser,
+    multiplayerTurnCredential: typeof r.multiplayerTurnCredential === "string" ? r.multiplayerTurnCredential.slice(0, 300) : d.multiplayerTurnCredential,
   };
 }
 

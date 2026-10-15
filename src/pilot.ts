@@ -5,6 +5,7 @@ import { buildShip, type Ship } from "./ship";
 import { buildCockpit, type Cockpit } from "./cockpit";
 import { SpeedFx } from "./speedfx";
 import { Minimap, type MapCluster, type MapMode, type MapPilot } from "./minimap";
+import type { Pose, ShotMsg } from "./multiplayer";
 
 /** What the pilot needs from the renderer. Kept narrow so the controller never reaches into renderer state. */
 export interface PilotHost {
@@ -43,6 +44,9 @@ export interface PilotHost {
   onState(active: boolean, text: string): void;
   /** The reader pressed Esc with the mouse already free: leave Pilot mode. */
   leave(): void;
+  /** Multiplayer: your ship's pose (about twenty times a second), and a bolt you have fired. */
+  onNetworkPose(pose: Pose): void;
+  onNetworkShot(shot: ShotMsg): void;
 }
 
 export interface PilotOptions {
@@ -60,6 +64,8 @@ export interface PilotOptions {
   map: MapMode;
   /** Capture: the mouse is locked and its movement steers. Cursor: the pointer stays visible and its distance from the centre steers. */
   mouse: "capture" | "cursor";
+  /** In a room: everyone flies the same ship (fixed speed), there is no warping, and ships can be shot down. */
+  multiplayer: boolean;
 }
 
 // ---- scale. Cruise speed is set from how big the network is, so crossing it takes a believable amount of time.
@@ -114,6 +120,11 @@ const AIM_DIST = 600;      // how far ahead of the nose the crosshair is drawn
 const AIM_SLACK = 10;      // extra px of forgiveness when aiming
 const FIRE_SLACK = 14;    // and when firing
 const SHIP_SCALE = 0.34;
+const HIT_RADIUS = 1.8;      // multiplayer: how close a bolt must pass to your ship to hit it
+const HIT_DAMAGE = 10;       // out of 100
+const RESPAWN_MS = 5000;     // a destroyed ship is back after this long
+const PROTECT_MS = 3000;     // and cannot be hit for this long after it returns
+const ROOM_CRUISE = 100;     // in a room everyone cruises at the same speed
 const FOV_BOOST = 16;      // degrees the view widens under afterburner
 const FOV_SPEED = 6;       // and a little for plain speed
 const COCKPIT_SCALE = 2.2;
@@ -145,8 +156,8 @@ const KEY_GROUPS: { title: string; rows: KeyRow[] }[] = [
     { caps: ["Mouse"], label: p => p.cursorMode ? "Steer: move away from centre" : "Steer", codes: [null] },
     { caps: ["Click", "F"], label: "Fire", codes: [null, "KeyF"] },
     { caps: ["T"], label: "Lock target", codes: ["KeyT"] },
-    { caps: ["G"], label: "Warp to target", codes: ["KeyG"] },
-    { caps: ["H"], label: "Back to the hub", codes: ["KeyH"] },
+    { caps: ["G"], label: p => p.multiplayer ? "Warp is off in a room" : "Warp to target", codes: ["KeyG"] },
+    { caps: ["H"], label: p => p.multiplayer ? "Warp is off in a room" : "Back to the hub", codes: ["KeyH"] },
     { caps: ["B"], label: "Fold a group (Shift: all)", codes: ["KeyB"] },
   ] },
   { title: "View", rows: [
@@ -193,6 +204,11 @@ export class PilotController {
   private spin = new THREE.Vector3();          // angular velocity in the ship's own axes: x pitch, y yaw, z roll (rad/s)
   private stick = new THREE.Vector2();         // virtual joystick: x yaw, y pitch, each -1..1
   private energy = 1;
+  private health = 100;
+  private respawnAt = 0;                      // clock time (ms) a destroyed ship comes back
+  private protectedUntil = 0;                 // clock time (ms) until which it cannot be hit
+  private netAcc = 0;
+  private hitA = new THREE.Vector3(); private hitB = new THREE.Vector3(); private hitC = new THREE.Vector3();
   private boostLocked = false;
   private boosting = false;
   private cursor = { x: 0, y: 0, inside: false }; // where the pointer is over the scene, in CSS px (cursor steering)
@@ -250,6 +266,9 @@ export class PilotController {
   private readMeta: HTMLDivElement;
   private speedFill: HTMLDivElement;
   private energyFill: HTMLDivElement;
+  private healthBar: HTMLDivElement;
+  private healthFill: HTMLDivElement;
+  private destroyedText: HTMLDivElement;
   private flags: HTMLDivElement;
   private ringInner: HTMLDivElement;
   private keysPanel: HTMLDivElement;
@@ -329,6 +348,11 @@ export class PilotController {
     this.speedFill = speed.createDiv({ cls: "cg-pilot-speed-fill" });
     const energy = this.hud.createDiv({ cls: "cg-pilot-energy" });
     this.energyFill = energy.createDiv({ cls: "cg-pilot-energy-fill" });
+    this.healthBar = this.hud.createDiv({ cls: "cg-pilot-health" });
+    this.healthFill = this.healthBar.createDiv({ cls: "cg-pilot-health-fill" });
+    this.healthBar.hidden = true;
+    this.destroyedText = this.hud.createDiv({ cls: "cg-pilot-destroyed", attr: { role: "status" } });
+    this.destroyedText.hidden = true;
     this.readout.hidden = true;
     this.keysPanel = this.buildKeysPanel();
     this.minimap = new Minimap(this.hud, {
@@ -404,6 +428,7 @@ export class PilotController {
    * about 12 s for 100 notes, 17 s for 1,000, 24 s for 10,000 (never under 10 s or over 60 s), times the speed setting.
    */
   private cruiseSpeed(): number {
+    if (this.opts.multiplayer) return ROOM_CRUISE;
     const b = this.host.bounds(), n = Math.max(20, this.host.nodes().length);
     const crossSeconds = clamp(CROSS_BASE * Math.pow(n / 100, CROSS_GROWTH), CROSS_MIN, CROSS_MAX);
     return Math.max(MIN_CRUISE, (2 * b.radius) / crossSeconds) * this.opts.speed;
@@ -411,7 +436,7 @@ export class PilotController {
 
   /** Show or hide the plane and the wireframe dressing to match the options. */
   private applyLook(): void {
-    const on = this.active;
+    const on = this.active && this.health > 0;
     this.ship.group.visible = on && this.opts.view === "chase";
     this.ship.lights.forEach(l => { l.visible = on && this.opts.view === "chase"; });
     this.cockpit.group.visible = on && this.opts.view === "cockpit";
@@ -428,6 +453,7 @@ export class PilotController {
 
   /** True when the pointer stays visible and steers by its distance from the centre. */
   get cursorMode(): boolean { return this.opts.mouse === "cursor"; }
+  get multiplayer(): boolean { return this.opts.multiplayer; }
 
   get locked(): boolean { return document.pointerLockElement === this.canvas; }
 
@@ -450,6 +476,7 @@ export class PilotController {
     this.quat.copy(this.camera.quaternion);
     this.pos.copy(this.camera.position);
     if (this.chase) this.pos.sub(this.tmpV.copy(CAM_OFFSET).applyQuaternion(this.quat));
+    if (this.opts.multiplayer) { this.health = 100; this.protectedUntil = PROTECT_MS; this.placeAtSpawn(); } // in a room you start at home
 
     this.container.classList.add("cg-piloting");
     this.hud.hidden = false;
@@ -509,6 +536,7 @@ export class PilotController {
     this.host.setAim(-1); this.aim = -1;
     this.host.setFov(this.host.baseFov()); this.boostFx.classList.remove("cg-on");
     this.minimap.setMode("off");
+    if (this.opts.multiplayer) this.host.onNetworkPose(this.makePose(false)); // tell the others you have left the sky
     if (say) this.host.onState(false, "Pilot mode off");
     else this.host.onState(false, "");
   }
@@ -547,6 +575,7 @@ export class PilotController {
 
   /** Fly to a note and stop in front of it, looking at it. */
   warpToNode(i: number): void {
+    if (this.opts.multiplayer) return;
     const n = this.host.nodes()[i]; if (!n) return;
     const from = this.tmpV.copy(this.pos).sub(this.tmpV2.set(n.x, n.y, n.z));
     if (from.lengthSq() < 1) from.set(0.3, 0.2, 1);
@@ -555,6 +584,7 @@ export class PilotController {
 
   /** Fly to a folded group and stop a little way off it. */
   warpToGroup(g: number): void {
+    if (this.opts.multiplayer) return;
     const b = this.host.clusterBodies().find(x => x.g === g); if (!b) return;
     const c = new THREE.Vector3(b.x, b.y, b.z), from = this.tmpV.copy(this.pos).sub(c);
     if (from.lengthSq() < 1) from.set(0.3, 0.2, 1);
@@ -572,6 +602,7 @@ export class PilotController {
 
   /** Back out to where the whole constellation fits in view. */
   returnToHub(): void {
+    if (this.opts.multiplayer) return;
     const b = this.host.bounds();
     const c = new THREE.Vector3(b.cx, b.cy, b.cz);
     const from = this.tmpV.copy(this.pos).sub(c);
@@ -687,12 +718,14 @@ export class PilotController {
     dt = this.dtS;
     const k = this.keys;
     this.frame++; this.clock += dt * 1000;
+    if (this.health <= 0 && this.clock >= this.respawnAt) this.respawn();
+    const live = this.health > 0;
 
-    const thrust = (k.has("KeyW") ? 1 : 0) - (k.has("KeyS") ? 1 : 0);
-    const strafe = (k.has("KeyD") ? 1 : 0) - (k.has("KeyA") ? 1 : 0);
-    const lift = (k.has("Space") ? 1 : 0) - (k.has("KeyC") ? 1 : 0);
-    const rollIn = (k.has("KeyQ") ? 1 : 0) - (k.has("KeyE") ? 1 : 0);
-    const wantBoost = k.has("ShiftLeft") || k.has("ShiftRight");
+    const thrust = !live ? 0 : (k.has("KeyW") ? 1 : 0) - (k.has("KeyS") ? 1 : 0);
+    const strafe = !live ? 0 : (k.has("KeyD") ? 1 : 0) - (k.has("KeyA") ? 1 : 0);
+    const lift = !live ? 0 : (k.has("Space") ? 1 : 0) - (k.has("KeyC") ? 1 : 0);
+    const rollIn = !live ? 0 : (k.has("KeyQ") ? 1 : 0) - (k.has("KeyE") ? 1 : 0);
+    const wantBoost = live && (k.has("ShiftLeft") || k.has("ShiftRight"));
     const brake = k.has("KeyX");
 
     if (this.warp) { this.stepWarp(); if (thrust || strafe || lift) this.warp = null; } // taking the controls cancels a warp
@@ -715,7 +748,7 @@ export class PilotController {
     if (!this.warp) {
       this.turn(dt, rollIn, speed01);
       this.thrustAndDrag(dt, thrust, strafe, lift, brake);
-      this.keepInRange(dt);
+      if (!this.opts.multiplayer) this.keepInRange(dt);
     }
 
     this.updateCamera(dt);
@@ -739,6 +772,10 @@ export class PilotController {
     this.updateWireframes(dt);
     this.minimap.update(dt, [{ x: this.pos.x, y: this.pos.y, z: this.pos.z, fx: this.fwdV.set(0, 0, -1).applyQuaternion(this.quat).x, fz: this.fwdV.z, color: "#7fe8ff", name: "You", self: true }, ...this.remotes]);
     this.updateHud(speed / (this.cruise * BOOST_TOP));
+    if (this.opts.multiplayer) { // tell the others where you are, about twenty times a second
+      this.netAcc += dt;
+      if (this.netAcc >= 0.05) { this.netAcc %= 0.05; this.host.onNetworkPose(this.makePose(true)); }
+    }
     if (this.keysShown && !this.keysQuiet && this.clock > this.keysQuietAt) { this.keysQuiet = true; this.keysPanel.classList.add("cg-quiet"); }
   }
 
@@ -992,7 +1029,11 @@ export class PilotController {
     this.speedFill.style.width = (clamp(top01, 0, 1) * 100).toFixed(1) + "%";
     this.energyFill.style.width = (this.energy * 100).toFixed(1) + "%";
     this.energyFill.classList.toggle("cg-low", this.boostLocked);
-    const text = this.boosting ? "AFTERBURNER" : this.boostLocked ? (this.holdLeft > 0 ? `EMPTY ${this.holdLeft.toFixed(1)}s` : "RECHARGING") : "";
+    this.healthBar.hidden = !this.opts.multiplayer;
+    this.healthFill.style.width = (clamp(this.health / 100, 0, 1) * 100).toFixed(1) + "%";
+    this.destroyedText.hidden = this.health > 0;
+    if (this.health <= 0) this.destroyedText.textContent = `SHIP DESTROYED. BACK IN ${Math.max(0, Math.ceil((this.respawnAt - this.clock) / 1000))}`;
+    const text = this.health <= 0 ? "DESTROYED" : this.clock < this.protectedUntil && this.opts.multiplayer ? "SPAWN PROTECTED" : this.boosting ? "AFTERBURNER" : this.boostLocked ? (this.holdLeft > 0 ? `EMPTY ${this.holdLeft.toFixed(1)}s` : "RECHARGING") : "";
     if (text !== this.flagsText) { this.flagsText = text; this.flags.textContent = text; }
   }
 
@@ -1028,7 +1069,7 @@ export class PilotController {
   }
 
   private fire(): void {
-    if (this.cooldown > 0) return;
+    if (this.health <= 0 || this.cooldown > 0) return;
     this.cooldown = FIRE_GAP;
     const cl = this.host.pickClusterAt(this.aimX, this.aimY, FIRE_SLACK);
     const i = cl >= 0 ? -1 : this.host.pickAt(this.aimX, this.aimY, FIRE_SLACK);
@@ -1036,9 +1077,64 @@ export class PilotController {
     // guns fire in a rotating pattern: upper-left, lower-right, upper-right, lower-left
     const order = [0, 3, 1, 2], gun = order[this.gun++ % 4];
     if (this.bolts.length >= MAX_BOLTS) this.bolts.shift();
-    this.bolts.push({ from: this.muzzle(gun, new THREE.Vector3()), node: i, cluster: cl, point, travelled: 0, landed: false, fade: 0 });
+    const from = this.muzzle(gun, new THREE.Vector3());
+    this.bolts.push({ from, node: i, cluster: cl, point, travelled: 0, landed: false, fade: 0 });
     this.audio.laser(gun);
+    if (this.opts.multiplayer) { // the other pilots see the same bolt leave the same gun
+      const n = i >= 0 ? this.host.nodes()[i] : null, to = n ? this.hitA.set(n.x, n.y, n.z) : point;
+      const d = this.hitB.copy(to).sub(from).normalize();
+      this.host.onNetworkShot({ id: crypto.randomUUID(), o: [from.x, from.y, from.z], d: [d.x, d.y, d.z] });
+    }
   }
+
+  /** Where you start (and come back to) in a room: in front of your own constellation, facing it. */
+  private placeAtSpawn(): void {
+    const b = this.host.bounds(), c = this.hitC.set(b.cx, b.cy, b.cz);
+    this.pos.set(b.cx, b.cy + b.radius * 0.25, b.cz + b.radius * 1.3 + 80);
+    this.tmpM.lookAt(this.pos, c, Y_AXIS); this.quat.setFromRotationMatrix(this.tmpM); this.camQuat.copy(this.quat);
+    this.vel.set(0, 0, 0); this.spin.set(0, 0, 0); this.stick.set(0, 0);
+  }
+
+  private makePose(active: boolean): Pose {
+    return {
+      p: [this.pos.x, this.pos.y, this.pos.z], q: [this.quat.x, this.quat.y, this.quat.z, this.quat.w], v: [this.vel.x, this.vel.y, this.vel.z],
+      hp: Math.max(0, Math.min(100, Math.round(this.health))), en: clamp(this.energy, 0, 1), bo: this.boosting, ac: active && this.health > 0, pr: this.clock < this.protectedUntil,
+    };
+  }
+
+  /**
+   * Another pilot's bolt: did it pass through your ship? It is your own computer that decides, because yours knows exactly
+   * where your ship is. A hit costs ten of a hundred; at zero you are destroyed for five seconds, then you come back with
+   * three seconds when nothing can hit you.
+   */
+  hitTest(a: THREE.Vector3, b: THREE.Vector3): boolean {
+    if (!this.active || !this.opts.multiplayer || this.health <= 0 || this.clock < this.protectedUntil) return false;
+    const ab = this.hitA.copy(b).sub(a), len2 = ab.lengthSq();
+    const t = len2 > 0 ? clamp(this.hitB.copy(this.pos).sub(a).dot(ab) / len2, 0, 1) : 0;
+    if (this.hitC.copy(a).addScaledVector(ab, t).distanceTo(this.pos) > HIT_RADIUS) return false;
+    this.health = Math.max(0, this.health - HIT_DAMAGE);
+    this.shake = Math.max(this.shake, 0.8);
+    if (this.health <= 0) this.destroyed(); else this.audio.bump(0.5);
+    return true;
+  }
+
+  private destroyed(): void {
+    this.respawnAt = this.clock + RESPAWN_MS; this.vel.set(0, 0, 0); this.spin.set(0, 0, 0);
+    this.spawnBurstAt(this.pos.x, this.pos.y, this.pos.z, 14);
+    this.audio.bump(1);
+    this.applyLook();
+    this.host.onState(true, "Your ship was destroyed");
+  }
+
+  private respawn(): void {
+    this.health = 100; this.energy = 1; this.boostLocked = false; this.holdLeft = 0; this.boosting = false;
+    this.protectedUntil = this.clock + PROTECT_MS;
+    this.placeAtSpawn(); this.applyLook();
+    this.host.onState(true, "Back in the fight");
+  }
+
+  /** A burst of wireframe in the world (used for other pilots' ships going down, and bolts landing). */
+  burstAt(x: number, y: number, z: number, size: number): void { this.spawnBurstAt(x, y, z, size); }
 
   /** A bolt has reached a folded group: it opens, and its notes fly back out. */
   private landOnGroup(g: number, body: { x: number; y: number; z: number; r: number; name: string }): void {

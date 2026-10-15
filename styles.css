@@ -209,3 +209,30 @@
 
 /* a folded group's name */
 .cg-label-cluster { font-weight: 700; letter-spacing: 0.02em; }
+
+/* Multiplayer: the Fly together panel (layout adapted from the multiplayer styles in the community pull request by j117mw3) */
+.cg-multiplayer { position: absolute; top: 52px; right: 12px; z-index: 5; width: min(360px, calc(100% - 24px)); max-height: calc(100% - 70px); overflow: auto; padding: 12px; border: 1px solid var(--cg-border); border-radius: 10px; background: var(--cg-panel); backdrop-filter: blur(10px); box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4); }
+.cg-multiplayer[hidden] { display: none; }
+.cg-multiplayer-head { display: flex; align-items: center; justify-content: space-between; }
+.cg-multiplayer h2 { margin: 0 0 6px; font-size: 15px; }
+.cg-multiplayer-privacy, .cg-multiplayer-status { margin: 6px 0; color: var(--cg-dim); font-size: 12px; }
+.cg-multiplayer-name { display: flex; flex-direction: column; gap: 4px; margin: 8px 0; color: var(--cg-dim); font-size: 11px; }
+.cg-multiplayer-name input, .cg-multiplayer-code { height: 30px; padding: 0 8px; border: 1px solid var(--cg-border); border-radius: 7px; background: rgba(0, 0, 0, 0.25); color: var(--cg-ink); font: inherit; }
+.cg-multiplayer-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.cg-multiplayer-actions[hidden] { display: none; }
+.cg-multiplayer-actions .cg-btn { width: auto; min-width: 56px; padding: 0 9px; font-size: 12px; }
+.cg-multiplayer-code { width: 130px; font-family: monospace; text-transform: uppercase; }
+.cg-multiplayer-codeshow { font-family: monospace; font-size: 16px; letter-spacing: 0.08em; margin-right: 4px; user-select: all; }
+.cg-multiplayer-players { display: flex; flex-direction: column; gap: 6px; margin: 10px 0 0; padding: 0; list-style: none; }
+.cg-multiplayer-players li { display: grid; grid-template-columns: 12px minmax(60px, 1fr) 72px auto; align-items: center; gap: 8px; padding: 5px 8px; border: 1px solid var(--cg-border); border-radius: 8px; font-size: 12px; }
+.cg-player-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cg-player-health { width: 72px; height: 8px; accent-color: #ff6c73; }
+.cg-player-state { color: var(--cg-dim); white-space: nowrap; }
+.cg-multiplayer-status.cg-error { color: #ff927e; }
+.cg-label-pilot { font-weight: 700; letter-spacing: 0.02em; }
+.cg-pilot-health { position: absolute; left: 50%; bottom: 40px; width: 140px; height: 3px; transform: translateX(-50%); background: rgba(255, 255, 255, 0.14); border-radius: 2px; overflow: hidden; }
+.cg-pilot-health[hidden] { display: none; }
+.cg-pilot-health-fill { height: 100%; width: 100%; background: linear-gradient(90deg, #ff4b62, #ff9d86); }
+.cg-pilot-destroyed { position: absolute; left: 50%; top: 44%; transform: translate(-50%, -50%); color: #ff6b72; font: 700 17px var(--font-interface, system-ui, sans-serif); letter-spacing: 0.14em; text-align: center; text-shadow: 0 2px 12px #000; white-space: nowrap; pointer-events: none; }
+.cg-pilot-destroyed[hidden] { display: none; }
+.cg-contrast .cg-multiplayer { background: #000; border-color: #fff; backdrop-filter: none; }
