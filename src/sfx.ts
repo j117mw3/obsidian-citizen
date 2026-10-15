@@ -4,23 +4,39 @@
  * which browsers require), and stops when they leave.
  */
 
+import type { AfterburnerSoundId, EngineSoundId, LaserSoundId, PilotProfile } from "./pilotProfile";
+
 interface Engine {
   saw: OscillatorNode; sub: OscillatorNode; lowpass: BiquadFilterNode; gain: GainNode;
   hiss: AudioBufferSourceNode; hissFilter: BiquadFilterNode; hissGain: GainNode;
   whine: OscillatorNode; whineGain: GainNode; // the high ion-engine whine over the rumble
 }
 
+interface RemoteVoice { profile: PilotProfile; engine: OscillatorNode; engineFilter: BiquadFilterNode; engineGain: GainNode; enginePan: PannerNode; boost: OscillatorNode; boostGain: GainNode; boostPan: PannerNode }
+export interface RemoteAudioState { id: string; profile: PilotProfile; position: [number, number, number]; active: boolean; speed: number; thrust: number; boosting: boolean }
+
 export class PilotAudio {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
   private engineBus: GainNode | null = null;
   private afterburnerBus: GainNode | null = null;
+  private laserBus: GainNode | null = null;
+  private remoteEngineBus: GainNode | null = null;
+  private remoteAfterburnerBus: GainNode | null = null;
+  private remoteLaserBus: GainNode | null = null;
   private noise: AudioBuffer | null = null;
   private engine: Engine | null = null;
   private enabled = true;
   private volume = 0.5;
   private engineMuted = false;
   private afterburnerMuted = false;
+  private nearbyAudio = true;
+  private remoteAudioActive = false;
+  private engineSound: EngineSoundId = "classic";
+  private afterburnerSound: AfterburnerSoundId = "classic";
+  private laserSound: LaserSoundId = "classic";
+  private remoteVoices = new Map<string, RemoteVoice>();
+  private playedShots = new Set<string>();
   private lastTick = 0;
   private lastUpdate = 0;
   private watchdog = 0;
@@ -28,7 +44,7 @@ export class PilotAudio {
   setOptions(enabled: boolean, volume: number): void {
     this.enabled = enabled; this.volume = volume;
     if (this.master && this.ctx) this.master.gain.setTargetAtTime(enabled ? volume : 0, this.ctx.currentTime, 0.05);
-    if (!enabled) this.stopEngine(); else if (this.ctx && !this.engine) this.startEngine();
+    if (!enabled) { this.stopEngine(); this.setRemoteAudioActive(false); } else if (this.ctx && !this.engine) this.startEngine();
   }
 
   setEngineMuted(muted: boolean): void {
@@ -41,39 +57,60 @@ export class PilotAudio {
     if (this.afterburnerBus && this.ctx) this.afterburnerBus.gain.setTargetAtTime(muted ? 0 : 1, this.ctx.currentTime, 0.04);
   }
 
+  setProfile(profile: PilotProfile): void {
+    this.engineSound = profile.engine; this.afterburnerSound = profile.afterburner; this.laserSound = profile.laser;
+  }
+
+  setNearbyAudio(enabled: boolean): void {
+    if (this.nearbyAudio === enabled) return;
+    this.nearbyAudio = enabled;
+    const t = this.ctx?.currentTime ?? 0;
+    for (const bus of [this.remoteEngineBus, this.remoteAfterburnerBus, this.remoteLaserBus]) bus?.gain.setTargetAtTime(enabled ? 1 : 0, t, 0.05);
+    if (!enabled) this.clearRemoteVoices();
+  }
+
   /** Call from a user gesture (entering Pilot mode). */
   start(): void {
     if (!this.enabled) return;
     try {
-      if (!this.ctx) {
-        const Ctor: typeof AudioContext | undefined = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-        if (!Ctor) return;
-        this.ctx = new Ctor();
-        this.master = this.ctx.createGain();
-        this.master.gain.value = this.volume;
-        this.master.connect(this.ctx.destination);
-        this.engineBus = this.ctx.createGain(); this.engineBus.gain.value = this.engineMuted ? 0 : 1; this.engineBus.connect(this.master);
-        this.afterburnerBus = this.ctx.createGain(); this.afterburnerBus.gain.value = this.afterburnerMuted ? 0 : 1; this.afterburnerBus.connect(this.master);
-        const len = this.ctx.sampleRate, buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate), d = buf.getChannelData(0);
-        for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
-        this.noise = buf;
-      }
-      void this.ctx.resume();
+      if (!this.initialize()) return;
+      void this.ctx!.resume();
       this.startEngine();
       this.sweep(220, 640, 0.32, "sine", 0.16);
     } catch { /* no audio available: Pilot mode works without it */ }
+  }
+
+  private initialize(): boolean {
+    if (this.ctx) return true;
+    try {
+      const Ctor: typeof AudioContext | undefined = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!Ctor) return false;
+      this.ctx = new Ctor(); this.master = this.ctx.createGain(); this.master.gain.value = this.volume; this.master.connect(this.ctx.destination);
+      this.engineBus = this.ctx.createGain(); this.engineBus.gain.value = this.engineMuted ? 0 : 1; this.engineBus.connect(this.master);
+      this.afterburnerBus = this.ctx.createGain(); this.afterburnerBus.gain.value = this.afterburnerMuted ? 0 : 1; this.afterburnerBus.connect(this.master);
+      this.laserBus = this.ctx.createGain(); this.laserBus.gain.value = 1; this.laserBus.connect(this.master);
+      this.remoteEngineBus = this.ctx.createGain(); this.remoteEngineBus.gain.value = this.nearbyAudio ? 1 : 0; this.remoteEngineBus.connect(this.engineBus);
+      this.remoteAfterburnerBus = this.ctx.createGain(); this.remoteAfterburnerBus.gain.value = this.nearbyAudio ? 1 : 0; this.remoteAfterburnerBus.connect(this.afterburnerBus);
+      this.remoteLaserBus = this.ctx.createGain(); this.remoteLaserBus.gain.value = this.nearbyAudio ? 1 : 0; this.remoteLaserBus.connect(this.laserBus);
+      const len = this.ctx.sampleRate, buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate), d = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+      this.noise = buf; return true;
+    } catch { return false; }
   }
 
   stop(): void {
     if (!this.ctx) return;
     this.sweep(640, 160, 0.3, "sine", 0.14);
     this.stopEngine();
+    this.setRemoteAudioActive(false);
   }
 
   destroy(): void {
     this.stopEngine();
+    this.setRemoteAudioActive(false); this.playedShots.clear();
     window.clearInterval(this.watchdog);
-    const c = this.ctx; this.ctx = null; this.master = null; this.engineBus = null; this.afterburnerBus = null; this.noise = null;
+    const c = this.ctx; this.ctx = null; this.master = null; this.engineBus = null; this.afterburnerBus = null; this.laserBus = null;
+    this.remoteEngineBus = null; this.remoteAfterburnerBus = null; this.remoteLaserBus = null; this.noise = null;
     if (c) void c.close().catch(() => undefined);
   }
 
@@ -119,9 +156,11 @@ export class PilotAudio {
     const e = this.engine, c = this.ctx; if (!e || !c) return;
     this.lastUpdate = performance.now();
     const t = c.currentTime;
-    e.saw.frequency.setTargetAtTime(48 + speed * 70 + (boost ? 22 : 0), t, 0.1);
+    e.saw.type = this.engineSound === "classic" ? "sawtooth" : "triangle";
+    e.sub.type = this.engineSound === "classic" ? "square" : "sine";
+    e.saw.frequency.setTargetAtTime((this.engineSound === "classic" ? 48 : 105) + speed * (this.engineSound === "classic" ? 70 : 125) + (boost ? 22 : 0), t, 0.1);
     e.sub.frequency.setTargetAtTime(24 + speed * 35, t, 0.1);
-    e.lowpass.frequency.setTargetAtTime(180 + speed * 900 + (boost ? 500 : 0), t, 0.12);
+    e.lowpass.frequency.setTargetAtTime((this.engineSound === "classic" ? 180 : 600) + speed * (this.engineSound === "classic" ? 900 : 1500) + (boost ? 500 : 0), t, 0.12);
     e.gain.gain.setTargetAtTime(0.025 + speed * 0.09 + (thrust ? 0.015 : 0), t, 0.12);
     e.hissFilter.frequency.setTargetAtTime(500 + speed * 2500, t, 0.15);
     e.hissGain.gain.setTargetAtTime(speed * 0.05 + (boost ? 0.06 : 0), t, 0.12);
@@ -169,13 +208,92 @@ export class PilotAudio {
 
   /** A blaster bolt: a fast downward chirp with a crack of noise at the start. `i` varies the pitch a little from gun to gun. */
   /** The afterburner lighting: a rising whoosh. */
-  afterburner(): void { this.burst(0.6, 250, 3000, 0.13, 0, this.afterburnerBus); this.sweep(90, 220, 0.5, "sawtooth", 0.07, 0, this.afterburnerBus); }
+  afterburner(destination: AudioNode | null = this.afterburnerBus): void {
+    if (this.afterburnerSound === "classic") { this.burst(0.6, 250, 3000, 0.13, 0, destination); this.sweep(90, 220, 0.5, "sawtooth", 0.07, 0, destination); }
+    else { this.sweep(520, 140, 0.32, "triangle", 0.12, 0, destination); this.sweep(190, 850, 0.28, "sine", 0.07, 0.03, destination); }
+  }
 
-  laser(i = 0): void {
+  laser(i = 0, sound: LaserSoundId = this.laserSound, destination: AudioNode | null = this.laserBus): void {
     const k = 1 + (i % 4) * 0.06;
-    this.sweep(2600 * k, 260 * k, 0.2, "sawtooth", 0.1);
-    this.sweep(1300 * k, 130 * k, 0.16, "square", 0.045);
-    this.burst(0.05, 5000, 1500, 0.06);
+    if (sound === "classic") {
+      this.sweep(2600 * k, 260 * k, 0.2, "sawtooth", 0.1, 0, destination);
+      this.sweep(1300 * k, 130 * k, 0.16, "square", 0.045, 0, destination);
+      this.burst(0.05, 5000, 1500, 0.06, 0, destination);
+    } else {
+      this.sweep(1500 * k, 320 * k, 0.12, "triangle", 0.085, 0, destination);
+      this.sweep(220 * k, 90 * k, 0.18, "sine", 0.05, 0, destination);
+    }
+  }
+
+  preview(kind: "engine" | "afterburner" | "laser"): void {
+    if (!this.enabled || !this.initialize()) return;
+    void this.ctx!.resume();
+    if (kind === "engine") {
+      if (this.engineSound === "classic") { this.sweep(150, 62, 0.45, "sawtooth", 0.12); this.burst(0.32, 500, 180, 0.035); }
+      else { this.sweep(440, 110, 0.42, "triangle", 0.1); this.sweep(780, 370, 0.28, "sine", 0.04); }
+    } else if (kind === "afterburner") this.afterburner(this.master);
+    else this.laser(0);
+  }
+
+  updateRemoteAudio(listener: { position: [number, number, number]; forward: [number, number, number]; up: [number, number, number] }, players: RemoteAudioState[], active: boolean): void {
+    const ctx = this.ctx;
+    const shouldPlay = !!ctx && this.nearbyAudio && active && this.enabled;
+    this.setRemoteAudioActive(shouldPlay);
+    if (!shouldPlay || !ctx) return;
+    const l = ctx.listener;
+    l.setPosition(...listener.position); l.setOrientation(...listener.forward, ...listener.up);
+    const live = new Set<string>();
+    for (const player of players) {
+      if (!player.active) continue;
+      live.add(player.id);
+      let voice: RemoteVoice | null = this.remoteVoices.get(player.id) ?? null;
+      if (!voice) { voice = this.createRemoteVoice(player); if (!voice) continue; this.remoteVoices.set(player.id, voice); }
+      voice.profile = player.profile;
+      voice.engine.type = player.profile.engine === "classic" ? "sawtooth" : "triangle";
+      voice.engine.frequency.setTargetAtTime((player.profile.engine === "classic" ? 42 : 115) + Math.min(1, player.speed / 300) * (player.profile.engine === "classic" ? 42 : 95), ctx.currentTime, 0.14);
+      voice.engineFilter.frequency.setTargetAtTime(player.profile.engine === "classic" ? 280 + Math.min(1, player.speed / 300) * 900 : 700 + Math.min(1, player.speed / 300) * 1100, ctx.currentTime, 0.14);
+      voice.boost.type = player.profile.afterburner === "classic" ? "sawtooth" : "triangle";
+      voice.boost.frequency.setTargetAtTime(player.profile.afterburner === "classic" ? 190 : 620, ctx.currentTime, 0.06);
+      this.place(voice.enginePan, player.position); this.place(voice.boostPan, player.position);
+      const distance = Math.hypot(player.position[0] - listener.position[0], player.position[1] - listener.position[1], player.position[2] - listener.position[2]);
+      const fade = Math.max(0, Math.min(1, (800 - distance) / 760));
+      voice.engineGain.gain.setTargetAtTime(player.thrust ? (0.012 + Math.min(1, player.speed / 300) * 0.025) * fade : 0, ctx.currentTime, 0.08);
+      voice.boostGain.gain.setTargetAtTime(player.boosting ? 0.035 * fade : 0, ctx.currentTime, 0.04);
+    }
+    for (const id of this.remoteVoices.keys()) if (!live.has(id)) this.removeRemoteVoice(id);
+  }
+
+  remoteLaser(id: string, shotId: string, sound: LaserSoundId, position: [number, number, number], startedAt: number): void {
+    const ctx = this.ctx, bus = this.remoteLaserBus;
+    if (!ctx || !bus || !this.remoteAudioActive || !this.nearbyAudio || !this.enabled || !id || this.playedShots.has(shotId) || Date.now() - startedAt > 500 || startedAt > Date.now() + 1000) return;
+    this.playedShots.add(shotId); if (this.playedShots.size > 512) this.playedShots.delete(this.playedShots.values().next().value!);
+    const pan = ctx.createPanner(); pan.panningModel = "HRTF"; pan.distanceModel = "inverse"; pan.refDistance = 40; pan.maxDistance = 800; pan.rolloffFactor = 1.2;
+    this.place(pan, position); pan.connect(bus); this.laser(0, sound, pan); window.setTimeout(() => { try { pan.disconnect(); } catch { /* already disconnected */ } }, 700);
+  }
+
+  private place(panner: PannerNode, p: [number, number, number]): void { panner.setPosition(p[0], p[1], p[2]); }
+  private createRemoteVoice(player: RemoteAudioState): RemoteVoice | null {
+    const ctx = this.ctx, engineBus = this.remoteEngineBus, boostBus = this.remoteAfterburnerBus; if (!ctx || !engineBus || !boostBus) return null;
+    const engine = ctx.createOscillator(), engineFilter = ctx.createBiquadFilter(), engineGain = ctx.createGain(), enginePan = ctx.createPanner();
+    engine.type = player.profile.engine === "classic" ? "sawtooth" : "triangle"; engine.frequency.value = 48;
+    engineFilter.type = "lowpass"; engineFilter.frequency.value = 300; engineGain.gain.value = 0;
+    enginePan.panningModel = "HRTF"; enginePan.distanceModel = "inverse"; enginePan.refDistance = 40; enginePan.maxDistance = 800; enginePan.rolloffFactor = 1.2;
+    engine.connect(engineFilter); engineFilter.connect(engineGain); engineGain.connect(enginePan); enginePan.connect(engineBus); engine.start();
+    const boost = ctx.createOscillator(), boostGain = ctx.createGain(), boostPan = ctx.createPanner();
+    boost.type = "sawtooth"; boost.frequency.value = 190; boostGain.gain.value = 0;
+    boostPan.panningModel = "HRTF"; boostPan.distanceModel = "inverse"; boostPan.refDistance = 40; boostPan.maxDistance = 800; boostPan.rolloffFactor = 1.2;
+    boost.connect(boostGain); boostGain.connect(boostPan); boostPan.connect(boostBus); boost.start();
+    return { profile: player.profile, engine, engineFilter, engineGain, enginePan, boost, boostGain, boostPan };
+  }
+  private removeRemoteVoice(id: string): void {
+    const voice = this.remoteVoices.get(id); if (!voice) return; this.remoteVoices.delete(id);
+    try { voice.engine.stop(); voice.boost.stop(); } catch { /* already stopped */ }
+    for (const node of [voice.engine, voice.engineFilter, voice.engineGain, voice.enginePan, voice.boost, voice.boostGain, voice.boostPan]) try { node.disconnect(); } catch { /* already disconnected */ }
+  }
+  private clearRemoteVoices(): void { for (const id of this.remoteVoices.keys()) this.removeRemoteVoice(id); }
+  setRemoteAudioActive(active: boolean): void {
+    this.remoteAudioActive = active && this.nearbyAudio && this.enabled;
+    if (!this.remoteAudioActive) this.clearRemoteVoices();
   }
   /** The ship hitting a note: a heavy thud and a crunch, louder for a harder hit. */
   bump(power: number): void {

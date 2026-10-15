@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import type { ShipId } from "./pilotProfile";
 
 export interface Ship {
   /** The fighter, nose toward -Z like the camera. Add it to the scene; the pilot positions it every frame. */
@@ -25,7 +26,7 @@ export const SHIP_MUZZLES: readonly [number, number, number][] = [
  * A small four-winged starfighter built from primitives, with a glowing wireframe outline over the hull.
  * Nothing is loaded from disk: the plugin ships no model files.
  */
-export function buildShip(): Ship {
+export function buildShip(style: ShipId = "classic"): Ship {
   const group = new THREE.Group();
   const owned: { dispose(): void }[] = [];
   const own = <T extends { dispose(): void }>(o: T): T => { owned.push(o); return o; };
@@ -54,8 +55,11 @@ export function buildShip(): Ship {
   };
 
   // fuselage: a long nose cone into a round body
-  part(new THREE.ConeGeometry(0.2, 1.7, 7), hull, m => { m.rotation.x = -Math.PI / 2; m.position.z = -0.9; });
-  part(new THREE.CylinderGeometry(0.27, 0.3, 1.9, 8), hull, m => { m.rotation.x = Math.PI / 2; m.position.z = 0.5; });
+  const noseRadius = style === "bulwark" ? 0.29 : style === "dart" ? 0.14 : 0.2;
+  const noseLength = style === "bulwark" ? 1.35 : style === "vector" ? 1.95 : 1.7;
+  part(new THREE.ConeGeometry(noseRadius, noseLength, style === "crescent" ? 9 : 7), hull, m => { m.rotation.x = -Math.PI / 2; m.position.z = style === "classic" ? -0.9 : -0.83; });
+  const bodyRadius = style === "bulwark" ? 0.38 : style === "vector" ? 0.22 : 0.3;
+  part(new THREE.CylinderGeometry(bodyRadius * 0.9, bodyRadius, style === "bulwark" ? 2.15 : 1.9, 8), hull, m => { m.rotation.x = Math.PI / 2; m.position.z = 0.5; });
   part(new THREE.SphereGeometry(0.25, 10, 8), glass, m => { m.scale.set(1, 0.75, 1.7); m.position.set(0, 0.24, -0.3); }, false);
 
   const flames: THREE.Mesh[] = [];
@@ -64,16 +68,34 @@ export function buildShip(): Ship {
   const flameGeo = own(new THREE.ConeGeometry(0.12, 1, 8));
   flameGeo.translate(0, 0.5, 0); // base at the origin, tip one unit along +Y
 
-  // four wings in an X, each with a cannon on its tip and an engine at its root
+  // Each silhouette keeps the same four physical weapon mounts and engine spacing.
   for (const side of [-1, 1]) {
     for (const up of [-1, 1]) {
       const tilt = WING_SPREAD * side * up;
-      part(new THREE.BoxGeometry(1.5, 0.035, 0.95), hull, m => { m.position.set(side * 0.9, up * 0.28, 0.5); m.rotation.z = tilt; });
+      if (style === "classic") {
+        part(new THREE.BoxGeometry(1.5, 0.035, 0.95), hull, m => { m.position.set(side * 0.9, up * 0.28, 0.5); m.rotation.z = tilt; });
+      } else if (style === "vector") {
+        const wing = new THREE.Shape();
+        wing.moveTo(0, up * 0.12); wing.lineTo(side * 1.57, up * 0.42); wing.lineTo(side * 0.95, -up * 0.18); wing.lineTo(side * 0.45, -up * 0.24); wing.closePath();
+        part(new THREE.ShapeGeometry(wing), hull, m => { m.position.z = 0.24; });
+        part(new THREE.BoxGeometry(0.42, 0.045, 0.72), dark, m => { m.position.set(side * 0.54, up * 0.2, 0.55); });
+      } else if (style === "dart") {
+        const wing = new THREE.Shape();
+        wing.moveTo(side * 0.08, -up * 0.03); wing.lineTo(side * 1.61, up * 0.5); wing.lineTo(side * 1.13, -up * 0.38); wing.lineTo(side * 0.38, -up * 0.25); wing.closePath();
+        part(new THREE.ShapeGeometry(wing), hull, m => { m.position.z = 0.3; });
+      } else if (style === "bulwark") {
+        part(new THREE.BoxGeometry(1.62, 0.1, 1.08), hull, m => { m.position.set(side * 0.9, up * 0.31, 0.42); m.rotation.z = tilt * 0.45; });
+        part(new THREE.CylinderGeometry(0.19, 0.23, 0.92, 8), dark, m => { m.rotation.x = Math.PI / 2; m.position.set(side * 0.58, up * 0.2, 0.75); });
+      } else {
+        const arc = part(new THREE.TorusGeometry(0.83, 0.055, 6, 20, Math.PI * 0.8), hull, m => { m.position.set(side * 0.75, up * 0.05, 0.35); m.rotation.z = side < 0 ? Math.PI * 0.8 : Math.PI * 0.2; });
+        arc.scale.set(1.1, 0.72, 1);
+        part(new THREE.BoxGeometry(0.48, 0.04, 0.58), dark, m => { m.position.set(side * 0.51, up * 0.2, 0.55); });
+      }
       part(new THREE.BoxGeometry(0.1, 0.05, 0.4), red, m => { m.position.set(side * 1.45, up * 0.47, 0.5); m.rotation.z = tilt; }, false);
       const tipX = side * 1.61, tipY = up * 0.51;
       part(new THREE.CylinderGeometry(0.03, 0.03, 1.7, 5), dark, m => { m.rotation.x = Math.PI / 2; m.position.set(tipX, tipY, -0.1); }, false);
       muzzles.push(new THREE.Vector3(tipX, tipY, -0.97));
-      part(new THREE.CylinderGeometry(0.15, 0.17, 1.0, 8), dark, m => { m.rotation.x = Math.PI / 2; m.position.set(side * 0.5, up * 0.2, 0.6); });
+      part(new THREE.CylinderGeometry(style === "bulwark" ? 0.19 : 0.15, style === "bulwark" ? 0.21 : 0.17, 1.0, 8), dark, m => { m.rotation.x = Math.PI / 2; m.position.set(side * 0.5, up * 0.2, 0.6); });
       const f = new THREE.Mesh(flameGeo, flameMat);
       f.rotation.x = Math.PI / 2; // tip pointing away from the nose
       f.position.set(side * 0.5, up * 0.2, 1.1);

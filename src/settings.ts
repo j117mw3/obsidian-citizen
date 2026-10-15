@@ -1,6 +1,7 @@
 export type MotionLevel = "off" | "calm" | "lively";
 export type PaletteName = "vibrant" | "colorblind" | "theme";
 export type GroupBy = "folder" | "tag" | "none";
+import { AFTERBURNER_SOUND_IDS, DEFAULT_PILOT_PROFILE, ENGINE_SOUND_IDS, LASER_SOUND_IDS, SHIP_IDS, type AfterburnerSoundId, type EngineSoundId, type LaserSoundId, type ShipId } from "./pilotProfile";
 
 export interface ConstellationSettings {
   motion: MotionLevel;
@@ -31,6 +32,11 @@ export interface ConstellationSettings {
   pilotAgility: number;
   pilotSpeed: number;
   pilotMouse: "capture" | "cursor";
+  pilotShip: ShipId;
+  pilotEngineSound: EngineSoundId;
+  pilotAfterburnerSound: AfterburnerSoundId;
+  pilotLaserSound: LaserSoundId;
+  pilotNearbyAudio: boolean;
   multiplayerName: string;
   multiplayerConnectionMode: "hosted" | "custom";
   multiplayerCustomServerUrl: string;
@@ -65,6 +71,11 @@ export const DEFAULT_SETTINGS: ConstellationSettings = {
   pilotAgility: 1,
   pilotSpeed: 1,
   pilotMouse: "capture",
+  pilotShip: DEFAULT_PILOT_PROFILE.ship,
+  pilotEngineSound: DEFAULT_PILOT_PROFILE.engine,
+  pilotAfterburnerSound: DEFAULT_PILOT_PROFILE.afterburner,
+  pilotLaserSound: DEFAULT_PILOT_PROFILE.laser,
+  pilotNearbyAudio: true,
   multiplayerName: "Pilot",
   multiplayerConnectionMode: "hosted",
   multiplayerCustomServerUrl: "",
@@ -112,6 +123,11 @@ export function sanitizeSettings(raw: unknown): ConstellationSettings {
     pilotAgility: clamp(r.pilotAgility, 0.5, 1.5, d.pilotAgility),
     pilotSpeed: clamp(r.pilotSpeed, 0.4, 3, d.pilotSpeed),
     pilotMouse: pick(r.pilotMouse, ["capture", "cursor"] as const, d.pilotMouse),
+    pilotShip: pick(r.pilotShip, SHIP_IDS, d.pilotShip),
+    pilotEngineSound: pick(r.pilotEngineSound, ENGINE_SOUND_IDS, d.pilotEngineSound),
+    pilotAfterburnerSound: pick(r.pilotAfterburnerSound, AFTERBURNER_SOUND_IDS, d.pilotAfterburnerSound),
+    pilotLaserSound: pick(r.pilotLaserSound, LASER_SOUND_IDS, d.pilotLaserSound),
+    pilotNearbyAudio: bool(r.pilotNearbyAudio, d.pilotNearbyAudio),
     multiplayerName: typeof r.multiplayerName === "string" ? r.multiplayerName.trim().slice(0, 24) || d.multiplayerName : d.multiplayerName,
     multiplayerConnectionMode: connectionMode,
     multiplayerCustomServerUrl: typeof r.multiplayerCustomServerUrl === "string"
