@@ -309,7 +309,7 @@ export class ConstellationRenderer implements GraphRenderer {
     this.uniforms.uGlow.value = hc ? 0.35 : s.glow;
     this.uniforms.uContrast.value = hc ? 1 : 0;
     this.bloom.strength = (hc ? 0 : 0.35 * s.glow) + this.novaBloom;
-    this.controls.enableDamping = !this.still;
+    this.controls.enableDamping = effectiveMotion(s) !== "off"; // a room holds the notes still, but the camera should still glide: only the reader's own motion setting turns damping off
     this.updateRotate();
     this.controls.autoRotateSpeed = s.rotateSpeed * 2;
     this.stars.visible = !hc;
@@ -835,7 +835,7 @@ export class ConstellationRenderer implements GraphRenderer {
   }
 
   private startTween(p1: THREE.Vector3, t1: THREE.Vector3, dur: number): void {
-    if (this.still) { // reduced motion: no flying, just arrive
+    if (effectiveMotion(this.settings) === "off") { // reduced motion: no flying, just arrive
       this.controls.target.copy(t1); this.camera.position.copy(p1); this.tween = null; this.stale = true; return;
     }
     this.tween = { t0: performance.now(), dur, p0: this.camera.position.clone(), p1, t0v: this.controls.target.clone(), t1v: t1 };

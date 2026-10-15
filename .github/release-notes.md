@@ -1,4 +1,4 @@
-Pilot mode becomes a sandbox, and you can now fly together. 0.3.2 also fixes heavy lag while waiting in a room: the panels no longer blur the 3D view behind them.
+Pilot mode becomes a sandbox, and you can now fly together. Rooms no longer make the camera step instead of glide when you pan, and the panels no longer blur the 3D view.
 
 **Fly together (multiplayer).** Make a room, send the ten-character code to up to three friends, and share one sky, each pilot with their own constellation. Only the shape of a constellation (anonymous points, links, colours) and your ship's position are shared; never note titles, paths, tags or contents. Connections are set up through a public relay (ntfy.sh by default, or your own), with every message sealed by the room code, then pilots talk directly. There is no server to run and nothing is set up for you; you can add your own TURN server if your network blocks direct connections. Outside a room the plugin still makes no network connections. Thanks to j117mw3 for the multiplayer protocol work this builds on.
 
