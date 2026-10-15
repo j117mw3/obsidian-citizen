@@ -68,3 +68,5 @@ In Obsidian, select **Custom server** and enter `ws://localhost:8787` on the sam
 - A WebRTC peer pair uses an ordered reliable channel for topology and an unordered, zero-retransmit channel for replaceable flight and position snapshots. Position snapshots are sequence-numbered binary chunks; incomplete, stale, or wrong-revision frames are dropped.
 
 The synthetic tests cover protocol privacy, limits, stale snapshots, boost, hits, respawns, room capacity, Worker room creation, host election, credential rotation, provider outages, and quota classification. They do not establish public DNS, forced TURN relay, or cross-internet Obsidian connectivity.
+
+From the repository root, `npm run check:hosted` checks the deployed WebSocket service with Obsidian's desktop Origin header. It creates an independent synthetic room, joins with a second synthetic client, reports only the relay status and server count, and disconnects both clients. It does not send vault data or make WebRTC/TURN connections, and never prints credential payloads. This verifies hosted signaling from the machine running the check; it does not verify another player's network.

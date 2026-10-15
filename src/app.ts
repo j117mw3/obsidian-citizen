@@ -3,6 +3,7 @@ import { FallbackRenderer } from "./fallback";
 import type { GraphData, GraphRenderer, Host, RendererCallbacks } from "./types";
 import { ConstellationSettings, effectiveHighContrast, effectiveMotion, prefersReducedMotion } from "./settings";
 import { HOSTED_SIGNALING_URL, MultiplayerSession, type AnonymousPlayer, type GameMessage } from "./multiplayer";
+import { version as CLIENT_VERSION } from "../manifest.json";
 
 let instances = 0;
 
@@ -51,6 +52,7 @@ export class ConstellationApp {
   private multiplayerConsent: HTMLInputElement;
   private multiplayerCode: HTMLInputElement;
   private multiplayerStatus: HTMLElement;
+  private multiplayerService: HTMLElement;
   private multiplayerPlayers: HTMLUListElement;
   private network!: MultiplayerSession;
   private remoteIds = new Set<string>();
@@ -117,6 +119,9 @@ export class ConstellationApp {
     this.multiplayerPanel = el("aside", "cg-multiplayer", { "aria-label": "Multiplayer room" });
     this.multiplayerPanel.hidden = true;
     this.multiplayerPanel.appendChild(el("h2", "", {}, "Fly together"));
+    this.multiplayerService = el("p", "cg-multiplayer-service");
+    this.updateRoomServiceInfo();
+    this.multiplayerPanel.appendChild(this.multiplayerService);
     this.multiplayerPanel.appendChild(el("p", "cg-multiplayer-privacy", {}, "Joining shares anonymous star positions, connections and group colours. Note names, paths, tags and file contents stay on your computer."));
     const nameLabel = el("label", "cg-multiplayer-name", {}, "Display name");
     this.multiplayerName = el("input", "", { type: "text", maxlength: "24", autocomplete: "nickname", "aria-label": "Display name", placeholder: "Pilot" });
@@ -228,8 +233,7 @@ export class ConstellationApp {
       shotState: (shots, impacts) => this.renderer.setRemoteShots(shots, impacts),
       removed: id => { if (id) { this.renderer.removeRemote(id); this.remoteIds.delete(id); } },
       authority: (_hostId, _epoch, _checkpoint) => { this.multiplayerStatus.textContent = "Room authority transferred. Reconnecting the shared session…"; },
-    }, () => ({ data: this.data, nodes: this.renderer.nodes }), () => this.settings.multiplayerConnectionMode === "hosted"
-      ? HOSTED_SIGNALING_URL : this.settings.multiplayerCustomServerUrl);
+    }, () => ({ data: this.data, nodes: this.renderer.nodes }), () => this.roomServiceUrl());
   }
 
   // ----------------------------------------------------------------- public
@@ -261,6 +265,7 @@ export class ConstellationApp {
 
   applySettings(s: ConstellationSettings): void {
     this.settings = s;
+    this.updateRoomServiceInfo();
     if (document.activeElement !== this.multiplayerName) this.multiplayerName.value = s.multiplayerName;
     this.renderer.applySettings(s);
     this.root.classList.toggle("cg-contrast", effectiveHighContrast(s));
@@ -287,6 +292,7 @@ export class ConstellationApp {
   }
 
   private async startRoom(action: "create" | "join"): Promise<void> {
+    this.updateRoomServiceInfo();
     if (this.flat) { this.multiplayerStatus.textContent = "Multiplayer needs the 3D WebGL view."; this.multiplayerStatus.classList.add("cg-error"); return; }
     if (!this.multiplayerConsent.checked) { this.multiplayerStatus.textContent = "Read and check the shared data notice before joining."; this.multiplayerStatus.classList.add("cg-error"); return; }
     try {
@@ -303,6 +309,20 @@ export class ConstellationApp {
       this.multiplayerStatus.textContent = e instanceof Error ? e.message : "Could not connect to the room.";
       this.multiplayerStatus.classList.add("cg-error");
     }
+  }
+
+  private roomServiceUrl(): string {
+    return this.settings.multiplayerConnectionMode === "hosted" ? HOSTED_SIGNALING_URL : this.settings.multiplayerCustomServerUrl;
+  }
+
+  private updateRoomServiceInfo(): void {
+    let server = "not configured";
+    try { server = new URL(this.roomServiceUrl()).host; } catch { /* settings explain invalid custom URLs */ }
+    const mode = this.settings.multiplayerConnectionMode === "hosted" ? "Hosted rooms" : "Custom server";
+    // The version is bundled into main.js, so this identifies the code actually
+    // loaded by Obsidian even if a different manifest was copied beside it.
+    // Show only the host: custom URL credentials and query tokens stay private.
+    this.multiplayerService.textContent = `Version ${CLIENT_VERSION} · ${mode}\nServer: ${server}`;
   }
 
   private async copyRoomCode(): Promise<void> {

@@ -218,3 +218,52 @@ test("rapid boost taps reset the delay and an empty tank stays locked until thir
   world.step(0.1, 11900);
   assert.ok(pilot.energy < 0.3 && !pilot.boostLocked, "after reaching thirty percent, boost may run the tank down again");
 });
+
+function signalingStubs(t) {
+  const sockets = [];
+  class Socket extends EventTarget {
+    static OPEN = 1;
+    static CLOSED = 3;
+    readyState = 0;
+    constructor() { super(); sockets.push(this); }
+    send() {}
+    close() { if (this.readyState !== Socket.CLOSED) this.emitClose(1000); }
+    emitClose(code) { this.readyState = Socket.CLOSED; this.dispatchEvent(Object.assign(new Event("close"), { code })); }
+  }
+  const values = { window: globalThis, WebSocket: Socket, RTCPeerConnection: class {} };
+  for (const [key, value] of Object.entries(values)) {
+    const descriptor = Object.getOwnPropertyDescriptor(globalThis, key);
+    Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
+    t.after(() => { if (descriptor) Object.defineProperty(globalThis, key, descriptor); else delete globalThis[key]; });
+  }
+  return sockets;
+}
+
+test("early signaling closure rejects immediately with host and close code, and releases its socket", async t => {
+  const sockets = signalingStubs(t);
+  const session = new network.MultiplayerSession(callbacks(), () => ({ data: fixture(), nodes: [] }), () => "wss://rooms.example.test");
+  const rejected = assert.rejects(session.create("Pilot"), /rooms\.example\.test.*WebSocket code 1006/);
+  sockets[0].emitClose(1006);
+  await rejected;
+  assert.equal(session.socket, null);
+  assert.equal(session.active, false);
+  assert.equal(session.opening, false);
+});
+
+test("failed signaling attempts clean up for retry and ignore late events from the old socket", async t => {
+  const sockets = signalingStubs(t), statuses = [];
+  const session = new network.MultiplayerSession(callbacks({ status: text => statuses.push(text) }), () => ({ data: fixture(), nodes: [] }), () => "wss://rooms.example.test");
+  const first = assert.rejects(session.join("ABCDEFGH", "Pilot"), /Could not reach.*rooms\.example\.test/);
+  await assert.rejects(session.join("ABCDEFGH", "Pilot"), /already in progress/);
+  assert.equal(sockets.length, 1);
+  sockets[0].dispatchEvent(new Event("error"));
+  await first;
+  assert.equal(session.socket, null);
+  const second = assert.rejects(session.join("ABCDEFGH", "Pilot"), /WebSocket code 1008/);
+  assert.equal(sockets.length, 2);
+  sockets[0].dispatchEvent(new MessageEvent("message", { data: "not-json" }));
+  assert.equal(statuses.some(text => text.includes("invalid data")), false);
+  sockets[1].emitClose(1008);
+  await second;
+  assert.equal(session.socket, null);
+});

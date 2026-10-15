@@ -182,6 +182,7 @@ export class MultiplayerSession {
   private lastIceErrorAt = 0;
   private lastIceRequestAt = 0;
   private closed = false;
+  private opening = false;
 
   constructor(private callbacks: MultiplayerCallbacks, private graph: () => { data: GraphData; nodes: readonly SimNode[] }, private signalingUrl: () => string) {}
   get active(): boolean { return !!this.selfId && !this.closed; }
@@ -194,6 +195,7 @@ export class MultiplayerSession {
 
   private async open(action: "create" | "join", name: string, code = ""): Promise<void> {
     if (this.active) throw new Error("Leave the current room before joining another.");
+    if (this.opening) throw new Error("A room connection is already in progress.");
     if (!globalThis.RTCPeerConnection || !globalThis.WebSocket) throw new Error("This Obsidian WebView does not provide WebRTC.");
     const url = this.signalingUrl().trim();
     if (!/^wss?:\/\//i.test(url)) throw new Error("Choose Hosted rooms or enter a custom address that starts with ws:// or wss://.");
@@ -202,12 +204,23 @@ export class MultiplayerSession {
     if (action === "join" && !/^[A-HJ-NP-Z2-9]{8}$/i.test(code.trim())) throw new Error("Enter the eight-character room code.");
     this.topology = makeAnonymousTopology(this.graph().data, this.ids, ++this.revision);
     this.closed = false;
-    await new Promise<void>((resolve, reject) => {
+    this.opening = true;
+    try { await new Promise<void>((resolve, reject) => {
       const ws = this.socket = new WebSocket(url);
       const host = (() => { try { return new URL(url).host; } catch { return "the selected server"; } })();
-      const timeout = window.setTimeout(() => { reject(new Error(`The room service at ${host} did not respond within 15 seconds.`)); ws.close(); }, 15_000);
-      ws.addEventListener("open", () => { ws.send(JSON.stringify(action === "create" ? { type: "create", name: cleanName } : { type: "join", code: code.trim().toUpperCase(), name: cleanName })); });
+      let settled = false;
+      let timeout = 0;
+      const fail = (error: Error) => {
+        if (settled) return;
+        settled = true; window.clearTimeout(timeout); reject(error);
+      };
+      timeout = window.setTimeout(() => fail(new Error(`The room service at ${host} did not respond within 15 seconds.`)), 15_000);
+      ws.addEventListener("open", () => {
+        if (this.socket !== ws || this.closed) return;
+        ws.send(JSON.stringify(action === "create" ? { type: "create", name: cleanName } : { type: "join", code: code.trim().toUpperCase(), name: cleanName }));
+      });
       ws.addEventListener("message", event => {
+        if (this.socket !== ws || this.closed) return;
         let msg: SignalMessage;
         try { msg = JSON.parse(String(event.data)) as SignalMessage; } catch { this.callbacks.status("The signaling service sent invalid data.", true); return; }
         if (msg.type === "error") {
@@ -221,15 +234,17 @@ export class MultiplayerSession {
             }
             return;
           }
-          reject(new Error(error)); this.leave(); return;
+          fail(new Error(error)); return;
         }
         if (msg.type === "created" || msg.type === "joined") {
+          if (settled) return;
           const selfId = String(msg.selfId || ""), hostId = String(msg.hostId || ""), members = msg.members;
           if (!/^[0-9a-f-]{36}$/i.test(selfId) || !/^[0-9a-f-]{36}$/i.test(hostId) || !validMembers(members)
             || !members.some(p => p.id === selfId) || !members.some(p => p.id === hostId) || !Number.isSafeInteger(msg.epoch) || (msg.epoch as number) < 1
             || typeof msg.code !== "string" || !/^[A-HJ-NP-Z2-9]{8}$/.test(msg.code)) {
-            window.clearTimeout(timeout); reject(new Error("The signaling service returned invalid room details.")); this.leave(); return;
+            fail(new Error("The signaling service returned invalid room details.")); return;
           }
+          settled = true;
           window.clearTimeout(timeout); this.selfId = selfId; this.hostId = hostId; this.roomCode = msg.code; this.epoch = msg.epoch as number;
           this.relay = validIceServers(msg.iceServers);
           this.iceExpiresAt = Number.isSafeInteger(msg.iceExpiresAt) ? Number(msg.iceExpiresAt) : 0;
@@ -243,9 +258,23 @@ export class MultiplayerSession {
         }
         void this.onSignal(msg);
       });
-      ws.addEventListener("error", () => { window.clearTimeout(timeout); reject(new Error(`Could not reach the room service at ${host}. Check your internet connection or try again later.`)); });
-      ws.addEventListener("close", () => { if (!this.closed && this.selfId) this.leave("Signaling connection closed; you left the room."); });
-    });
+      ws.addEventListener("error", () => {
+        const error = new Error(`Could not reach the room service at ${host}. Check your internet connection or try again later.`);
+        if (!settled) fail(error);
+        else if (this.socket === ws && this.active) this.callbacks.status(error.message, true);
+      });
+      ws.addEventListener("close", event => {
+        if (!settled) {
+          fail(new Error(this.closed ? `Connection to ${host} was canceled.`
+            : `The room service at ${host} closed the connection before joining (WebSocket code ${event.code}).`));
+        } else if (this.socket === ws && !this.closed && this.selfId) {
+          this.leave(`Signaling connection to ${host} closed (WebSocket code ${event.code}); you left the room.`);
+        }
+      });
+    }); } catch (error) {
+      this.leave(error instanceof Error ? error.message : "Room connection failed.");
+      throw error;
+    } finally { this.opening = false; }
   }
 
   private async connectPeer(id: string, offer: boolean): Promise<void> {
