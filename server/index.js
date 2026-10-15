@@ -102,6 +102,7 @@ wss.on("connection", (ws, req) => {
     if (msg.type === "create" || msg.type === "join") {
       if (!consume(`room:${ip}`, 20)) { fail(ws, "rate-limited", "Too many room requests. Wait a minute and try again."); return; }
       if (member) { fail(ws, "already-joined", "This connection already joined a room."); return; }
+      if (msg.protocol !== 2) { fail(ws, "update-required", "Update the plugin to version 0.3.2 or newer to use this room service."); return; }
       const name = typeof msg.name === "string" ? msg.name.trim().slice(0, 24) : "";
       if (!name) { fail(ws, "bad-name", "Enter a display name (up to 24 characters)."); return; }
       let room;
@@ -109,12 +110,13 @@ wss.on("connection", (ws, req) => {
         if (rooms.size >= maxRooms) { fail(ws, "service-full", "The room service is at capacity. Try again later."); return; }
         roomCode = randomCode();
         while (rooms.has(roomCode)) roomCode = randomCode();
-        room = { code: roomCode, hostId: "", epoch: 1, members: new Map(), checkpoint: null, nextMemberOrder: 0 };
+        room = { code: roomCode, protocol: msg.protocol, hostId: "", epoch: 1, members: new Map(), checkpoint: null, nextMemberOrder: 0 };
         rooms.set(roomCode, room);
       } else {
         roomCode = typeof msg.code === "string" ? msg.code.toUpperCase() : "";
         room = rooms.get(roomCode);
         if (!room) { fail(ws, "room-not-found", "That room code is invalid or the room has closed."); return; }
+        if (room.protocol !== msg.protocol) { fail(ws, "update-required", "Everyone in the room must install plugin version 0.3.2 or newer."); return; }
         if (room.members.size >= 4) { fail(ws, "full", "This room already has four players."); return; }
       }
       const usedSlots = new Set([...room.members.values()].map(m => m.slot));

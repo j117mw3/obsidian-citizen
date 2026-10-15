@@ -20,9 +20,9 @@ const HELP = [
   "Space: pause or resume motion",
   "A: animate, watching notes appear in the order they were created",
   "N: supernova, collapse everything, explode it and let it re-settle",
-  "P: Pilot mode. W A S D fly, mouse looks, Shift boosts, X brakes, click or F fires. T locks the target, G warps to it and H returns to the hub (both disabled in rooms), V switches between chase and cockpit view. Esc frees the mouse, P leaves.",
-  "R: reset the view · L: note list · /: search · Esc: clear",
-  "Mouse: drag to orbit, scroll to zoom, click to select, double-click or Ctrl+click to open, right-click to clear selection",
+  "P: Pilot mode. W A S D fly, mouse looks, Shift boosts, X brakes, click or F fires. T locks a note target, G warps to it and H returns to the hub. In a room, T marks an anonymous star and G travels there; firing and flight remain host-authoritative.",
+  "R: reset the view · L: note list · /: search · Esc: clear. During multiplayer, click a star to set a travel target; notes cannot be selected or opened.",
+  "Mouse: drag to orbit, scroll to zoom, click to select outside a room or set a travel target inside one, double-click or Ctrl+click to open outside a room, right-click to clear",
 ];
 
 export class ConstellationApp {
@@ -67,6 +67,8 @@ export class ConstellationApp {
   private onMq = () => this.applySettings(this.settings);
   private lastAnnounce = "";
 
+  get inRoom(): boolean { return !!this.network?.active; }
+
   constructor(parent: HTMLElement, private host: Host, private settings: ConstellationSettings) {
     this.helpId = "cg-help-" + ++instances;
     this.root = el("div", "cg-root", { role: "region", "aria-label": "Constellation graph of your notes" });
@@ -87,6 +89,9 @@ export class ConstellationApp {
       onPilot: (a, text) => this.onPilot(a, text),
       onAudioMute: (which, muted) => this.host.updateSettings?.(which === "engine" ? { pilotMuteEngine: muted } : { pilotMuteAfterburner: muted }),
       onNetworkFrame: input => this.network?.sendInput(input),
+      onNavigationTarget: target => { if (this.inRoom) this.multiplayerStatus.textContent = target ? `Star marked. ${this.renderer.pilotActive ? "Press G to travel there." : "Enter Pilot mode (P), then press G to travel."}` : "Navigation target cleared."; },
+      onFastTravel: target => this.network?.requestFastTravel(target),
+      onFire: (sequence, gun, aimPoint) => this.network?.fire(sequence, gun, aimPoint),
     };
     let made: GraphRenderer | null = null;
     if (webglAvailable()) {
@@ -123,7 +128,7 @@ export class ConstellationApp {
     this.multiplayerService = el("p", "cg-multiplayer-service");
     this.updateRoomServiceInfo();
     this.multiplayerPanel.appendChild(this.multiplayerService);
-    this.multiplayerPanel.appendChild(el("p", "cg-multiplayer-privacy", {}, "Joining shares anonymous star positions, connections and group colours. Note names, paths, tags and file contents stay on your computer."));
+    this.multiplayerPanel.appendChild(el("p", "cg-multiplayer-privacy", {}, "Joining shares anonymous star positions, connections and group colours. Note names, paths, tags and file contents stay on your computer. Notes cannot be selected or opened in a room; click a star to mark it, then press G to travel."));
     const nameLabel = el("label", "cg-multiplayer-name", {}, "Display name");
     this.multiplayerName = el("input", "", { type: "text", maxlength: "24", autocomplete: "nickname", "aria-label": "Display name", placeholder: "Pilot" });
     this.multiplayerName.value = settings.multiplayerName;
@@ -222,11 +227,11 @@ export class ConstellationApp {
       positions: (id, positions) => this.renderer.setRemotePositions(id, positions),
       message: (from, message) => this.onNetworkMessage(from, message),
       playerState: (id, pose) => {
-        if (id === this.network?.localPlayerId) this.renderer.setAuthoritativePose(pose); else this.renderer.setRemoteShip(id, pose);
+        if (id === this.network?.localPlayerId) this.renderer.setAuthoritativePose(pose); else this.renderer.setRemoteShip(id, pose, this.network?.members.find(member => member.id === id)?.name ?? "Pilot");
         this.playerStates.set(id, pose);
         this.updatePlayerRow(id, pose);
       },
-      shotState: (shots, impacts) => this.renderer.setRemoteShots(shots, impacts),
+      shotState: (shots, impacts) => this.renderer.setRemoteShots(shots, impacts, this.network?.localPlayerId),
       removed: id => { if (id) { this.renderer.removeRemote(id); this.remoteIds.delete(id); } },
       authority: (_hostId, _epoch, _checkpoint) => { this.multiplayerStatus.textContent = "Room authority transferred. Reconnecting the shared session…"; },
     }, () => ({ data: this.data, nodes: this.renderer.nodes }), () => this.roomServiceUrl());
@@ -255,6 +260,7 @@ export class ConstellationApp {
     if (idx >= 0) this.showDetail(idx); else this.detail.hidden = true;
     this.runSearch();
     this.network?.setLocalGraph(data);
+    if (this.network?.active) this.renderer.setLocalTopology(this.network.localPlayerId, this.network.localTopology);
   }
 
   setActive(id: string | null): void { this.renderer.setActive(id ? this.renderer.indexOf(id) : -1); }
@@ -343,9 +349,19 @@ export class ConstellationApp {
       if (pose) this.updatePlayerRow(member.id, pose);
     }
     const joined = !!selfId;
+    this.renderer.setPlayerNames(new Map(members.filter(member => member.id !== selfId).map(member => [member.id, member.name])));
+    this.renderer.setLocalTopology(joined ? selfId : "", joined ? this.network.localTopology : null);
     this.multiplayerCode.disabled = joined; this.multiplayerConsent.disabled = joined;
+    this.search.disabled = joined; this.listBtn.disabled = joined;
+    this.search.hidden = joined; this.listBtn.hidden = joined; this.legend.hidden = joined;
+    if (joined) {
+      this.renderer.clearSelection(); this.renderer.setSearch(null);
+      this.search.value = ""; this.list.hidden = true; this.detail.hidden = true; this.tip.hidden = true;
+      this.listBtn.setAttribute("aria-expanded", "false");
+    }
     if (!joined) {
       this.renderer.setMultiplayer(false); this.renderer.setWorldOrigin(0);
+      this.renderer.setLocalTopology("", null);
       for (const id of this.remoteIds) this.renderer.removeRemote(id);
       this.remoteIds.clear(); this.multiplayerConsent.checked = false;
     } else {
@@ -426,6 +442,7 @@ export class ConstellationApp {
   }
 
   private toggleList(force?: boolean): void {
+    if (this.inRoom) return;
     const show = force ?? this.list.hidden;
     this.list.hidden = !show;
     this.listBtn.setAttribute("aria-expanded", String(show));
@@ -443,6 +460,7 @@ export class ConstellationApp {
   private firstMatch(): number { return this.matches()[0] ?? -1; }
 
   private runSearch(): void {
+    if (this.inRoom) { this.search.value = ""; this.renderer.setSearch(null); return; }
     const q = this.search.value.trim();
     this.renderer.setSearch(q ? new Set(this.matches()) : null);
     if (!this.list.hidden) this.renderList();
@@ -451,6 +469,7 @@ export class ConstellationApp {
 
   private renderList(): void {
     this.listBody.replaceChildren();
+    if (this.inRoom) return;
     const nodes = this.renderer.nodes, all = this.matches(), LIMIT = 150;
     for (const i of all.slice(0, LIMIT)) {
       const n = nodes[i], g = this.data.groups[n.gi];
@@ -472,6 +491,7 @@ export class ConstellationApp {
   private links(n: { deg: number }): string { return `${n.deg} ${n.deg === 1 ? "link" : "links"}`; }
 
   private showDetail(i: number): void {
+    if (this.inRoom) { this.detail.hidden = true; return; }
     const n = this.renderer.nodes[i]; if (!n) { this.detail.hidden = true; return; }
     const g = this.data.groups[n.gi];
     const hadFocus = this.detail.contains(document.activeElement); // the buttons below are about to be replaced
@@ -510,11 +530,13 @@ export class ConstellationApp {
   // ----------------------------------------------------------------- behaviour
 
   private selectIndex(i: number, fly: boolean): void {
+    if (this.inRoom) return;
     this.renderer.setSelected(i, fly);
     this.onSelect(i);
   }
 
   private onSelect(i: number): void {
+    if (this.inRoom) { this.detail.hidden = true; return; }
     if (i < 0) { this.detail.hidden = true; this.announce("Selection cleared"); return; }
     this.showDetail(i);
     const n = this.renderer.nodes[i], g = this.data.groups[n.gi];
@@ -522,6 +544,7 @@ export class ConstellationApp {
   }
 
   private onHover(i: number): void {
+    if (this.inRoom) { this.tip.hidden = true; return; }
     if (i < 0) { this.tip.hidden = true; return; }
     const n = this.renderer.nodes[i], g = this.data.groups[n.gi];
     this.tip.replaceChildren(el("strong", "", {}, n.name), el("span", "", {}, `${g?.label ?? ""} · ${this.links(n)}`));
@@ -535,11 +558,19 @@ export class ConstellationApp {
   };
 
   private openIndex(i: number, newTab: boolean): void {
+    if (this.inRoom) return;
     const n = this.renderer.nodes[i]; if (n) this.host.openNote(n.id, newTab);
   }
 
   private onKey = (e: KeyboardEvent) => {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (this.inRoom) {
+      if (e.key === "p" || e.key === "P") this.togglePilot();
+      else if (e.key === "Escape") this.renderer.clearSelection();
+      else if (e.key === "?") this.setHelp(this.help.hidden);
+      else return;
+      e.preventDefault(); return;
+    }
     const sel = this.renderer.selectedIndex;
     const stepOrder = (d: number) => {
       if (!this.order.length) return;

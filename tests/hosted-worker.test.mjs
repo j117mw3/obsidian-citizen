@@ -61,14 +61,17 @@ test("hosted Worker serves four-player rooms and elects a replacement host", { t
     assert.equal(ready, true, `hosted Worker did not start: ${logs.slice(-1500)}`);
     const url = `ws://127.0.0.1:${port}/`;
     const connect = async () => { const item = client(url); clients.push(item); await item.opened; return item; };
-    const host = await connect(); host.ws.send(JSON.stringify({ type: "create", name: "Synthetic Host" }));
+    const host = await connect(); host.ws.send(JSON.stringify({ type: "create", protocol: 2, name: "Synthetic Host" }));
     const created = await host.wait(message => message.type === "created");
     assert.match(created.code, /^[A-HJ-NP-Z2-9]{8}$/);
     assert.equal(created.members.length, 1);
+    const oldClient = await connect(); oldClient.ws.send(JSON.stringify({ type: "join", protocol: 1, code: created.code, name: "Old Client" }));
+    assert.equal((await oldClient.wait(message => message.type === "error")).code, "update-required");
+    oldClient.ws.close();
 
     const members = [created];
     for (const name of ["Synthetic Two", "Synthetic Three", "Late Joiner"]) {
-      const pilot = await connect(); pilot.ws.send(JSON.stringify({ type: "join", code: created.code, name }));
+      const pilot = await connect(); pilot.ws.send(JSON.stringify({ type: "join", protocol: 2, code: created.code, name }));
       const joined = await pilot.wait(message => message.type === "joined");
       members.push(joined);
       assert.equal(joined.members.length, members.length);
@@ -77,7 +80,7 @@ test("hosted Worker serves four-player rooms and elects a replacement host", { t
 
     const privateFixturePath = "Distinctive-Vault-Path-79Q4.md";
     host.ws.send(JSON.stringify({ type: "signal", to: members[1].selfId, data: { description: { type: "offer", sdp: "v=0\r\n" }, filePath: privateFixturePath } }));
-    const relayedSignal = await clients[1].wait(message => message.type === "signal");
+    const relayedSignal = await clients[2].wait(message => message.type === "signal");
     assert.deepEqual(relayedSignal.data, { description: { type: "offer", sdp: "v=0\r\n" } }, "the signaling service forwards only WebRTC fields");
 
     host.ws.send(JSON.stringify({ type: "ice-refresh" }));
@@ -85,16 +88,16 @@ test("hosted Worker serves four-player rooms and elects a replacement host", { t
     assert.ok(["pending", "unavailable"].includes(refreshed.relayStatus));
     assert.ok(refreshed.iceServers.every(server => String(server.urls).startsWith("stun:")), "test requests do not call a paid or metered relay");
 
-    const fifth = await connect(); fifth.ws.send(JSON.stringify({ type: "join", code: created.code, name: "Fifth Pilot" }));
+    const fifth = await connect(); fifth.ws.send(JSON.stringify({ type: "join", protocol: 2, code: created.code, name: "Fifth Pilot" }));
     const capacity = await fifth.wait(message => message.type === "error");
     assert.equal(capacity.code, "full");
     fifth.ws.close();
 
     host.ws.terminate();
-    const authority = await clients[1].wait(message => message.type === "authority");
+    const authority = await clients[2].wait(message => message.type === "authority");
     assert.equal(authority.hostId, members[1].selfId);
     assert.equal(authority.epoch, 2);
-    for (const pilot of clients.slice(1, 4)) pilot.ws.close();
+    for (const pilot of clients.slice(2, 5)) pilot.ws.close();
 
     let empty = false;
     for (let attempt = 0; attempt < 30; attempt++) {

@@ -56,8 +56,11 @@ test("signaling supports four members, temporary TURN credentials, and determini
     assert.equal(ready, true, "signaling service did not start");
     const url = `ws://127.0.0.1:${port}`;
     const connect = async () => { const client = socketClient(url); clients.push(client); await client.opened; return client; };
-    const host = await connect(); host.ws.send(JSON.stringify({ type: "create", name: "Host" }));
+    const host = await connect(); host.ws.send(JSON.stringify({ type: "create", protocol: 2, name: "Host" }));
     const created = await host.wait(m => m.type === "created");
+    const oldClient = await connect(); oldClient.ws.send(JSON.stringify({ type: "join", protocol: 1, code: created.code, name: "Old Client" }));
+    assert.equal((await oldClient.wait(m => m.type === "error")).code, "update-required");
+    oldClient.ws.close();
     const turn = created.iceServers.find(server => String(server.urls).startsWith("turn:"));
     assert.ok(turn);
     const expiry = Number(turn.username.split(":", 1)[0]);
@@ -66,13 +69,13 @@ test("signaling supports four members, temporary TURN credentials, and determini
     assert.equal((await fetch(`http://127.0.0.1:${port}/ice`)).status, 404, "TURN credentials are only issued to a room participant");
     const members = [created];
     for (const name of ["Pilot 2", "Pilot 3", "Pilot 4"]) {
-      const client = await connect(); client.ws.send(JSON.stringify({ type: "join", code: created.code, name }));
+      const client = await connect(); client.ws.send(JSON.stringify({ type: "join", protocol: 2, code: created.code, name }));
       members.push(await client.wait(m => m.type === "joined"));
     }
     assert.equal(members[3].members.length, 4);
     assert.deepEqual(members[3].members.map(m => m.slot), [0, 1, 2, 3]);
 
-    const tooMany = await connect(); tooMany.ws.send(JSON.stringify({ type: "join", code: created.code, name: "Fifth" }));
+    const tooMany = await connect(); tooMany.ws.send(JSON.stringify({ type: "join", protocol: 2, code: created.code, name: "Fifth" }));
     const capacity = await tooMany.wait(m => m.type === "error");
     assert.equal(capacity.code, "full");
     tooMany.ws.close();
@@ -80,7 +83,7 @@ test("signaling supports four members, temporary TURN credentials, and determini
     const checkpoint = { epoch: 1, players: [{ id: members[1].selfId, health: 70, energy: 0.4 }] };
     host.ws.send(JSON.stringify({ type: "checkpoint", epoch: 1, state: checkpoint }));
     host.ws.terminate();
-    const authority = await clients[1].wait(m => m.type === "authority");
+    const authority = await clients[2].wait(m => m.type === "authority");
     assert.equal(authority.hostId, members[1].selfId, "oldest remaining participant should win election");
     assert.equal(authority.epoch, 2);
     assert.deepEqual(authority.checkpoint.state, checkpoint);

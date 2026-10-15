@@ -3,13 +3,17 @@ import type { SimNode } from "./types";
 import { PilotAudio } from "./sfx";
 import { buildShip, type Ship } from "./ship";
 import { buildCockpit, type Cockpit } from "./cockpit";
-import type { FlightInput, Pose } from "./multiplayer";
+import type { FlightInput, NavigationTarget, Pose } from "./multiplayer";
 
 /** What the pilot needs from the renderer. Kept narrow so the controller never reaches into renderer state. */
 export interface PilotHost {
   nodes(): SimNode[];
   /** The note under a screen point (CSS pixels, relative to the canvas), or -1. `slack` widens every target. */
   pickAt(x: number, y: number, slack: number): number;
+  pickDestinationAt(x: number, y: number, slack: number): NavigationTarget | null;
+  navigationTarget(): NavigationTarget | null;
+  setNavigationTarget(target: NavigationTarget | null): void;
+  requestFastTravel(target: NavigationTarget): void;
   groupLabel(gi: number): string;
   /** Visual radius of a note in scene units. */
   nodeRadius(i: number): number;
@@ -29,6 +33,7 @@ export interface PilotHost {
   leave(): void;
   onAudioMute(which: "engine" | "afterburner", muted: boolean): void;
   onNetworkFrame(input: FlightInput): void;
+  onFire(sequence: number, gun: number, aimPoint: [number, number, number]): void;
 }
 
 export interface PilotOptions {
@@ -152,7 +157,7 @@ interface Warp {
   dist: number;                 // how far from the target to stop
 }
 /** A bolt flies from the gun to the note it was aimed at, and the shot counts when it lands. */
-interface Bolt { from: THREE.Vector3; node: number; point: THREE.Vector3; travelled: number; ctrl: boolean; landed: boolean; fade: number }
+interface Bolt { from: THREE.Vector3; node: number; point: THREE.Vector3; travelled: number; ctrl: boolean; landed: boolean; fade: number; sequence?: number }
 interface Burst { age: number; pos: THREE.Vector3; size: number; line: THREE.LineSegments }
 
 const clamp = (v: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, v));
@@ -199,10 +204,12 @@ export class PilotController {
   private camQuat = new THREE.Quaternion();
 
   private aim = -1;
+  private aimDestination: NavigationTarget | null = null;
   private aimX = 0; private aimY = 0;          // where the nose points, on screen (CSS px)
   private firing = false;
   private cooldown = 0;
   private gun = 0;
+  private fireSequence = 0;
   private lastShot = { i: -1, t: -1e9 };
   private warp: Warp | null = null;
   private bolts: Bolt[] = [];
@@ -369,7 +376,12 @@ export class PilotController {
 
   setOptions(opts: PilotOptions): void {
     const mouseChanged = opts.mouse !== this.opts.mouse;
+    const multiplayerChanged = opts.multiplayer !== this.opts.multiplayer;
     this.opts = { ...opts };
+    if (multiplayerChanged) {
+      this.lastShot = { i: -1, t: -1e9 }; this.aimDestination = null; this.bolts.length = 0; this.warp = null; this.cooldown = 0;
+      if (opts.multiplayer) this.fireSequence = 0;
+    }
     if (mouseChanged && this.active) {
       this.stick.set(0, 0); this.mouseDX = this.mouseDY = this.smX = this.smY = 0;
       if (opts.mouse === "cursor" && this.locked) document.exitPointerLock();
@@ -420,6 +432,11 @@ export class PilotController {
   get multiplayer(): boolean { return this.opts.multiplayer; }
 
   get locked(): boolean { return document.pointerLockElement === this.canvas; }
+  get cockpitView(): boolean { return !this.chase; }
+
+  acknowledgeShot(sequence: number): void {
+    this.bolts = this.bolts.filter(bolt => bolt.sequence !== sequence);
+  }
 
   clearTarget(): void {
     this.lastShot = { i: -1, t: -1e9 };
@@ -617,8 +634,12 @@ export class PilotController {
     this.lightKey(e.code, true);
     switch (e.code) {
       case "KeyK": this.showKeys(!this.keysShown); break;
-      case "KeyT": this.toggleLock(); break;
-      case "KeyG": { const t = this.host.selectedIndex() >= 0 ? this.host.selectedIndex() : this.aim; if (t >= 0) this.warpToNode(t); break; }
+      case "KeyT": if (this.opts.multiplayer) { if (this.aimDestination) this.host.setNavigationTarget(this.aimDestination); } else this.toggleLock(); break;
+      case "KeyG": {
+        if (this.opts.multiplayer) { const target = this.host.navigationTarget(); if (target) this.host.requestFastTravel(target); }
+        else { const t = this.host.selectedIndex() >= 0 ? this.host.selectedIndex() : this.aim; if (t >= 0) this.warpToNode(t); }
+        break;
+      }
       case "KeyH": this.returnToHub(); break;
       case "KeyV": this.opts = { ...this.opts, view: this.chase ? "cockpit" : "chase" }; this.applyLook(); this.host.onState(true, this.chase ? "Chase view" : "Cockpit view"); break;
     }
@@ -938,7 +959,7 @@ export class PilotController {
     this.camQuat.slerp(this.quat, 1 - Math.exp(-rate * dt));
     cam.quaternion.copy(this.camQuat);
     cam.position.copy(this.pos);
-    if (chase) cam.position.add(this.tmpV.copy(CAM_OFFSET).applyQuaternion(this.camQuat));
+    if (chase) cam.position.add(this.tmpV.copy(CAM_OFFSET).setZ(this.opts.multiplayer ? 6.5 : CAM_OFFSET.z).applyQuaternion(this.camQuat));
     const rattle = (this.boosting ? 0.07 : 0) + this.shake * 0.6; // afterburner rattle, and the jolt of an impact
     if (rattle > 0) cam.position.add(this.tmpV.set(Math.random() - 0.5, Math.random() - 0.5, 0).multiplyScalar(rattle).applyQuaternion(this.camQuat));
     this.shake = Math.max(0, this.shake - dt * 2.5);
@@ -962,7 +983,7 @@ export class PilotController {
     const g = this.ship.group;
     g.position.copy(this.pos);
     g.quaternion.copy(this.quat).multiply(this.tmpQ.setFromEuler(this.tmpE.set(this.tilt, 0, this.bank)));
-    g.scale.setScalar(SHIP_SCALE);
+    g.scale.setScalar(SHIP_SCALE * (this.opts.multiplayer ? 2 : 1));
     g.updateMatrixWorld(true);
 
     const len = 0.35 + speed01 * 2.0 + (this.boosting ? 1.2 : 0), flick = 1 + Math.sin(this.clock * 0.09) * 0.08;
@@ -1008,6 +1029,12 @@ export class PilotController {
   // ----------------------------------------------------------------- aim and fire
 
   private updateAim(): void {
+    if (this.opts.multiplayer) {
+      this.aim = -1; this.host.setAim(-1);
+      this.aimDestination = this.host.pickDestinationAt(this.aimX, this.aimY, AIM_SLACK);
+      this.readout.hidden = true;
+      return;
+    }
     const i = this.host.pickAt(this.aimX, this.aimY, AIM_SLACK);
     if (i !== this.aim) { this.aim = i; this.host.setAim(i); if (i >= 0) this.audio.tick(); }
     const n = i >= 0 ? this.host.nodes()[i] : null;
@@ -1027,12 +1054,18 @@ export class PilotController {
   private fire(ctrl: boolean): void {
     if (this.health <= 0 || this.cooldown > 0) return;
     this.cooldown = FIRE_GAP;
-    const i = this.host.pickAt(this.aimX, this.aimY, FIRE_SLACK);
     const point = new THREE.Vector3(0, 0, -RANGE).applyQuaternion(this.quat).add(this.pos);
     // guns fire in a rotating pattern: upper-left, lower-right, upper-right, lower-left
     const order = [0, 3, 1, 2], gun = order[this.gun++ % 4];
     if (this.bolts.length >= MAX_BOLTS) this.bolts.shift();
-    this.bolts.push({ from: this.muzzle(gun, new THREE.Vector3()), node: i, point, travelled: 0, ctrl, landed: false, fade: 0 });
+    if (this.opts.multiplayer) {
+      const sequence = ++this.fireSequence;
+      this.bolts.push({ from: this.muzzle(gun, new THREE.Vector3()), node: -1, point, travelled: 0, ctrl: false, landed: false, fade: 0, sequence });
+      this.host.onFire(sequence, gun, point.toArray() as [number, number, number]);
+    } else {
+      const i = this.host.pickAt(this.aimX, this.aimY, FIRE_SLACK);
+      this.bolts.push({ from: this.muzzle(gun, new THREE.Vector3()), node: i, point, travelled: 0, ctrl, landed: false, fade: 0 });
+    }
     this.audio.laser(gun);
   }
 

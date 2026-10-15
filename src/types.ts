@@ -1,6 +1,7 @@
 import type { ConstellationSettings } from "./settings";
 import type { AnonymousTopology } from "./multiplayer";
 import type { FlightInput, ImpactSnapshot, Pose, ShotSnapshot } from "./multiplayer";
+import type { NavigationTarget } from "./multiplayer";
 
 export interface RawNode {
   id: string;
@@ -62,11 +63,15 @@ export interface RendererCallbacks {
   onPilot?(active: boolean, text: string): void;
   onAudioMute?(which: "engine" | "afterburner", muted: boolean): void;
   onNetworkFrame?(input: FlightInput): void;
+  onNavigationTarget?(target: NavigationTarget | null): void;
+  onFastTravel?(target: NavigationTarget): void;
+  onFire?(sequence: number, gun: number, aimPoint: [number, number, number]): void;
 }
 
 /** The 3D renderer and the list-only fallback expose the same surface, so the UI never has to care which it has. */
 export interface GraphRenderer {
   readonly nodes: SimNode[];
+  readonly inMultiplayer: boolean;
   readonly selectedIndex: number;
   readonly isPaused: boolean;
   indexOf(id: string): number;
@@ -95,10 +100,14 @@ export interface GraphRenderer {
   setWorldOrigin(slot: number): void;
   setMultiplayer(active: boolean): void;
   setRemoteTopology(playerId: string, topology: AnonymousTopology): void;
+  setLocalTopology(playerId: string, topology: AnonymousTopology | null): void;
+  setPlayerNames(names: Map<string, string>): void;
   setRemotePositions(playerId: string, positions: Float32Array): void;
-  setRemoteShip(playerId: string, pose: Pose): void;
-  setRemoteShots(shots: ShotSnapshot[], impacts: ImpactSnapshot[]): void;
+  setRemoteShip(playerId: string, pose: Pose, name?: string): void;
+  setRemoteShots(shots: ShotSnapshot[], impacts: ImpactSnapshot[], localPlayerId?: string): void;
   setAuthoritativePose(pose: Pose): void;
+  clearSelection(): void;
+  requestFastTravel(): void;
   removeRemote(playerId: string): void;
   destroy(): void;
 }

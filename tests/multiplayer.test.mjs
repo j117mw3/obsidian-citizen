@@ -4,7 +4,7 @@ import { basename } from "node:path";
 import { build } from "esbuild";
 
 const built = await build({
-  entryPoints: ["src/multiplayer.ts", "src/combat.ts"],
+  entryPoints: ["src/multiplayer.ts", "src/combat.ts", "src/sim.ts"],
   bundle: true,
   platform: "node",
   format: "esm",
@@ -20,6 +20,7 @@ async function loadBundle(name) {
 }
 const network = await loadBundle("multiplayer");
 const combat = await loadBundle("combat");
+const sim = await loadBundle("sim");
 
 const privateMarkers = ["PRIVATE_TITLE_CobaltVault", "PRIVATE_PATH_Secrets/Bluebird.md", "PRIVATE_TAG_Clinical", "PRIVATE_BODY_needle" ];
 function fixture() {
@@ -58,12 +59,16 @@ test("anonymous topology and all application packets omit local vault metadata",
 
   const sent = [];
   const session = new network.MultiplayerSession(callbacks(), () => ({ data: fixture(), nodes: [{ x: 1, y: 2, z: 3 }, { x: 4, y: 5, z: 6 }] }), () => "ws://localhost:8787");
-  session.selfId = "self";
-  const peer = peerStub(); session.peers.set("remote", peer);
+  const self = "11111111-1111-4111-8111-111111111111", peerId = "22222222-2222-4222-8222-222222222222";
+  session.selfId = self; session.hostId = peerId; session.epoch = 4;
+  session.roster = [{ id: self, name: "Host" }, { id: peerId, name: "Remote" }];
+  const peer = peerStub(); session.peers.set(peerId, peer);
   session.setLocalGraph(fixture());
   session.pumpTopologies();
-  session.sendPositionsTo("remote");
+  session.sendPositionsTo(peerId);
   session.sendInput({ thrust: 1, strafe: 0, lift: 0, roll: 0, pitch: 0, yaw: 0, boost: false, brake: false, fire: false, active: true });
+  session.fire(1, 2, [10, 20, 30]);
+  session.requestFastTravel({ ownerId: session.selfId, starId: session.localTopology.nodes[0].id, revision: session.localTopology.revision });
   sent.push(...peer.control.sent, ...peer.live.sent.map(v => v instanceof ArrayBuffer ? Buffer.from(v).toString("base64") : v));
   for (const marker of privateMarkers) assert.equal(JSON.stringify(sent).includes(marker), false);
 });
@@ -97,6 +102,45 @@ test("topology revisions and position snapshots reject stale or malformed traffi
   assert.deepEqual(accepted, [2]);
 });
 
+test("host accepts only current-epoch anonymous navigation and bounded authoritative fire requests", () => {
+  const selfId = "11111111-1111-4111-8111-111111111111", guestId = "22222222-2222-4222-8222-222222222222";
+  const graphNodes = [{ x: 0, y: 0, z: -500, deg: 1 }, { x: 10, y: 0, z: -520, deg: 2 }];
+  const session = new network.MultiplayerSession(callbacks(), () => ({ data: fixture(), nodes: graphNodes }), () => "ws://localhost:8787");
+  session.selfId = session.hostId = selfId; session.epoch = 3;
+  session.roster = [{ id: selfId, name: "Host" }, { id: guestId, name: "Guest" }];
+  const peer = peerStub(); session.peers.set(guestId, peer);
+  session.setLocalGraph(fixture());
+  session.world = new combat.CombatWorld(3);
+  session.world.add({ id: guestId, slot: 1, name: "Guest", joinedAt: 2 });
+  session.world.players.get(guestId).active = true;
+
+  const target = { ownerId: selfId, starId: session.localTopology.nodes[0].id, revision: session.localTopology.revision };
+  session.onPeerMessage(guestId, JSON.stringify({ type: "navigate", epoch: 2, target }), "control");
+  assert.equal(session.world.players.get(guestId).travel, null, "stale epochs cannot start travel");
+  session.onPeerMessage(guestId, JSON.stringify({ type: "navigate", epoch: 3, target: { ...target, revision: target.revision + 1 } }), "control");
+  assert.equal(session.world.players.get(guestId).travel, null, "stale topology revisions cannot start travel");
+  session.onPeerMessage(guestId, JSON.stringify({ type: "navigate", epoch: 3, target }), "control");
+  assert.ok(session.world.players.get(guestId).travel);
+
+  session.onPeerMessage(guestId, JSON.stringify({ type: "fire", epoch: 2, sequence: 1, gun: 0, aimPoint: [2300, 0, -900] }), "control");
+  session.onPeerMessage(guestId, JSON.stringify({ type: "fire", epoch: 3, sequence: 1, gun: 0, aimPoint: [2300, 0, 900] }), "control");
+  assert.equal(session.world.shotSnapshots().length, 0, "stale and backward shots are rejected");
+  session.onPeerMessage(guestId, JSON.stringify({ type: "fire", epoch: 3, sequence: 1, gun: 2, aimPoint: [2300, 0, -900] }), "control");
+  assert.equal(session.world.shotSnapshots()[0]?.gun, 2);
+  assert.equal(session.world.players.get(guestId).travel, null, "an accepted shot cancels travel");
+  session.onPeerMessage(guestId, JSON.stringify({ type: "open", path: privateMarkers[1] }), "control");
+  assert.equal(session.world.shotSnapshots().length, 1, "remote note-opening requests are ignored");
+});
+
+test("multiplayer map coordinates double around their stable region and restore exactly in solo", () => {
+  for (const [origin, solo] of [[0, [12, -8, 30]], [2300, [2312, -8, 30]], [-1150, [-1138, -8, 30]]]) {
+    const scaled = solo.map(value => sim.mapCoordinate(value, origin, 2));
+    assert.deepEqual(scaled, solo.map(value => origin + (value - origin) * 2));
+    assert.equal(scaled[0] - origin, (solo[0] - origin) * 2);
+    assert.deepEqual(solo.map(value => sim.mapCoordinate(value, origin, 1)), solo);
+  }
+});
+
 const emptyInput = { thrust: 0, strafe: 0, lift: 0, roll: 0, pitch: 0, yaw: 0, boost: false, brake: false, fire: false, active: false };
 function addPair(world) {
   world.add({ id: "attacker", slot: 0, name: "A", joinedAt: 1 });
@@ -110,17 +154,18 @@ function addPair(world) {
 
 test("host projectiles sweep travel, deal one ten-point hit, and checkpoint in-flight state", () => {
   const world = new combat.CombatWorld(4), { attacker, target } = addPair(world);
-  attacker.input = { ...emptyInput, active: true, fire: true };
+  assert.equal(world.fireShot("attacker", 1, 0, 10_000), true);
   world.step(1 / 60, 10_000);
-  attacker.input = { ...attacker.input, fire: false };
   for (let i = 0; i < 5; i++) world.step(1 / 60, 10_017 + i * 17);
   assert.equal(target.health, 90);
   assert.equal(world.impactSnapshots(10_100).at(-1)?.kind, "ship");
 
-  attacker.input = { ...attacker.input, fire: true };
+  assert.equal(world.fireShot("attacker", 2, 3, 10_200), true);
   world.step(1 / 60, 10_200);
   const checkpoint = world.snapshot(10_200);
   assert.ok(checkpoint.shots.length > 0);
+  assert.equal(checkpoint.shots[0].gun, 3);
+  assert.deepEqual(checkpoint.shots[0].origin, world.shotSnapshots()[0].origin);
   const resumed = new combat.CombatWorld(5);
   assert.equal(resumed.restore(checkpoint, 99_000_250), true, "checkpoint timers are relative and survive clock skew between participants");
   assert.equal(resumed.shotSnapshots().length, checkpoint.shots.length);
@@ -128,13 +173,44 @@ test("host projectiles sweep travel, deal one ten-point hit, and checkpoint in-f
   assert.equal(resumed.restore({ ...checkpoint, players: [null] }, 10_250), false);
 });
 
+test("authoritative shots originate at cannon muzzles and converge to a validated aim point", () => {
+  const world = new combat.CombatWorld(1), { attacker } = addPair(world);
+  const muzzle = [1.61 * 0.68, 0.51 * 0.68, -0.97 * 0.68];
+  const aimPoint = [120, 40, -900];
+  assert.equal(world.fireShot("attacker", 1, 3, 1000, aimPoint), true);
+  const shot = world.shotSnapshots()[0];
+  assert.deepEqual(shot.origin, muzzle);
+  const expected = [aimPoint[0] - muzzle[0], aimPoint[1] - muzzle[1], aimPoint[2] - muzzle[2]];
+  const length = Math.hypot(...expected);
+  assert.ok(Math.abs(shot.direction[0] - expected[0] / length) < 1e-12);
+  assert.ok(Math.abs(shot.direction[1] - expected[1] / length) < 1e-12);
+  assert.ok(Math.abs(shot.direction[2] - expected[2] / length) < 1e-12);
+  assert.equal(world.fireShot("attacker", 2, 0, 1200, [0, 0, 100]), false, "shots behind the ship are rejected");
+  assert.equal(world.fireShot("attacker", 3, 0, 1400, [0, 0, -5000]), false, "unbounded shots are rejected");
+});
+
+test("travel is checkpointed and movement cancels it without refilling resources", () => {
+  const world = new combat.CombatWorld(7), { attacker } = addPair(world);
+  attacker.energy = 0.42;
+  assert.equal(world.startTravel("attacker", [0, 0, -500], 2, 1000), true);
+  world.step(1 / 60, 1500);
+  const checkpoint = world.snapshot(1500);
+  assert.ok(checkpoint.players[0].travel);
+  const resumed = new combat.CombatWorld(8);
+  assert.equal(resumed.restore(checkpoint, 9000), true);
+  assert.ok(resumed.players.get("attacker").travel);
+  assert.equal(resumed.players.get("attacker").energy, 0.42);
+  resumed.setInput("attacker", { ...emptyInput, active: true, thrust: 1 }, 9040);
+  assert.equal(resumed.players.get("attacker").travel, null);
+  assert.equal(resumed.players.get("attacker").energy, 0.42);
+});
+
 test("projectile hits on stars are visuals only and spawn protection holds", () => {
   const world = new combat.CombatWorld(1), { attacker, target } = addPair(world);
   target.protectedUntil = 30_000;
   world.setObstacleSet("remote-vault", new Float32Array([0, 0, -45]));
-  attacker.input = { ...emptyInput, active: true, fire: true };
+  assert.equal(world.fireShot("attacker", 1, 0, 20_000), true);
   world.step(1 / 60, 20_000);
-  attacker.input = { ...attacker.input, fire: false };
   for (let i = 0; i < 4; i++) world.step(1 / 60, 20_017 + i * 17);
   assert.equal(target.health, 100);
   assert.equal(world.impactSnapshots(20_100).at(-1)?.kind, "star");
@@ -143,9 +219,8 @@ test("projectile hits on stars are visuals only and spawn protection holds", () 
 test("lethal damage respawns at five seconds with full health, boost, and three-second protection", () => {
   const world = new combat.CombatWorld(1), { attacker, target } = addPair(world);
   target.health = 10;
-  attacker.input = { ...emptyInput, active: true, fire: true };
+  assert.equal(world.fireShot("attacker", 1, 0, 30_000), true);
   world.step(1 / 60, 30_000);
-  attacker.input = { ...attacker.input, fire: false };
   target.input = { ...emptyInput, active: true };
   for (let i = 1; i <= 6 && target.health > 0; i++) world.step(1 / 60, 30_000 + i * 17);
   assert.equal(target.health, 0);

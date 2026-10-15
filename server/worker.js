@@ -220,6 +220,7 @@ export class RoomCoordinator extends DurableObject {
     if (message.type === "create" || message.type === "join") {
       if (!this.consume(`room:${connection.ip}`, 20)) { this.fail(ws, "rate-limited", "Too many room requests. Wait a minute and try again."); return; }
       if (connection.member) { this.fail(ws, "already-joined", "This connection already joined a room."); return; }
+      if (message.protocol !== 2) { this.fail(ws, "update-required", "Update the plugin to version 0.3.2 or newer to use this room service."); return; }
       const name = typeof message.name === "string" ? message.name.trim().slice(0, 24) : "";
       if (!name) { this.fail(ws, "bad-name", "Enter a display name (up to 24 characters)."); return; }
       let room;
@@ -227,12 +228,13 @@ export class RoomCoordinator extends DurableObject {
         if (this.rooms.size >= this.maxRooms) { this.fail(ws, "service-full", "The room service is at capacity. Try again later."); return; }
         let code = randomCode();
         while (this.rooms.has(code)) code = randomCode();
-        room = { code, hostId: "", epoch: 1, members: new Map(), checkpoint: null, nextMemberOrder: 0 };
+        room = { code, protocol: message.protocol, hostId: "", epoch: 1, members: new Map(), checkpoint: null, nextMemberOrder: 0 };
         this.rooms.set(code, room); connection.roomCode = code;
       } else {
         const code = typeof message.code === "string" ? message.code.toUpperCase() : "";
         room = this.rooms.get(code);
         if (!room) { this.fail(ws, "room-not-found", "That room code is invalid or the room has closed."); return; }
+        if (room.protocol !== message.protocol) { this.fail(ws, "update-required", "Everyone in the room must install plugin version 0.3.2 or newer."); return; }
         if (room.members.size >= ROOM_CAPACITY) { this.fail(ws, "full", "This room already has four players."); return; }
         connection.roomCode = code;
       }

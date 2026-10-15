@@ -3,6 +3,7 @@ import { CombatWorld, type RoomCheckpoint } from "./combat";
 
 export const MAX_SHARED_NODES = 20_000;
 export const MAX_SHARED_LINKS = 100_000;
+export const ROOM_PROTOCOL = 2;
 export const HOSTED_SIGNALING_URL = "wss://constellation-rooms.mrassetto.workers.dev";
 const MAX_COORDINATE = 1_000_000;
 const MAGIC = 0x43475031; // CGP1
@@ -17,8 +18,9 @@ export interface AnonymousGroup { color: string; count: number }
 export interface AnonymousNode { id: string; group: number; degree: number }
 export interface AnonymousTopology { revision: number; nodes: AnonymousNode[]; groups: AnonymousGroup[]; links: [string, string][] }
 export interface AnonymousPlayer { id: string; name: string; joinedAt: number; slot: number }
+export interface NavigationTarget { ownerId: string; starId: string; revision: number }
 export interface Pose { position: [number, number, number]; rotation: [number, number, number, number]; velocity: [number, number, number]; health: number; energy: number; boostLocked: boolean; boostHold: number; regenDelay: number; active: boolean; respawnAt: number; protectedUntil: number }
-export interface ShotSnapshot { id: string; ownerId: string; position: [number, number, number]; direction: [number, number, number] }
+export interface ShotSnapshot { id: string; ownerId: string; gun: number; origin: [number, number, number]; position: [number, number, number]; direction: [number, number, number] }
 export interface ImpactSnapshot { id: string; position: [number, number, number]; kind: "star" | "ship" }
 
 /** Build a deliberately lossy network representation. File IDs and all note labels stop here. */
@@ -86,6 +88,8 @@ export function encodePositionChunks(nodes: readonly SimNode[], topology: Anonym
 
 type SignalMessage = { type: string; [key: string]: unknown };
 export type GameMessage = { type: "input"; epoch: number; input: FlightInput }
+  | { type: "navigate"; epoch: number; target: NavigationTarget }
+  | { type: "fire"; epoch: number; sequence: number; gun: number; aimPoint: [number, number, number] }
   | { type: "ship"; epoch: number; sequence: number; playerId: string; pose: Pose }
   | { type: "shots"; epoch: number; sequence: number; shots: ShotSnapshot[]; impacts: ImpactSnapshot[] };
 export interface FlightInput { thrust: number; strafe: number; lift: number; roll: number; pitch: number; yaw: number; boost: boolean; brake: boolean; fire: boolean; active: boolean }
@@ -100,6 +104,7 @@ export interface MultiplayerCallbacks {
   authority(hostId: string, epoch: number, checkpoint: unknown): void;
   playerState(playerId: string, pose: Pose): void;
   shotState(shots: ShotSnapshot[], impacts: ImpactSnapshot[]): void;
+  navigation?(target: NavigationTarget | null, state?: "selected" | "travelling" | "cancelled"): void;
 }
 
 interface PositionAssembly { revision: number; sequence: number; totalBytes: number; chunks: Array<Uint8Array | undefined>; received: number; createdAt: number }
@@ -155,7 +160,7 @@ export class MultiplayerSession {
   private hostId = "";
   private epoch = 0;
   private roster: AnonymousPlayer[] = [];
-  private readonly peers = new Map<string, { pc: RTCPeerConnection; control?: RTCDataChannel; live?: RTCDataChannel; topology?: AnonymousTopology;
+  private readonly peers = new Map<string, { pc: RTCPeerConnection; control?: RTCDataChannel; live?: RTCDataChannel; topology?: AnonymousTopology; positions?: Float32Array; positionsRevision?: number;
     signalChain: Promise<void>; pendingCandidates: RTCIceCandidateInit[];
     positionSequence: number; lastPositionSequence: number; topologySend: { revision: number; json: string; next: number; total: number } | null;
     topologyReceive: { revision: number; total: number; parts: string[]; bytes: number; received: number } | null;
@@ -192,6 +197,8 @@ export class MultiplayerSession {
   get isHost(): boolean { return this.active && this.selfId === this.hostId; }
   get room(): string { return this.roomCode; }
   get localPlayerId(): string { return this.selfId; }
+  get localTopology(): AnonymousTopology | null { return this.topology; }
+  get members(): readonly AnonymousPlayer[] { return this.roster; }
 
   async create(name: string): Promise<void> { await this.open("create", name); }
   async join(code: string, name: string): Promise<void> { await this.open("join", name, code); }
@@ -220,7 +227,7 @@ export class MultiplayerSession {
       timeout = window.setTimeout(() => fail(new Error(`The room service at ${host} did not respond within 15 seconds.`)), 15_000);
       ws.addEventListener("open", () => {
         if (this.socket !== ws || this.closed) return;
-        ws.send(JSON.stringify(action === "create" ? { type: "create", name: cleanName } : { type: "join", code: code.trim().toUpperCase(), name: cleanName }));
+        ws.send(JSON.stringify(action === "create" ? { type: "create", protocol: ROOM_PROTOCOL, name: cleanName } : { type: "join", protocol: ROOM_PROTOCOL, code: code.trim().toUpperCase(), name: cleanName }));
       });
       ws.addEventListener("message", event => {
         if (this.socket !== ws || this.closed) return;
@@ -406,6 +413,11 @@ export class MultiplayerSession {
       let msg: unknown; try { msg = JSON.parse(data); } catch { return; }
       if (!msg || typeof msg !== "object") return;
       const m = msg as Record<string, unknown>;
+      if (m.type === "navigate" && this.isHost && m.epoch === this.epoch && this.validNavigationTarget(m.target)) { this.startRequestedTravel(id, m.target); return; }
+      if (m.type === "fire" && this.isHost && m.epoch === this.epoch && Number.isSafeInteger(m.sequence) && Number.isInteger(m.gun)
+        && Array.isArray(m.aimPoint) && m.aimPoint.length === 3 && m.aimPoint.every(v => typeof v === "number" && Number.isFinite(v))) {
+        this.world?.fireShot(id, m.sequence as number, m.gun as number, Date.now(), m.aimPoint as [number, number, number]); return;
+      }
       if (m.type !== "topology-chunk" || !Number.isSafeInteger(m.revision) || (m.revision as number) < 1
         || !Number.isInteger(m.index) || !Number.isInteger(m.total) || (m.index as number) < 0 || (m.total as number) < 1
         || (m.total as number) > Math.ceil(MAX_TOPOLOGY_CHARS / TOPOLOGY_CHUNK_CHARS) || (m.index as number) >= (m.total as number)
@@ -427,7 +439,7 @@ export class MultiplayerSession {
       try {
         const value = JSON.parse(transfer.parts.join(""));
         if (!validTopology(value) || value.revision !== transfer.revision || (peer.topology && value.revision <= peer.topology.revision)) { peer.topologyReceive = null; return; }
-        peer.topology = value; peer.lastPositionSequence = 0; peer.positionReceive.clear(); peer.topologyReceive = null;
+        peer.topology = value; peer.positions = undefined; peer.positionsRevision = undefined; peer.lastPositionSequence = 0; peer.positionReceive.clear(); peer.topologyReceive = null;
         this.callbacks.topology(id, value);
       } catch { peer.topologyReceive = null; }
       return;
@@ -438,6 +450,7 @@ export class MultiplayerSession {
       const frame = this.acceptPositionChunk(peer, data, topology);
       if (frame && frame.sequence > peer.lastPositionSequence) {
         peer.lastPositionSequence = frame.sequence;
+        peer.positions = frame.positions.slice(); peer.positionsRevision = peer.topology?.revision;
         if (this.isHost) this.world?.setObstacleSet(id, frame.positions);
         this.callbacks.positions(id, frame.positions);
       }
@@ -494,6 +507,8 @@ export class MultiplayerSession {
     if (!value || typeof value !== "object") return false;
     const s = value as ShotSnapshot;
     return typeof s.id === "string" && s.id.length <= 64 && typeof s.ownerId === "string" && s.ownerId.length <= 64
+      && Number.isInteger(s.gun) && s.gun >= 0 && s.gun <= 3
+      && Array.isArray(s.origin) && s.origin.length === 3 && s.origin.every(v => Number.isFinite(v) && Math.abs(v) <= MAX_COORDINATE)
       && Array.isArray(s.position) && s.position.length === 3 && s.position.every(v => Number.isFinite(v) && Math.abs(v) <= MAX_COORDINATE)
       && Array.isArray(s.direction) && s.direction.length === 3 && s.direction.every(v => Number.isFinite(v) && Math.abs(v) <= 1.01);
   }
@@ -562,6 +577,7 @@ export class MultiplayerSession {
     const code = typeof message.code === "string" ? message.code : "";
     if (code === "room-not-found") return "That room code is invalid or the room has closed.";
     if (code === "full") return "That room already has four pilots.";
+    if (code === "update-required") return "Everyone in the room must install plugin version 0.3.2 or newer.";
     if (code === "service-full") return "The hosted room service is at capacity. Try again later.";
     if (code === "rate-limited") return "The room service is receiving too many requests. Wait a minute and try again.";
     if (code === "service-unavailable") return "The hosted room service is temporarily unavailable. Try again shortly.";
@@ -706,6 +722,54 @@ export class MultiplayerSession {
     if (!this.active) return;
     if (this.isHost) this.world?.setInput(this.selfId, input, Date.now());
     else this.sendTo(this.hostId, { type: "input", epoch: this.epoch, input });
+  }
+  fire(sequence: number, gun: number, aimPoint: [number, number, number]): void {
+    if (!this.active || !Number.isSafeInteger(sequence) || sequence < 1 || !Number.isInteger(gun) || gun < 0 || gun > 3) return;
+    const now = Date.now();
+    if (!aimPoint.every(Number.isFinite) || aimPoint.some(v => Math.abs(v) > MAX_COORDINATE)) return;
+    if (this.isHost) this.world?.fireShot(this.selfId, sequence, gun, now, aimPoint);
+    else this.sendReliable(this.hostId, { type: "fire", epoch: this.epoch, sequence, gun, aimPoint });
+  }
+
+  requestFastTravel(target: NavigationTarget): void {
+    if (!this.active || !this.validNavigationTarget(target)) return;
+    if (this.isHost) this.startRequestedTravel(this.selfId, target);
+    else this.sendReliable(this.hostId, { type: "navigate", epoch: this.epoch, target });
+  }
+
+  private validNavigationTarget(value: unknown): value is NavigationTarget {
+    if (!value || typeof value !== "object") return false;
+    const target = value as NavigationTarget;
+    return typeof target.ownerId === "string" && /^[0-9a-f-]{36}$/i.test(target.ownerId)
+      && this.roster.some(member => member.id === target.ownerId) && typeof target.starId === "string"
+      && /^n-[0-9a-f-]{36}$/i.test(target.starId) && Number.isSafeInteger(target.revision) && target.revision > 0;
+  }
+
+  private startRequestedTravel(playerId: string, target: NavigationTarget): void {
+    const world = this.world; if (!world || !this.validNavigationTarget(target)) return;
+    let topology: AnonymousTopology | undefined, positions: readonly SimNode[] | Float32Array | undefined;
+    if (target.ownerId === this.selfId) { topology = this.topology ?? undefined; positions = this.graph().nodes; }
+    else {
+      const owner = this.peers.get(target.ownerId); topology = owner?.topology;
+      if (owner?.positionsRevision === target.revision) positions = owner.positions;
+    }
+    if (!topology || topology.revision !== target.revision || !positions) return;
+    const index = topology.nodes.findIndex(node => node.id === target.starId);
+    if (index < 0) return;
+    let position: [number, number, number], degree = topology.nodes[index].degree;
+    if (positions instanceof Float32Array) {
+      const offset = index * 3; position = [positions[offset], positions[offset + 1], positions[offset + 2]];
+    } else {
+      const node = positions[index]; if (!node) return;
+      position = [node.x, node.y, node.z];
+    }
+    if (world.startTravel(playerId, position, Math.min(5.5, 0.9 + Math.sqrt(degree) * 0.5), Date.now())) this.callbacks.navigation?.(target, "travelling");
+  }
+
+  private sendReliable(id: string, message: GameMessage): void {
+    const channel = this.peers.get(id)?.control;
+    if (!channel || channel.readyState !== "open" || channel.bufferedAmount > 128_000) { this.callbacks.status(`The reliable connection to ${this.memberName(id)} is not ready.`, true); return; }
+    try { channel.send(JSON.stringify(message)); } catch { this.callbacks.status(`The reliable connection to ${this.memberName(id)} failed.`, true); }
   }
   sendAll(message: GameMessage): void { for (const id of this.peers.keys()) this.sendTo(id, message); }
   private sendTo(id: string, message: GameMessage): void {
