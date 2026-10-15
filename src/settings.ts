@@ -24,11 +24,15 @@ export interface ConstellationSettings {
   pilotInvertY: boolean;
   pilotView: "chase" | "cockpit";
   pilotSound: boolean;
+  pilotMuteEngine: boolean;
+  pilotMuteAfterburner: boolean;
   pilotVolume: number;
   pilotWireframe: boolean;
   pilotAgility: number;
   pilotSpeed: number;
   pilotMouse: "capture" | "cursor";
+  multiplayerName: string;
+  multiplayerSignalingUrl: string;
 }
 
 export const DEFAULT_SETTINGS: ConstellationSettings = {
@@ -53,11 +57,15 @@ export const DEFAULT_SETTINGS: ConstellationSettings = {
   pilotInvertY: false,
   pilotView: "chase",
   pilotSound: true,
+  pilotMuteEngine: false,
+  pilotMuteAfterburner: false,
   pilotVolume: 0.5,
   pilotWireframe: true,
   pilotAgility: 1,
   pilotSpeed: 1,
   pilotMouse: "capture",
+  multiplayerName: "Pilot",
+  multiplayerSignalingUrl: "ws://localhost:8787",
 };
 
 const clamp = (v: unknown, lo: number, hi: number, fallback: number): number =>
@@ -92,11 +100,15 @@ export function sanitizeSettings(raw: unknown): ConstellationSettings {
     pilotInvertY: bool(r.pilotInvertY, d.pilotInvertY),
     pilotView: pick(r.pilotView, ["chase", "cockpit"] as const, d.pilotView),
     pilotSound: bool(r.pilotSound, d.pilotSound),
+    pilotMuteEngine: bool(r.pilotMuteEngine, d.pilotMuteEngine),
+    pilotMuteAfterburner: bool(r.pilotMuteAfterburner, d.pilotMuteAfterburner),
     pilotVolume: clamp(r.pilotVolume, 0, 1, d.pilotVolume),
     pilotWireframe: bool(r.pilotWireframe, d.pilotWireframe),
     pilotAgility: clamp(r.pilotAgility, 0.5, 1.5, d.pilotAgility),
     pilotSpeed: clamp(r.pilotSpeed, 0.4, 3, d.pilotSpeed),
     pilotMouse: pick(r.pilotMouse, ["capture", "cursor"] as const, d.pilotMouse),
+    multiplayerName: typeof r.multiplayerName === "string" ? r.multiplayerName.trim().slice(0, 24) || d.multiplayerName : d.multiplayerName,
+    multiplayerSignalingUrl: typeof r.multiplayerSignalingUrl === "string" ? r.multiplayerSignalingUrl.slice(0, 512) : d.multiplayerSignalingUrl,
   };
 }
 
