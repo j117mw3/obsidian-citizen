@@ -1,0 +1,220 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { basename } from "node:path";
+import { build } from "esbuild";
+
+const built = await build({
+  entryPoints: ["src/multiplayer.ts", "src/combat.ts"],
+  bundle: true,
+  platform: "node",
+  format: "esm",
+  target: "node22",
+  outdir: "test-bundles",
+  entryNames: "[name]",
+  write: false,
+});
+async function loadBundle(name) {
+  const file = built.outputFiles.find(f => basename(f.path) === `${name}.js`);
+  assert.ok(file, `missing ${name} bundle`);
+  return import(`data:text/javascript;base64,${Buffer.from(file.text).toString("base64")}`);
+}
+const network = await loadBundle("multiplayer");
+const combat = await loadBundle("combat");
+
+const privateMarkers = ["PRIVATE_TITLE_CobaltVault", "PRIVATE_PATH_Secrets/Bluebird.md", "PRIVATE_TAG_Clinical", "PRIVATE_BODY_needle" ];
+function fixture() {
+  return {
+    groups: [{ key: privateMarkers[2], label: privateMarkers[2], color: "#2468ac", count: 2 }],
+    nodes: [
+      { id: privateMarkers[1], name: privateMarkers[0], tags: [privateMarkers[2]], body: privateMarkers[3], group: privateMarkers[2], deg: 1 },
+      { id: "another/LocalOnly.md", name: "Another private title", group: privateMarkers[2], deg: 1 },
+    ],
+    links: [{ source: privateMarkers[1], target: "another/LocalOnly.md", privateLabel: "never sent" }],
+  };
+}
+function callbacks(overrides = {}) {
+  return {
+    status() {}, members() {}, topology() {}, positions() {}, message() {}, removed() {}, authority() {}, playerState() {}, shotState() {},
+    ...overrides,
+  };
+}
+function peerStub(topology = undefined) {
+  return {
+    pc: {}, topology, positionSequence: 0, lastPositionSequence: 0, topologySend: null, topologyReceive: null,
+    positionReceive: new Map(),
+    control: { readyState: "open", bufferedAmount: 0, sent: [], send(message) { this.sent.push(message); } },
+    live: { readyState: "open", bufferedAmount: 0, sent: [], send(message) { this.sent.push(message); } },
+  };
+}
+
+test("anonymous topology and all application packets omit local vault metadata", () => {
+  const ids = new Map();
+  const topology = network.makeAnonymousTopology(fixture(), ids, 1);
+  const text = JSON.stringify(topology);
+  for (const marker of privateMarkers) assert.equal(text.includes(marker), false);
+  assert.equal(topology.nodes.length, 2);
+  assert.deepEqual(topology.links, [[topology.nodes[0].id, topology.nodes[1].id]]);
+  assert.match(topology.nodes[0].id, /^n-[0-9a-f-]{36}$/i);
+
+  const sent = [];
+  const session = new network.MultiplayerSession(callbacks(), () => ({ data: fixture(), nodes: [{ x: 1, y: 2, z: 3 }, { x: 4, y: 5, z: 6 }] }), () => "ws://localhost:8787");
+  session.selfId = "self";
+  const peer = peerStub(); session.peers.set("remote", peer);
+  session.setLocalGraph(fixture());
+  session.pumpTopologies();
+  session.sendPositionsTo("remote");
+  session.sendInput({ thrust: 1, strafe: 0, lift: 0, roll: 0, pitch: 0, yaw: 0, boost: false, brake: false, fire: false, active: true });
+  sent.push(...peer.control.sent, ...peer.live.sent.map(v => v instanceof ArrayBuffer ? Buffer.from(v).toString("base64") : v));
+  for (const marker of privateMarkers) assert.equal(JSON.stringify(sent).includes(marker), false);
+});
+
+test("topology limits reject rather than truncate oversized maps", () => {
+  const node = { id: "local", group: "folder", deg: 0 };
+  assert.throws(() => network.makeAnonymousTopology({ groups: [], nodes: Array(network.MAX_SHARED_NODES + 1).fill(node), links: [] }, new Map(), 1), /supports up to/);
+  assert.throws(() => network.makeAnonymousTopology({ groups: [], nodes: [node], links: Array(network.MAX_SHARED_LINKS + 1).fill({ source: "local", target: "local" }) }, new Map(), 1), /supports up to/);
+});
+
+test("topology revisions and position snapshots reject stale or malformed traffic", () => {
+  const accepted = [], positions = [];
+  const session = new network.MultiplayerSession(callbacks({ topology: (_id, value) => accepted.push(value.revision), positions: (_id, value) => positions.push([...value]) }), () => ({ data: fixture(), nodes: [] }), () => "ws://localhost:8787");
+  const topology = network.makeAnonymousTopology(fixture(), new Map(), 1);
+  const peer = peerStub(); session.peers.set("owner", peer);
+  const sendTopology = value => session.onPeerMessage("owner", JSON.stringify({ type: "topology-chunk", revision: value.revision, index: 0, total: 1, data: JSON.stringify(value) }), "control");
+  sendTopology({ ...topology, revision: 2 });
+  sendTopology(topology);
+  session.onPeerMessage("owner", JSON.stringify({ type: "topology-chunk", revision: 3, index: 0, total: 1, data: "{broken" }), "control");
+  assert.deepEqual(accepted, [2]);
+
+  const nodes = [{ x: 10, y: 20, z: 30 }, { x: -4, y: 5, z: 6 }];
+  const frames = network.encodePositionChunks(nodes, { ...topology, revision: 2 }, 8);
+  for (const frame of [...frames].reverse()) session.onPeerMessage("owner", frame, "live");
+  for (const frame of network.encodePositionChunks(nodes, { ...topology, revision: 2 }, 7)) session.onPeerMessage("owner", frame, "live");
+  const wrongRevision = network.encodePositionChunks(nodes, { ...topology, revision: 1 }, 9)[0];
+  session.onPeerMessage("owner", wrongRevision, "live");
+  assert.equal(positions.length, 1);
+  assert.deepEqual(positions[0], [10, 20, 30, -4, 5, 6]);
+  session.onPeerMessage("owner", JSON.stringify({ type: "open", path: privateMarkers[1] }), "live");
+  assert.deepEqual(accepted, [2]);
+});
+
+const emptyInput = { thrust: 0, strafe: 0, lift: 0, roll: 0, pitch: 0, yaw: 0, boost: false, brake: false, fire: false, active: false };
+function addPair(world) {
+  world.add({ id: "attacker", slot: 0, name: "A", joinedAt: 1 });
+  world.add({ id: "target", slot: 1, name: "B", joinedAt: 2 });
+  const attacker = world.players.get("attacker"), target = world.players.get("target");
+  attacker.pos.set(0, 0, 0); attacker.rot.identity(); attacker.active = true;
+  target.pos.set(0, 0, -100); target.rot.identity(); target.active = true;
+  attacker.input = { ...emptyInput, active: true }; target.input = { ...emptyInput, active: true };
+  return { attacker, target };
+}
+
+test("host projectiles sweep travel, deal one ten-point hit, and checkpoint in-flight state", () => {
+  const world = new combat.CombatWorld(4), { attacker, target } = addPair(world);
+  attacker.input = { ...emptyInput, active: true, fire: true };
+  world.step(1 / 60, 10_000);
+  attacker.input = { ...attacker.input, fire: false };
+  for (let i = 0; i < 5; i++) world.step(1 / 60, 10_017 + i * 17);
+  assert.equal(target.health, 90);
+  assert.equal(world.impactSnapshots(10_100).at(-1)?.kind, "ship");
+
+  attacker.input = { ...attacker.input, fire: true };
+  world.step(1 / 60, 10_200);
+  const checkpoint = world.snapshot(10_200);
+  assert.ok(checkpoint.shots.length > 0);
+  const resumed = new combat.CombatWorld(5);
+  assert.equal(resumed.restore(checkpoint, 99_000_250), true, "checkpoint timers are relative and survive clock skew between participants");
+  assert.equal(resumed.shotSnapshots().length, checkpoint.shots.length);
+  assert.equal(resumed.epoch, 4);
+  assert.equal(resumed.restore({ ...checkpoint, players: [null] }, 10_250), false);
+});
+
+test("projectile hits on stars are visuals only and spawn protection holds", () => {
+  const world = new combat.CombatWorld(1), { attacker, target } = addPair(world);
+  target.protectedUntil = 30_000;
+  world.setObstacleSet("remote-vault", new Float32Array([0, 0, -45]));
+  attacker.input = { ...emptyInput, active: true, fire: true };
+  world.step(1 / 60, 20_000);
+  attacker.input = { ...attacker.input, fire: false };
+  for (let i = 0; i < 4; i++) world.step(1 / 60, 20_017 + i * 17);
+  assert.equal(target.health, 100);
+  assert.equal(world.impactSnapshots(20_100).at(-1)?.kind, "star");
+});
+
+test("lethal damage respawns at five seconds with full health, boost, and three-second protection", () => {
+  const world = new combat.CombatWorld(1), { attacker, target } = addPair(world);
+  target.health = 10;
+  attacker.input = { ...emptyInput, active: true, fire: true };
+  world.step(1 / 60, 30_000);
+  attacker.input = { ...attacker.input, fire: false };
+  target.input = { ...emptyInput, active: true };
+  for (let i = 1; i <= 6 && target.health > 0; i++) world.step(1 / 60, 30_000 + i * 17);
+  assert.equal(target.health, 0);
+  const respawnAt = target.respawnAt;
+  assert.ok(respawnAt > 30_000 && target.active === false);
+  world.step(1 / 60, respawnAt - 1);
+  assert.equal(target.health, 0);
+  world.step(1 / 60, respawnAt);
+  assert.equal(target.health, 100);
+  assert.equal(target.energy, 1);
+  assert.equal(target.active, true);
+  assert.equal(target.protectedUntil, respawnAt + 3000);
+});
+
+test("boost drains at the shared rate and spectators resume after five seconds without refilling", () => {
+  const world = new combat.CombatWorld(1);
+  world.add({ id: "pilot", slot: 0, name: "P", joinedAt: 1 });
+  const pilot = world.players.get("pilot");
+  pilot.input = { ...emptyInput, active: true, thrust: 1, boost: true };
+  for (let i = 0; i < 10; i++) world.step(0.1, 1000 + i * 100);
+  assert.ok(Math.abs(pilot.energy - 0.72) < 1e-8);
+  pilot.input = { ...pilot.input, boost: false };
+  pilot.active = true;
+  world.step(0.1, 2100);
+  assert.ok(Math.abs(pilot.energy - 0.72) < 1e-8);
+  for (let i = 0; i < 14; i++) world.step(0.1, 2200 + i * 100);
+  assert.ok(pilot.energy > 0.72);
+
+  pilot.health = 70; pilot.energy = 0.42; pilot.active = true; pilot.input = { ...emptyInput, active: false };
+  world.step(0.01, 5000);
+  pilot.input = { ...emptyInput, active: true };
+  world.step(0.01, 6000);
+  assert.equal(pilot.active, false);
+  assert.equal(pilot.health, 70); assert.equal(pilot.energy, 0.42);
+  world.step(0.01, 9999); assert.equal(pilot.active, false);
+  world.step(0.01, 10000); assert.equal(pilot.active, true);
+  assert.equal(pilot.health, 70); assert.ok(pilot.energy > 0.42 && pilot.energy < 0.421);
+});
+
+test("rapid boost taps reset the delay and an empty tank stays locked until thirty percent", () => {
+  const world = new combat.CombatWorld(1);
+  world.add({ id: "pilot", slot: 0, name: "P", joinedAt: 1 });
+  const pilot = world.players.get("pilot"); pilot.active = true; pilot.energy = 0.5;
+  pilot.input = { ...emptyInput, active: true, thrust: 1, boost: true };
+  world.step(0.1, 1000); assert.ok(Math.abs(pilot.energy - 0.472) < 1e-8);
+  pilot.input = { ...pilot.input, boost: false };
+  for (let i = 0; i < 10; i++) world.step(0.1, 1100 + i * 100);
+  assert.ok(Math.abs(pilot.energy - 0.472) < 1e-8);
+  pilot.input = { ...pilot.input, boost: true };
+  world.step(0.1, 2100);
+  assert.ok(Math.abs(pilot.energy - 0.444) < 1e-8);
+  pilot.input = { ...pilot.input, boost: false };
+  for (let i = 0; i < 10; i++) world.step(0.1, 2200 + i * 100);
+  assert.ok(Math.abs(pilot.energy - 0.444) < 1e-8, "the second tap should restart the 1.5 second delay");
+
+  pilot.energy = 0.01; pilot.boostLocked = false; pilot.input = { ...emptyInput, active: true, thrust: 1, boost: true };
+  world.step(0.1, 5000);
+  assert.equal(pilot.energy, 0); assert.equal(pilot.boostLocked, true);
+  pilot.input = { ...pilot.input, boost: false };
+  for (let i = 0; i < 29; i++) world.step(0.1, 5100 + i * 100);
+  assert.equal(pilot.energy, 0); assert.equal(pilot.boostLocked, true);
+  for (let i = 0; i < 35; i++) world.step(0.1, 8100 + i * 100);
+  assert.ok(pilot.energy >= 0.27 && pilot.energy < 0.3);
+  assert.equal(pilot.boostLocked, true);
+  pilot.input = { ...pilot.input, boost: true };
+  world.step(0.1, 11600); assert.ok(pilot.energy < 0.3 && pilot.boostLocked);
+  world.step(0.1, 11700); assert.ok(pilot.energy < 0.3 && pilot.boostLocked);
+  world.step(0.1, 11800); assert.ok(pilot.energy >= 0.3);
+  assert.equal(pilot.boostLocked, false);
+  world.step(0.1, 11900);
+  assert.ok(pilot.energy < 0.3 && !pilot.boostLocked, "after reaching thirty percent, boost may run the tank down again");
+});
