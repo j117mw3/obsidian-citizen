@@ -1,4 +1,6 @@
-# Constellation Graph
+# Starfield Graph
+
+*Formerly Constellation Graph: the same plugin, with the same id, so your settings and updates carry over.*
 
 **Your vault as a living night sky, with a starfighter you can fly through it.** A fluid, slowly orbiting 3D map of your notes for [Obsidian](https://obsidian.md), with a flying sandbox you can share with up to three friends.
 
@@ -38,9 +40,9 @@
 
 ## Install
 
-Search for **Constellation Graph** in Settings, Community plugins, Browse. Or copy `main.js`, `manifest.json` and `styles.css` from a [release](https://github.com/xjusvibin/obsidian-constellation-graph/releases) into `<vault>/.obsidian/plugins/constellation-graph/` and enable it. Desktop only, Obsidian 1.7.2 or newer.
+Search for **Starfield Graph** in Settings, Community plugins, Browse. Or copy `main.js`, `manifest.json` and `styles.css` from a [release](https://github.com/xjusvibin/obsidian-constellation-graph/releases) into `<vault>/.obsidian/plugins/constellation-graph/` and enable it. Desktop only, Obsidian 1.7.2 or newer.
 
-Open it from the ribbon icon (orbit) or the command **Open constellation graph**.
+Open it from the ribbon icon (orbit) or the command **Open starfield graph**.
 
 ## Using the graph
 

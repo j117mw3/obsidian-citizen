@@ -31,7 +31,7 @@ const SECTIONS: Section[] = [
     heading: "Startup",
     items: [
       { key: "openOnStartup", name: "Open on startup", control: { kind: "toggle" },
-        desc: "Show the constellation graph as soon as Obsidian starts. It is saved with the vault, so anyone who opens this vault sees it first." },
+        desc: "Show the starfield graph as soon as Obsidian starts. It is saved with the vault, so anyone who opens this vault sees it first." },
     ],
   },
   {

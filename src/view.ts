@@ -14,7 +14,7 @@ export class ConstellationView extends ItemView {
   constructor(leaf: WorkspaceLeaf, private plugin: ConstellationPlugin) { super(leaf); }
 
   getViewType(): string { return VIEW_TYPE; }
-  getDisplayText(): string { return "Constellation graph"; }
+  getDisplayText(): string { return "Starfield graph"; }
   getIcon(): string { return "orbit"; }
 
   async onOpen(): Promise<void> {

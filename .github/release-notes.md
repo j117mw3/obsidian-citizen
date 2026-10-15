@@ -1,3 +1,5 @@
+**Constellation Graph is now Starfield Graph.** Same plugin and same id, so your settings and updates carry over; the new name says what it has become.
+
 Pilot mode becomes a sandbox, and you can now fly together.
 
 **Fly together (multiplayer).** Make a room, send the ten-character code to up to three friends, and share one sky, each pilot with their own constellation. Only the shape of a constellation (anonymous points, links, colours) and your ship's position are shared; never note titles, paths, tags or contents. Connections are set up through a public relay (ntfy.sh by default, or your own), with every message sealed by the room code, then pilots talk directly. There is no server to run and nothing is set up for you; you can add your own TURN server if your network blocks direct connections. Outside a room the plugin still makes no network connections. Thanks to j117mw3 for the multiplayer protocol work this builds on.

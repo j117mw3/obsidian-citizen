@@ -14,7 +14,7 @@ export default class ConstellationPlugin extends Plugin {
   async onload(): Promise<void> {
     this.settings = sanitizeSettings(await this.loadData());
     this.registerView(VIEW_TYPE, leaf => new ConstellationView(leaf, this));
-    this.addRibbonIcon("orbit", "Open constellation graph", () => void this.activate());
+    this.addRibbonIcon("orbit", "Open starfield graph", () => void this.activate());
     this.addCommand({ id: "open", name: "Open graph view", callback: () => void this.activate() });
     this.addSettingTab(new ConstellationSettingTab(this.app, this));
     // wait until the workspace has been restored, otherwise the saved layout would open over it

@@ -1,9 +1,9 @@
 {
   "id": "constellation-graph",
-  "name": "Constellation Graph",
-  "version": "0.3.5",
+  "name": "Starfield Graph",
+  "version": "0.3.6",
   "minAppVersion": "1.7.2",
-  "description": "A fluid, orbiting 3D constellation of your notes, coloured by folder, with keyboard and screen-reader support.",
+  "description": "Your vault as a living night sky: a fluid 3D map of your notes that you can fly a starfighter through, alone or with friends. Keyboard and screen-reader support.",
   "author": "JusVibin",
   "isDesktopOnly": true
 }
