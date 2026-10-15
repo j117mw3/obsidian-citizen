@@ -156,6 +156,7 @@ export class MultiplayerSession {
   private epoch = 0;
   private roster: AnonymousPlayer[] = [];
   private readonly peers = new Map<string, { pc: RTCPeerConnection; control?: RTCDataChannel; live?: RTCDataChannel; topology?: AnonymousTopology;
+    signalChain: Promise<void>; pendingCandidates: RTCIceCandidateInit[];
     positionSequence: number; lastPositionSequence: number; topologySend: { revision: number; json: string; next: number; total: number } | null;
     topologyReceive: { revision: number; total: number; parts: string[]; bytes: number; received: number } | null;
     positionReceive: Map<number, PositionAssembly> }>();
@@ -178,8 +179,10 @@ export class MultiplayerSession {
   private relay: RTCIceServer[] = [];
   private iceExpiresAt = 0;
   private iceRefreshTimer = 0;
+  private authorityTimer = 0;
   private relayStatus: "ready" | "pending" | "unavailable" | "quota" | "direct-only" = "pending";
   private lastIceErrorAt = 0;
+  private readonly iceFailures = new Map<string, { kind: "STUN" | "TURN" | "ICE"; code: number }>();
   private lastIceRequestAt = 0;
   private closed = false;
   private opening = false;
@@ -280,14 +283,14 @@ export class MultiplayerSession {
   private async connectPeer(id: string, offer: boolean): Promise<void> {
     if (this.peers.has(id) || !this.active || !this.roster.some(p => p.id === id)) return;
     const pc = new RTCPeerConnection({ iceServers: this.relay, iceCandidatePoolSize: 2 });
-    const state: NonNullable<ReturnType<typeof this.peers.get>> = { pc, positionSequence: 0, lastPositionSequence: 0, topologySend: null, topologyReceive: null, positionReceive: new Map() };
+    const state: NonNullable<ReturnType<typeof this.peers.get>> = { pc, signalChain: Promise.resolve(), pendingCandidates: [], positionSequence: 0, lastPositionSequence: 0, topologySend: null, topologyReceive: null, positionReceive: new Map() };
     this.peers.set(id, state);
     pc.onicecandidate = e => { if (e.candidate) this.signal(id, { candidate: e.candidate.toJSON() }); };
-    pc.onicecandidateerror = event => this.reportIceError(event);
+    pc.onicecandidateerror = event => this.reportIceError(id, event);
     pc.ondatachannel = e => this.bindChannel(id, e.channel);
     pc.onconnectionstatechange = () => {
-      if (pc.connectionState === "connected") this.updatePeerStatus();
-      else if (pc.connectionState === "failed") { this.callbacks.status(`Connection to ${this.memberName(id)} was lost; retrying.`, true); this.schedulePeerRetry(id); }
+      if (pc.connectionState === "connected") { this.iceFailures.delete(id); this.updatePeerStatus(); }
+      else if (pc.connectionState === "failed") { this.updatePeerStatus(); this.requestIceConfiguration(); this.schedulePeerRetry(id); }
       else if (pc.connectionState === "disconnected") this.schedulePeerRetry(id, 5000);
     };
     if (offer) {
@@ -306,14 +309,19 @@ export class MultiplayerSession {
     else if (dc.label === "constellation-live") { peer.live = dc; dc.binaryType = "arraybuffer"; }
     else { dc.close(); return; }
     dc.onopen = () => {
+      if (this.closed || this.peers.get(id) !== peer) return;
       if (dc.label === "constellation-control" && this.topology) this.queueTopology(id, this.topology);
       if (dc.label === "constellation-live") this.sendPositionsTo(id);
       this.updatePeerStatus();
     };
-    dc.onmessage = event => this.onPeerMessage(id, event.data, dc.label === "constellation-control" ? "control" : "live");
+    dc.onmessage = event => {
+      if (!this.closed && this.peers.get(id) === peer) this.onPeerMessage(id, event.data, dc.label === "constellation-control" ? "control" : "live");
+    };
     dc.onclose = () => {
+      if (this.closed || this.peers.get(id) !== peer) return;
       if (dc.label === "constellation-control") peer.control = undefined; else peer.live = undefined;
-      this.callbacks.status(`Connection to ${this.memberName(id)} closed.`, true);
+      this.callbacks.status(`Connection to ${this.memberName(id)} closed; reconnecting.`, true);
+      this.schedulePeerRetry(id);
     };
   }
 
@@ -341,7 +349,8 @@ export class MultiplayerSession {
     if (msg.type === "member-left") {
       const id = String(msg.id || ""); this.removePeer(id); this.roster = this.roster.filter(x => x.id !== id); this.callbacks.removed(id);
       this.world?.remove(id);
-      this.hostId = String(msg.hostId || this.hostId); this.epoch = Number(msg.epoch) || this.epoch; this.callbacks.members(this.roster, this.selfId, this.hostId, this.epoch); return;
+      this.hostId = String(msg.hostId || this.hostId); this.epoch = Number(msg.epoch) || this.epoch; this.callbacks.members(this.roster, this.selfId, this.hostId, this.epoch);
+      this.updatePeerStatus(); return;
     }
     if (msg.type === "authority") {
       this.hostId = String(msg.hostId || ""); this.epoch = Number(msg.epoch) || this.epoch;
@@ -355,17 +364,38 @@ export class MultiplayerSession {
         for (const member of this.roster) this.world.add(member);
         this.startGameLoop();
       }
-      this.callbacks.authority(this.hostId, this.epoch, msg.checkpoint); return;
+      this.callbacks.authority(this.hostId, this.epoch, msg.checkpoint);
+      window.clearTimeout(this.authorityTimer);
+      this.authorityTimer = window.setTimeout(() => this.updatePeerStatus(), 750); return;
     }
     if (msg.type === "signal") {
       const from = String(msg.from || ""), data = msg.data as { description?: RTCSessionDescriptionInit; candidate?: RTCIceCandidateInit };
       if (!from || !data || typeof data !== "object") return;
       await this.connectPeer(from, false);
       const peer = this.peers.get(from); if (!peer) return;
-      if (data.description) {
-        if (data.description.type === "offer") { await peer.pc.setRemoteDescription(data.description); const answer = await peer.pc.createAnswer(); await peer.pc.setLocalDescription(answer); this.signal(from, { description: peer.pc.localDescription }); }
-        else if (data.description.type === "answer") await peer.pc.setRemoteDescription(data.description);
-      } else if (data.candidate) { try { await peer.pc.addIceCandidate(data.candidate); } catch { /* an obsolete ICE candidate can safely be dropped */ } }
+      // ICE candidates can arrive before the offer, or while its asynchronous
+      // setRemoteDescription is still running. Preserve them until it completes.
+      peer.signalChain = peer.signalChain.then(async () => {
+        if (this.peers.get(from) !== peer) return;
+        if (data.description) {
+          await peer.pc.setRemoteDescription(data.description);
+          for (const candidate of peer.pendingCandidates.splice(0)) {
+            try { await peer.pc.addIceCandidate(candidate); } catch { /* obsolete ICE generation */ }
+          }
+          if (data.description.type === "offer") {
+            const answer = await peer.pc.createAnswer(); await peer.pc.setLocalDescription(answer);
+            this.signal(from, { description: peer.pc.localDescription });
+          }
+        } else if (data.candidate) {
+          if (!peer.pc.remoteDescription) { if (peer.pendingCandidates.length < 256) peer.pendingCandidates.push(data.candidate); }
+          else { try { await peer.pc.addIceCandidate(data.candidate); } catch { /* obsolete ICE generation */ } }
+        }
+      }).catch(() => {
+        if (this.peers.get(from) !== peer || !this.active) return;
+        this.callbacks.status(`Peer setup with ${this.memberName(from)} failed; retrying.`, true);
+        this.schedulePeerRetry(from);
+      });
+      await peer.signalChain;
     }
   }
 
@@ -512,11 +542,15 @@ export class MultiplayerSession {
     if (!this.active) return;
     const expected = this.roster.filter(p => p.id !== this.selfId).length;
     const linked = [...this.peers.values()].filter(p => p.pc.connectionState === "connected" && p.control?.readyState === "open" && p.live?.readyState === "open").length;
+    const failed = [...this.peers].filter(([, peer]) => peer.pc.connectionState === "failed");
+    const lastFailure = [...this.iceFailures].find(([id]) => this.peers.get(id)?.pc.connectionState !== "connected")?.[1];
+    const iceNote = linked < expected && lastFailure ? ` A ${lastFailure.kind} endpoint returned ICE error ${lastFailure.code}; trying other direct and relay paths.` : "";
+    const failedNote = failed.length ? " A participant connection failed; retrying." : "";
     const relayNote = this.relayStatus === "pending" ? " Relay access is preparing; direct connections are being tried." :
       this.relayStatus === "unavailable" ? " Relay service unavailable; direct connections are being tried." :
       this.relayStatus === "quota" ? " Free relay allowance exhausted; direct connections may still work." : "";
     if (!expected) this.callbacks.status(`Room ${this.roomCode} is ready; waiting for other pilots.${relayNote}`, this.relayStatus === "quota" || this.relayStatus === "unavailable");
-    else this.callbacks.status(`${linked} of ${expected} participant connections ready.${relayNote}`, this.relayStatus === "quota" || this.relayStatus === "unavailable");
+    else this.callbacks.status(`${linked} of ${expected} participant connections ready.${failedNote}${iceNote}${relayNote}`, failed.length > 0 || (linked < expected && (this.relayStatus === "quota" || this.relayStatus === "unavailable")));
   }
 
   private readRelayStatus(value: unknown, servers: RTCIceServer[]): "ready" | "pending" | "unavailable" | "quota" | "direct-only" {
@@ -556,7 +590,7 @@ export class MultiplayerSession {
       try {
         peer.pc.setConfiguration({ ...peer.pc.getConfiguration(), iceServers: this.relay });
         if (peer.pc.connectionState === "failed") { this.schedulePeerRetry(id); continue; }
-        if (this.selfId.localeCompare(id) < 0 && peer.pc.connectionState === "connected") {
+        if (this.selfId.localeCompare(id) < 0 && peer.pc.connectionState === "connected" && peer.pc.signalingState === "stable") {
           peer.pc.restartIce();
           const offer = await peer.pc.createOffer({ iceRestart: true });
           await peer.pc.setLocalDescription(offer);
@@ -566,19 +600,20 @@ export class MultiplayerSession {
     }
   }
 
-  private reportIceError(event: Event): void {
+  private reportIceError(id: string, event: Event): void {
+    const peer = this.peers.get(id);
+    if (!peer || peer.pc.connectionState === "connected") return;
+    const detail = event as Event & { errorCode?: number; url?: string };
+    const code = Number.isInteger(detail.errorCode) ? Number(detail.errorCode) : 0;
+    if (!code) return;
+    const kind = /^turns?:/i.test(detail.url ?? "") ? "TURN" : /^stuns?:/i.test(detail.url ?? "") ? "STUN" : "ICE";
+    this.iceFailures.set(id, { kind, code });
+    // A candidate error concerns one server URL, not the entire connection.
+    // Only the provider backend can confirm exhaustion of the monthly quota.
+    this.updatePeerStatus();
     const now = Date.now();
-    if (now - this.lastIceErrorAt < 10_000) return;
+    if (kind !== "TURN" || now - this.lastIceErrorAt < 10_000) return;
     this.lastIceErrorAt = now;
-    const detail = event as Event & { errorCode?: number; errorText?: string };
-    const code = Number.isInteger(detail.errorCode) ? detail.errorCode : 0;
-    const message = typeof detail.errorText === "string" ? detail.errorText.slice(0, 140) : "";
-    if (/quota|monthly allowance|usage limit|out of data/i.test(message)) {
-      this.relayStatus = "quota";
-      this.callbacks.status("The relay provider reports that its free allowance is exhausted. Direct connections may still work.", true);
-    } else if (code || message) {
-      this.callbacks.status(`ICE relay setup failed${code ? ` (error ${code})` : ""}${message ? `: ${message}` : "."} Trying available direct paths.`, true);
-    }
     this.requestIceConfiguration();
   }
 
@@ -612,15 +647,20 @@ export class MultiplayerSession {
       }
       if (now - this.lastStateSend >= 50) {
         this.lastStateSend = now;
-        for (const { id, pose } of this.world.poses(now)) {
-          if (id === this.selfId) this.callbacks.playerState(id, pose);
-          this.sendAll({ type: "ship", epoch: this.epoch, sequence: ++this.stateSequence, playerId: id, pose });
-        }
-        const shots = this.world.shotSnapshots(), impacts = this.world.impactSnapshots(now);
-        this.callbacks.shotState(shots, impacts);
-        this.sendAll({ type: "shots", epoch: this.epoch, sequence: ++this.stateSequence, shots, impacts });
+        this.publishWorldState(now);
       }
     }, 16);
+  }
+
+  private publishWorldState(now: number): void {
+    if (!this.world) return;
+    for (const { id, pose } of this.world.poses(now)) {
+      this.callbacks.playerState(id, pose);
+      this.sendAll({ type: "ship", epoch: this.epoch, sequence: ++this.stateSequence, playerId: id, pose });
+    }
+    const shots = this.world.shotSnapshots(), impacts = this.world.impactSnapshots(now);
+    this.callbacks.shotState(shots, impacts);
+    this.sendAll({ type: "shots", epoch: this.epoch, sequence: ++this.stateSequence, shots, impacts });
   }
 
   setLocalGraph(data: GraphData): void {
@@ -675,18 +715,20 @@ export class MultiplayerSession {
   private signal(to: string, data: object): void { if (this.socket?.readyState === WebSocket.OPEN) this.socket.send(JSON.stringify({ type: "signal", to, data })); }
   private memberName(id: string): string { return this.roster.find(p => p.id === id)?.name ?? "player"; }
   private removePeer(id: string): void {
+    this.iceFailures.delete(id);
     const retry = this.retryTimers.get(id); if (retry !== undefined) { window.clearTimeout(retry); this.retryTimers.delete(id); }
-    const peer = this.peers.get(id); if (peer) { peer.control?.close(); peer.live?.close(); peer.pc.close(); this.peers.delete(id); }
+    const peer = this.peers.get(id); if (peer) { this.peers.delete(id); peer.control?.close(); peer.live?.close(); peer.pc.close(); }
     this.lastShipSequence.delete(id);
   }
 
   leave(message = "Left the room."): void {
     if (this.closed) return;
-    this.closed = true; window.clearInterval(this.sendTimer); window.clearInterval(this.checkpointTimer); window.clearInterval(this.topologyTimer); window.clearTimeout(this.iceRefreshTimer);
+    this.closed = true; window.clearInterval(this.sendTimer); window.clearInterval(this.checkpointTimer); window.clearInterval(this.topologyTimer); window.clearTimeout(this.iceRefreshTimer); window.clearTimeout(this.authorityTimer);
     window.clearInterval(this.gameTimer); this.world = null;
     for (const timer of this.retryTimers.values()) window.clearTimeout(timer);
     this.retryTimers.clear();
     for (const id of [...this.peers.keys()]) this.removePeer(id);
+    this.iceFailures.clear();
     const ws = this.socket; this.socket = null;
     if (ws) { if (ws.readyState === WebSocket.OPEN) { try { ws.send(JSON.stringify({ type: "leave" })); } catch { /* closing anyway */ } } ws.close(); }
     const self = this.selfId; this.roomCode = ""; this.selfId = ""; this.hostId = ""; this.roster = []; this.topology = null; this.ids.clear(); this.revision = 0;

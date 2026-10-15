@@ -83,6 +83,8 @@ The controls are also shown on screen as a small panel of key caps that light up
 
 The panel shows the version of the loaded plugin code, the selected connection mode, and the room-service hostname. Include those lines and the full status message when reporting a connection failure. A WebSocket close code is included when the server closes before room setup finishes.
 
+Player rows say **Waiting for flight state** until their first authoritative update, then show **flying** or **spectator**. A timeout from one STUN or TURN endpoint is informational while other connection paths are still being tried; an actual peer-connection failure is shown separately.
+
 Open the **Multiplayer** panel, enter a display name, and check the shared-data notice. Create a room to get an eight-character code, then share it with up to three other pilots; or enter a code to join someone else's room. The panel includes **Copy code** and **Leave** controls, participant names, health and state, and connection status. Hosted rooms are the default, so players do not set up a server. Each pilot has a nearby region in the shared flight space, and all constellation regions use the same flight scale.
 
 Joining shares anonymous star positions, connections, and group colors. It never sends note titles, paths, tags, or contents. Remote constellations have no labels, note details, search, selection, dragging, or opening actions. Your own graph retains its normal note actions. Maps update as notes and links change. Sharing supports up to 20,000 stars and 100,000 links per vault; larger maps show an error instead of silently omitting notes. Warps are disabled while in a room.

@@ -12,6 +12,7 @@
     "test": "node --test",
     "check:hosted": "node dev/check-hosted-service.mjs",
     "harness": "node dev/build-harness.mjs",
+    "harness:network": "node dev/build-network-harness.mjs",
     "install-local": "node dev/install-local.mjs"
   },
   "devDependencies": {

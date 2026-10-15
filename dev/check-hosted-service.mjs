@@ -35,11 +35,11 @@ function client() {
 
 try {
   const host = client(); await host.opened;
-  host.ws.send(JSON.stringify({ type: "create", name: "Synthetic connection check A" }));
+  host.ws.send(JSON.stringify({ type: "create", name: "Synthetic check A" }));
   const created = await host.wait(message => message.type === "created" || message.type === "error");
   assert.equal(created.type, "created", `Create failed: ${created.code || "unknown error"}`);
   const peer = client(); await peer.opened;
-  peer.ws.send(JSON.stringify({ type: "join", code: created.code, name: "Synthetic connection check B" }));
+  peer.ws.send(JSON.stringify({ type: "join", code: created.code, name: "Synthetic check B" }));
   const joined = await peer.wait(message => message.type === "joined" || message.type === "error");
   assert.equal(joined.type, "joined", `Join failed: ${joined.code || "unknown error"}`);
   assert.equal(joined.members.length, 2);

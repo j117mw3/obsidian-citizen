@@ -40,7 +40,7 @@ function callbacks(overrides = {}) {
 }
 function peerStub(topology = undefined) {
   return {
-    pc: {}, topology, positionSequence: 0, lastPositionSequence: 0, topologySend: null, topologyReceive: null,
+    pc: {}, signalChain: Promise.resolve(), pendingCandidates: [], topology, positionSequence: 0, lastPositionSequence: 0, topologySend: null, topologyReceive: null,
     positionReceive: new Map(),
     control: { readyState: "open", bufferedAmount: 0, sent: [], send(message) { this.sent.push(message); } },
     live: { readyState: "open", bufferedAmount: 0, sent: [], send(message) { this.sent.push(message); } },
@@ -266,4 +266,75 @@ test("failed signaling attempts clean up for retry and ignore late events from t
   sockets[1].emitClose(1008);
   await second;
   assert.equal(session.socket, null);
+});
+
+test("the host publishes authoritative flight state locally for every participant", () => {
+  const states = [];
+  const session = new network.MultiplayerSession(callbacks({ playerState: (id, pose) => states.push({ id, pose }) }), () => ({ data: fixture(), nodes: [] }), () => "wss://rooms.example.test");
+  session.selfId = session.hostId = "host";
+  session.world = new combat.CombatWorld(1);
+  for (const [slot, id] of ["host", "guest"].entries()) {
+    session.world.add({ id, slot, name: id, joinedAt: 1000 });
+    session.world.setInput(id, { ...emptyInput, active: true }, 1000);
+  }
+  session.world.step(1 / 60, 1000);
+  session.publishWorldState(1000);
+  assert.deepEqual(states.map(({ id, pose }) => [id, pose.active]), [["host", true], ["guest", true]]);
+});
+
+test("ICE candidates arriving before or during remote description setup are retained", async () => {
+  const session = new network.MultiplayerSession(callbacks(), () => ({ data: fixture(), nodes: [] }), () => "wss://rooms.example.test");
+  session.selfId = session.hostId = "host";
+  const peer = peerStub(), added = [];
+  let finishDescription;
+  const descriptionGate = new Promise(resolve => { finishDescription = resolve; });
+  peer.pc = {
+    remoteDescription: null,
+    async setRemoteDescription(value) { await descriptionGate; this.remoteDescription = value; },
+    async createAnswer() { return { type: "answer", sdp: "synthetic" }; },
+    async setLocalDescription(value) { this.localDescription = value; },
+    async addIceCandidate(value) { assert.ok(this.remoteDescription); added.push(value.candidate); },
+  };
+  session.peers.set("guest", peer);
+  const signal = data => session.onSignal({ type: "signal", from: "guest", data });
+  await signal({ candidate: { candidate: "before-offer" } });
+  assert.equal(peer.pendingCandidates.length, 1);
+  const description = signal({ description: { type: "offer", sdp: "synthetic" } });
+  const candidate = signal({ candidate: { candidate: "during-description" } });
+  finishDescription();
+  await Promise.all([description, candidate]);
+  assert.deepEqual(added, ["before-offer", "during-description"]);
+  assert.equal(peer.pendingCandidates.length, 0);
+});
+
+test("one failed STUN endpoint is informational and cannot mark a connected peer or relay quota as failed", () => {
+  const statuses = [];
+  const session = new network.MultiplayerSession(callbacks({ status: (text, error) => statuses.push({ text, error }) }), () => ({ data: fixture(), nodes: [] }), () => "wss://rooms.example.test");
+  session.selfId = session.hostId = "host";
+  session.roster = [{ id: "host" }, { id: "guest" }]; session.relayStatus = "ready";
+  const peer = peerStub(); peer.pc.connectionState = "connecting"; session.peers.set("guest", peer);
+  session.reportIceError("guest", { errorCode: 701, url: "stun:synthetic.invalid", errorText: "STUN binding request timed out" });
+  assert.match(statuses.at(-1).text, /STUN endpoint.*701/);
+  assert.equal(statuses.at(-1).error, false);
+  assert.equal(session.relayStatus, "ready");
+  peer.pc.connectionState = "connected";
+  session.updatePeerStatus();
+  assert.match(statuses.at(-1).text, /1 of 1 participant connections ready/);
+  assert.equal(statuses.at(-1).error, false);
+  const count = statuses.length;
+  session.reportIceError("guest", { errorCode: 701, url: "turn:synthetic.invalid", errorText: "quota" });
+  assert.equal(statuses.length, count);
+  assert.equal(session.relayStatus, "ready");
+});
+
+test("closing a removed peer's channels cannot overwrite a clean leave or departure status", () => {
+  const statuses = [];
+  const session = new network.MultiplayerSession(callbacks({ status: text => statuses.push(text) }), () => ({ data: fixture(), nodes: [] }), () => "wss://rooms.example.test");
+  const peer = peerStub(); peer.control = undefined; peer.live = undefined; peer.pc.close = () => {};
+  session.peers.set("guest", peer);
+  const channel = { label: "constellation-live", readyState: "open", close() { this.onclose?.(); } };
+  session.bindChannel("guest", channel);
+  session.removePeer("guest");
+  assert.equal(session.peers.size, 0);
+  assert.deepEqual(statuses, []);
 });

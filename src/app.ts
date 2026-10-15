@@ -2,7 +2,7 @@ import { ConstellationRenderer, webglAvailable } from "./renderer";
 import { FallbackRenderer } from "./fallback";
 import type { GraphData, GraphRenderer, Host, RendererCallbacks } from "./types";
 import { ConstellationSettings, effectiveHighContrast, effectiveMotion, prefersReducedMotion } from "./settings";
-import { HOSTED_SIGNALING_URL, MultiplayerSession, type AnonymousPlayer, type GameMessage } from "./multiplayer";
+import { HOSTED_SIGNALING_URL, MultiplayerSession, type AnonymousPlayer, type GameMessage, type Pose } from "./multiplayer";
 import { version as CLIENT_VERSION } from "../manifest.json";
 
 let instances = 0;
@@ -57,6 +57,7 @@ export class ConstellationApp {
   private network!: MultiplayerSession;
   private remoteIds = new Set<string>();
   private playerRows = new Map<string, { row: HTMLLIElement; health: HTMLProgressElement; state: HTMLElement }>();
+  private playerStates = new Map<string, Pose>();
   private statsText = "";
   private activityKind: "animate" | "supernova" | null = null;
   private motionNote: HTMLElement;
@@ -222,13 +223,8 @@ export class ConstellationApp {
       message: (from, message) => this.onNetworkMessage(from, message),
       playerState: (id, pose) => {
         if (id === this.network?.localPlayerId) this.renderer.setAuthoritativePose(pose); else this.renderer.setRemoteShip(id, pose);
-        const player = this.playerRows.get(id);
-        if (player) {
-          const name = player.row.dataset.name ?? "Pilot";
-          player.health.value = Math.max(0, Math.min(100, pose.health));
-          player.health.setAttribute("aria-label", `${name}: ${Math.round(pose.health)} of 100 health`);
-          player.state.textContent = pose.health <= 0 ? `${Math.round(pose.health)} HP · respawn ${Math.ceil(pose.respawnAt / 1000)}s` : `${Math.round(pose.health)} HP${pose.active ? "" : " · spectator"}`;
-        }
+        this.playerStates.set(id, pose);
+        this.updatePlayerRow(id, pose);
       },
       shotState: (shots, impacts) => this.renderer.setRemoteShots(shots, impacts),
       removed: id => { if (id) { this.renderer.removeRemote(id); this.remoteIds.delete(id); } },
@@ -334,14 +330,17 @@ export class ConstellationApp {
   private onMembers(members: AnonymousPlayer[], selfId: string): void {
     this.multiplayerPlayers.replaceChildren();
     this.playerRows.clear();
+    for (const id of this.playerStates.keys()) if (!members.some(member => member.id === id)) this.playerStates.delete(id);
     for (const member of members) {
       const label = member.id === selfId ? `${member.name} (you)` : member.name;
       const row = el("li", "cg-player-row"); row.dataset.name = label.slice(0, 32);
       const name = el("span", "cg-player-name", {}, label.slice(0, 32));
-      const health = el("progress", "cg-player-health", { max: "100", value: "100", "aria-label": `${label}: 100 of 100 health` });
-      const state = el("span", "cg-player-state", {}, "100 HP · spectator");
+      const health = el("progress", "cg-player-health", { max: "100", "aria-label": `${label}: waiting for health` });
+      const state = el("span", "cg-player-state", {}, "Waiting for flight state");
       row.append(name, health, state);
       this.playerRows.set(member.id, { row, health, state }); this.multiplayerPlayers.appendChild(row);
+      const pose = this.playerStates.get(member.id);
+      if (pose) this.updatePlayerRow(member.id, pose);
     }
     const joined = !!selfId;
     this.multiplayerCode.disabled = joined; this.multiplayerConsent.disabled = joined;
@@ -353,6 +352,15 @@ export class ConstellationApp {
       const self = members.find(p => p.id === selfId);
       this.renderer.setMultiplayer(true); this.renderer.setWorldOrigin(self?.slot ?? 0);
     }
+  }
+
+  private updatePlayerRow(id: string, pose: Pose): void {
+    const player = this.playerRows.get(id); if (!player) return;
+    const name = player.row.dataset.name ?? "Pilot";
+    player.health.value = Math.max(0, Math.min(100, pose.health));
+    player.health.setAttribute("aria-label", `${name}: ${Math.round(pose.health)} of 100 health`);
+    player.state.textContent = pose.health <= 0 ? `${Math.round(pose.health)} HP · respawn ${Math.ceil(pose.respawnAt / 1000)}s`
+      : `${Math.round(pose.health)} HP · ${pose.active ? "flying" : "spectator"}`;
   }
 
   private onNetworkMessage(_from: string, message: GameMessage): void {
