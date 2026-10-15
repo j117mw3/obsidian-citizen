@@ -1,6 +1,6 @@
 # Constellation Graph
 
-A fluid, slowly orbiting 3D map of your notes for [Obsidian](https://obsidian.md). Notes glow as points of light, coloured by folder (or tag). Clusters swirl around their own centres and drift past one another, like a screensaver for your vault, while the camera slowly circles. Everything is built to stay usable: full keyboard control, screen-reader announcements, a searchable note list, a colour-blind-safe palette, a high-contrast mode, and no motion at all if your system asks for reduced motion.
+A fluid, slowly orbiting 3D map of your notes for [Obsidian](https://obsidian.md), with a **Pilot mode** that lets you fly a small starfighter through it. Notes glow as points of light, coloured by folder (or tag). Clusters swirl around their own centres and drift past one another, like a screensaver for your vault, while the camera slowly circles. Everything is built to stay usable: full keyboard control, screen-reader announcements, a searchable note list, a colour-blind-safe palette, a high-contrast mode, and no motion at all if your system asks for reduced motion.
 
 > Early release. Listing and install details: [Constellation Graph on the Obsidian community site](https://community.obsidian.md/plugins/constellation-graph).
 
@@ -49,6 +49,35 @@ The graph area is focusable. Press **?** for this list in the app.
 | / | Focus search |
 | Esc | Clear selection, close a panel |
 
+### Pilot mode
+
+Press **P** in the graph (or the plane button on the toolbar) and fly a small four-winged fighter through your notes. Shoot a note to select it, shoot it again to open it. The plane has weight: it takes a moment to start and stop a turn, it coasts when you let go of the throttle, sharp turns cost a little speed, and a trailing camera follows it. Notes are solid, so you bounce off them. Pilot mode never edits a note; shooting and opening do what a click already does.
+
+| Key | Action |
+|---|---|
+| W / S | Thrust / reverse |
+| A / D | Strafe |
+| Space / C | Up / down |
+| Q / E | Roll |
+| Shift | Afterburner (uses an energy tank; when it runs dry it stays empty for a few seconds before it refills) |
+| X | Brake |
+| Mouse | Steer (see **Mouse mode** below) |
+| Click or F | Fire a blaster bolt at what is under the crosshair |
+| T | Lock or unlock the target |
+| G | Warp to the target |
+| H | Warp back out to see the whole graph |
+| V | Switch between chase and cockpit view |
+| K | Show or hide the controls panel |
+| Esc | Free the mouse (a second Esc leaves) |
+| P | Leave Pilot mode |
+
+The controls are also shown on screen as a small panel of key caps that light up as you press them, and fades after a few seconds.
+
+- **Mouse mode.** *Capture* hides the pointer and steers with its movement. *Cursor* keeps the pointer visible and steers by how far it is from the centre, with a dead zone and two faint rings to show it; over a panel or button it stops steering, so you can click the legend, toolbar and details panel while flying.
+- **Scale.** Cruise speed is set from the size of your vault, so a bigger vault takes longer to cross: about 12 seconds across a 100-note vault at cruise speed, longer for larger ones. The *Flight speed* setting scales it. Warps take time in proportion to the distance.
+- **Wireframes and sound.** The plane has a glowing wireframe outline, and target brackets, impact bursts and faint shells around each group are drawn in wireframe too (they can be turned off). Engine, blaster and warp sounds are synthesised in the plugin with the Web Audio API, nothing is loaded from a file, and they can be turned off or turned down. Sound mutes when the window loses focus.
+- Pilot mode needs motion, so it stays off when your system asks for reduced motion (the search, note list and details panel still work). It is not available without WebGL.
+
 ### Accessibility
 
 - **Reduced motion.** If your operating system requests reduced motion, flow, orbiting and camera flights are turned off: the layout settles once and stays still, dragged notes return at once instead of bouncing, and Supernova just recomputes the layout instantly without the show. Animate still works because you asked for it, but without the pop-in effects. You can also set motion to *Off* yourself, or pause at any time.
@@ -60,11 +89,11 @@ The graph area is focusable. Press **?** for this list in the app.
 
 ## Settings
 
-Open on startup (off by default; saved in the vault, so it applies to anyone who opens it), flow (off, calm, lively), camera rotation and speed, glow and bloom, palette, label size and count, grouping (folder, first tag, none), folder depth, excluded folders, whether to show notes with no links, and whether to ring the open note.
+Open on startup (off by default; saved in the vault, so it applies to anyone who opens it), flow (off, calm, lively), camera rotation and speed, glow and bloom, palette, label size and count, grouping (folder, first tag, none), folder depth, excluded folders, whether to show notes with no links, and whether to ring the open note. Pilot mode has its own section: enable, mouse mode (capture or cursor), mouse sensitivity, invert vertical look, flight speed, agility, view (chase or cockpit), wireframe effects, sound and volume.
 
 ## Privacy and safety
 
-No network access, no telemetry, no remote code. Everything, including Three.js, is bundled into `main.js`. Note titles are only ever written as text, never as HTML. The plugin reads your notes' names and links (from Obsidian's own index) and, when grouping by tag, their first tag. It does not read note contents or write to your vault.
+No network access, no telemetry, no remote code. Everything, including Three.js, is bundled into `main.js`. Note titles are only ever written as text, never as HTML. Pilot mode's sound is generated by the plugin itself; no audio files are loaded or sent anywhere. The plugin reads your notes' names and links (from Obsidian's own index) and, when grouping by tag, their first tag. It does not read note contents or write to your vault.
 
 ## Performance
 
@@ -86,7 +115,7 @@ npm run harness -- "<path to a vault>"   # builds dev/harness.html, a browser pr
 npm run install-local -- "<path to a vault>"   # build and copy into <vault>/.obsidian/plugins/constellation-graph
 ```
 
-Source layout: `src/main.ts` (plugin), `view.ts` (Obsidian view), `data.ts` (vault to graph), `app.ts` (UI, keyboard, accessibility), `renderer.ts` (Three.js), `sim.ts` (layout and flow), `fallback.ts` (no-WebGL mode), `settings.ts`, `palette.ts`.
+Source layout: `src/main.ts` (plugin), `view.ts` (Obsidian view), `data.ts` (vault to graph), `app.ts` (UI, keyboard, accessibility), `renderer.ts` (Three.js), `sim.ts` (layout and flow), `pilot.ts` (Pilot mode: flight, aiming, collisions, HUD), `ship.ts` and `cockpit.ts` (the plane and its cockpit, built from primitives), `sfx.ts` (synthesised sound), `fallback.ts` (no-WebGL mode), `settings.ts`, `palette.ts`.
 
 ## Licence and third-party notices
 

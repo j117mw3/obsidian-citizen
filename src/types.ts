@@ -55,6 +55,8 @@ export interface RendererCallbacks {
   onOpen(idx: number, newTab: boolean): void;
   /** A timed show started, progressed or ended. `kind` is null when nothing is running. */
   onActivity?(kind: "animate" | "supernova" | null, text: string): void;
+  /** Pilot mode started or stopped; `text` is a message for the reader (read out by screen readers too). */
+  onPilot?(active: boolean, text: string): void;
 }
 
 /** The 3D renderer and the list-only fallback expose the same surface, so the UI never has to care which it has. */
@@ -81,5 +83,9 @@ export interface GraphRenderer {
   supernova(): void;
   readonly activity: "animate" | "supernova" | null;
   readonly canShow: boolean;
+  /** Free flight through the constellation. Not available without WebGL. */
+  readonly canPilot: boolean;
+  readonly pilotActive: boolean;
+  setPilot(on: boolean): void;
   destroy(): void;
 }

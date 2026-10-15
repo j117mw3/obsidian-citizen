@@ -45,5 +45,8 @@ export class FallbackRenderer implements GraphRenderer {
   supernova(): void { /* nothing to draw */ }
   get activity(): null { return null; }
   get canShow(): boolean { return false; }
+  get canPilot(): boolean { return false; }
+  get pilotActive(): boolean { return false; }
+  setPilot(_on: boolean): void { /* no canvas to fly in */ }
   destroy(): void { this.cb.onHover(-1); }
 }

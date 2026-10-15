@@ -19,6 +19,16 @@ export interface ConstellationSettings {
   highlightActive: boolean;
   excludeFolders: string;
   openOnStartup: boolean;
+  pilotEnabled: boolean;
+  pilotSensitivity: number;
+  pilotInvertY: boolean;
+  pilotView: "chase" | "cockpit";
+  pilotSound: boolean;
+  pilotVolume: number;
+  pilotWireframe: boolean;
+  pilotAgility: number;
+  pilotSpeed: number;
+  pilotMouse: "capture" | "cursor";
 }
 
 export const DEFAULT_SETTINGS: ConstellationSettings = {
@@ -38,6 +48,16 @@ export const DEFAULT_SETTINGS: ConstellationSettings = {
   highlightActive: true,
   excludeFolders: "",
   openOnStartup: false,
+  pilotEnabled: true,
+  pilotSensitivity: 1,
+  pilotInvertY: false,
+  pilotView: "chase",
+  pilotSound: true,
+  pilotVolume: 0.5,
+  pilotWireframe: true,
+  pilotAgility: 1,
+  pilotSpeed: 1,
+  pilotMouse: "capture",
 };
 
 const clamp = (v: unknown, lo: number, hi: number, fallback: number): number =>
@@ -67,6 +87,16 @@ export function sanitizeSettings(raw: unknown): ConstellationSettings {
     highlightActive: bool(r.highlightActive, d.highlightActive),
     excludeFolders: typeof r.excludeFolders === "string" ? r.excludeFolders : d.excludeFolders,
     openOnStartup: bool(r.openOnStartup, d.openOnStartup),
+    pilotEnabled: bool(r.pilotEnabled, d.pilotEnabled),
+    pilotSensitivity: clamp(r.pilotSensitivity, 0.2, 3, d.pilotSensitivity),
+    pilotInvertY: bool(r.pilotInvertY, d.pilotInvertY),
+    pilotView: pick(r.pilotView, ["chase", "cockpit"] as const, d.pilotView),
+    pilotSound: bool(r.pilotSound, d.pilotSound),
+    pilotVolume: clamp(r.pilotVolume, 0, 1, d.pilotVolume),
+    pilotWireframe: bool(r.pilotWireframe, d.pilotWireframe),
+    pilotAgility: clamp(r.pilotAgility, 0.5, 1.5, d.pilotAgility),
+    pilotSpeed: clamp(r.pilotSpeed, 0.4, 3, d.pilotSpeed),
+    pilotMouse: pick(r.pilotMouse, ["capture", "cursor"] as const, d.pilotMouse),
   };
 }
 

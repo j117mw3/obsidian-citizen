@@ -126,3 +126,67 @@
 .cg-btn.cg-on, .cg-btn[aria-pressed="true"] { background: var(--cg-accent); border-color: transparent; color: #fff; }
 @media (prefers-reduced-motion: reduce) { .cg-flash { display: none; } }
 .cg-hidden { display: none; }
+
+/* Pilot mode: the cockpit is plain DOM over the canvas */
+.cg-stage.cg-piloting .cg-canvas { cursor: crosshair; }
+.cg-pilot { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
+.cg-pilot[hidden] { display: none; }
+.cg-pilot-cross {
+  position: absolute; left: 0; top: 0; width: 26px; height: 26px; margin: -13px 0 0 -13px; will-change: transform;
+  border: 1.5px solid rgba(255, 255, 255, 0.75); border-radius: 50%; box-shadow: 0 0 6px rgba(120, 220, 255, 0.6);
+}
+.cg-pilot-cross::after { content: ""; position: absolute; left: 50%; top: 50%; width: 3px; height: 3px; margin: -1.5px 0 0 -1.5px; background: #fff; border-radius: 50%; }
+.cg-pilot-hint {
+  position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); padding: 4px 12px; max-width: 90%;
+  border-radius: 8px; background: var(--cg-panel); border: 1px solid var(--cg-border); color: var(--cg-dim); font-size: 12px; text-align: center;
+}
+.cg-pilot-readout {
+  position: absolute; left: 0; top: 0; transform: translate(50vw, 60vh) translateX(-50%); will-change: transform; text-align: center; white-space: nowrap;
+  text-shadow: 0 0 6px #000, 0 0 3px #000;
+}
+.cg-pilot-readout[hidden] { display: none; }
+.cg-pilot-name { font-weight: 700; font-size: 14px; color: #fff; }
+.cg-pilot-meta { font-size: 12px; color: var(--cg-dim); }
+.cg-pilot-speed { position: absolute; left: 50%; bottom: 52px; width: 140px; height: 3px; transform: translateX(-50%); background: rgba(255, 255, 255, 0.14); border-radius: 2px; overflow: hidden; }
+.cg-pilot-speed-fill { height: 100%; width: 0; background: linear-gradient(90deg, #5ad2ff, #ffffff); }
+.cg-contrast .cg-pilot-cross { border: 3px solid #fff; box-shadow: none; }
+.cg-contrast .cg-pilot-hint, .cg-contrast .cg-pilot-readout { background: #000; border: 1px solid #fff; color: #fff; text-shadow: none; padding: 2px 8px; border-radius: 4px; }
+.cg-contrast .cg-pilot-meta { color: #fff; }
+.cg-pilot-steer { position: absolute; left: 50%; top: 50%; border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none; box-sizing: border-box; }
+.cg-pilot-steer[hidden] { display: none; }
+.cg-pilot-steer-inner { border: 1px dashed rgba(255, 255, 255, 0.28); }
+.cg-pilot-steer-outer { border: 1px solid rgba(120, 220, 255, 0.14); }
+.cg-stage.cg-piloting.cg-cursor .cg-canvas { cursor: default; }
+.cg-contrast .cg-pilot-steer-inner, .cg-contrast .cg-pilot-steer-outer { border-color: #fff; }
+.cg-pilot-energy { position: absolute; left: 50%; bottom: 46px; width: 140px; height: 3px; transform: translateX(-50%); background: rgba(255, 255, 255, 0.14); border-radius: 2px; overflow: hidden; }
+.cg-pilot-energy-fill { height: 100%; width: 100%; background: linear-gradient(90deg, #ff8a3a, #ffd37a); }
+.cg-pilot-energy-fill.cg-low { background: #ff4b3a; }
+.cg-pilot-energy:has(.cg-low) { box-shadow: 0 0 0 1px rgba(255, 75, 58, 0.6); }
+.cg-pilot-flags { position: absolute; left: 50%; bottom: 58px; transform: translateX(-50%); font-size: 11px; letter-spacing: 0.08em; color: var(--cg-dim); text-shadow: 0 0 4px #000; white-space: nowrap; }
+.cg-contrast .cg-pilot-flags { color: #fff; }
+
+/* Pilot mode: the controls, as key caps in a quiet glass panel */
+.cg-pilot-keys {
+  position: absolute; top: 58px; right: 14px; width: 214px; padding: 10px 12px 8px; border-radius: 12px;
+  background: linear-gradient(160deg, rgba(18, 24, 38, 0.72), rgba(10, 13, 22, 0.62)); border: 1px solid var(--cg-border);
+  backdrop-filter: blur(8px); box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35); transition: opacity 0.6s ease;
+}
+.cg-pilot-keys[hidden] { display: none; }
+.cg-pilot-keys.cg-quiet { opacity: 0.34; }
+.cg-pilot-keys-title { font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--cg-ink); margin-bottom: 4px; }
+.cg-pilot-keys-head { margin: 8px 0 3px; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--cg-dim); }
+.cg-pilot-keys-row { display: flex; align-items: center; gap: 8px; padding: 2px 0; }
+.cg-pilot-keys-caps { flex: none; display: flex; gap: 3px; min-width: 66px; }
+.cg-pilot-keys-label { color: var(--cg-dim); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cg-key {
+  display: inline-block; min-width: 20px; padding: 1px 6px 2px; text-align: center; font: 600 11px/1.35 var(--font-interface, system-ui, sans-serif);
+  color: var(--cg-ink); background: rgba(255, 255, 255, 0.07); border: 1px solid rgba(255, 255, 255, 0.22); border-bottom-width: 2px; border-radius: 5px;
+  transition: background 0.08s, color 0.08s, border-color 0.08s, transform 0.08s;
+}
+.cg-key.cg-down { color: #06121a; background: #7fe8ff; border-color: #bff6ff; transform: translateY(1px); box-shadow: 0 0 10px rgba(110, 230, 255, 0.55); }
+.cg-contrast .cg-pilot-keys { background: #000; border-color: #fff; backdrop-filter: none; }
+.cg-contrast .cg-pilot-keys-label, .cg-contrast .cg-pilot-keys-head { color: #fff; }
+.cg-contrast .cg-key { border-color: #fff; }
+.cg-contrast .cg-key.cg-down { background: #fff; color: #000; box-shadow: none; }
+@container (max-width: 640px) { .cg-pilot-keys { display: none; } }
+@media (prefers-reduced-motion: reduce) { .cg-pilot-keys, .cg-key { transition: none; } }

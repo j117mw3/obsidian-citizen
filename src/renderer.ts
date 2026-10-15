@@ -4,8 +4,9 @@ import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { Simulation } from "./sim";
+import { PilotController } from "./pilot";
 import type { GraphData, GraphRenderer, RendererCallbacks, SimNode } from "./types";
-import { ConstellationSettings, effectiveAutoRotate, effectiveHighContrast, effectiveMotion } from "./settings";
+import { ConstellationSettings, effectiveAutoRotate, effectiveHighContrast, effectiveMotion, prefersReducedMotion } from "./settings";
 
 THREE.ColorManagement.enabled = false; // we feed sRGB values straight to the screen
 
@@ -48,6 +49,10 @@ const PRESS_SLACK_PX = 7;     // extra reach when pressing, because notes keep d
 
 function baseRadius(deg: number): number {
   return Math.min(5.5, 0.9 + Math.sqrt(deg) * 0.5);
+}
+
+function pilotOptions(s: ConstellationSettings) {
+  return { sensitivity: s.pilotSensitivity, invertY: s.pilotInvertY, view: s.pilotView, sound: s.pilotSound, volume: s.pilotVolume, wireframe: s.pilotWireframe, agility: s.pilotAgility, speed: s.pilotSpeed, mouse: s.pilotMouse };
 }
 
 export function webglAvailable(): boolean {
@@ -141,6 +146,9 @@ export class ConstellationRenderer implements GraphRenderer {
   private linkAt = new Map<number, number>(); // pair of note indices -> link index
   private treeLink = new Uint8Array(0); // links on the shortest-path tree during the trace
   private flashEl: HTMLDivElement;
+  private pilot: PilotController;
+  private aim = -1; // the note under the Pilot crosshair
+  private fwd = new THREE.Vector3();
 
   constructor(private container: HTMLElement, private cb: RendererCallbacks, settings: ConstellationSettings) {
     this.settings = settings;
@@ -175,6 +183,23 @@ export class ConstellationRenderer implements GraphRenderer {
 
     this.stars = this.makeStars();
     this.scene.add(this.stars);
+
+    this.pilot = new PilotController(this.canvas, container, this.camera, this.scene, {
+      nodes: () => this.sim.nodes,
+      pickAt: (x, y, slack) => this.pickAt(x, y, slack),
+      groupLabel: gi => this.groups[gi]?.label ?? "",
+      nodeRadius: i => baseRadius(this.sim.nodes[i]?.deg ?? 0),
+      solid: i => { const n = this.sim.nodes[i]; return !!n && !this.hidden.has(n.gi) && this.alpha[i] > 0.3; },
+      clusters: () => this.clusterShells(),
+      bounds: () => this.sim.bounds(),
+      fitDistance: r => this.fitDistance(r),
+      selectedIndex: () => this.selected,
+      setAim: i => this.setAim(i),
+      select: i => { this.setSelected(i, false); this.cb.onSelect(i); },
+      open: (i, newTab) => this.cb.onOpen(i, newTab),
+      onState: (active, text) => this.onPilotState(active, text),
+      leave: () => this.setPilot(false),
+    }, pilotOptions(settings));
 
     this.canvas.addEventListener("pointermove", this.onPointerMove);
     this.canvas.addEventListener("pointerleave", this.onPointerLeave);
@@ -250,13 +275,15 @@ export class ConstellationRenderer implements GraphRenderer {
     this.stars.visible = !hc;
     this.container.classList.toggle("cg-contrast", hc);
     this.container.style.setProperty("--cg-label-size", s.labelSize + "px");
+    this.pilot.setOptions(pilotOptions(s));
+    if (!s.pilotEnabled && this.pilot.active) this.setPilot(false);
     this.dirty = true; this.stale = true;
   }
 
   /** The camera drifts only when nothing needs a steady target: not while you hover, select, drag or have just let go. */
   private updateRotate(): void {
     this.controls.autoRotate = effectiveAutoRotate(this.settings) && !this.paused && this.selected < 0 && this.hover < 0
-      && !this.userActive && !this.drag && performance.now() >= this.rotateBlockedUntil;
+      && !this.userActive && !this.drag && !this.pilot.active && performance.now() >= this.rotateBlockedUntil;
   }
 
   setPaused(p: boolean): void { this.paused = p; this.updateRotate(); }
@@ -268,11 +295,66 @@ export class ConstellationRenderer implements GraphRenderer {
     if (i >= 0 && fly) this.flyTo(i);
   }
   setActive(i: number): void { if (i !== this.active) { this.active = i; this.dirty = true; } }
+
+  // ----------------------------------------------------------------- Pilot mode
+
+  get canPilot(): boolean { return true; }
+  get pilotActive(): boolean { return this.pilot.active; }
+
+  /** Enter or leave free flight. The orbit controls are parked while it runs, and the view eases back out when it ends. */
+  setPilot(on: boolean): void {
+    if (on === this.pilot.active) return;
+    if (!on) { this.pilot.exit(); return; }
+    if (!this.settings.pilotEnabled) { this.cb.onPilot?.(false, "Pilot mode is turned off in the settings"); return; }
+    if (this.settings.respectReducedMotion && prefersReducedMotion()) {
+      this.cb.onPilot?.(false, "Pilot mode needs motion, and reduced motion is on, so it stays off. Search and the note list still work."); return;
+    }
+    if (this.drag || this.contextLost || !this.sim.nodes.length) return;
+    if (this.reveal) this.endAnimation(false);
+    if (this.nova) this.novaStop(false);
+    this.tween = null; this.follow = -1; this.autoFrame = false;
+    window.clearTimeout(this.resumeTimer);
+    this.controls.enabled = false; this.controls.autoRotate = false;
+    this.frameB = this.sim.bounds();
+    this.pilot.enter();
+  }
+
+  private onPilotState(active: boolean, text: string): void {
+    if (!active) { // flight is over: hand the camera back to the orbit controls without a jump, then ease out to the full view
+      const dir = this.tmp.set(0, 0, -1).applyQuaternion(this.camera.quaternion);
+      const b = this.sim.bounds();
+      this.controls.target.copy(this.camera.position).addScaledVector(dir, Math.max(60, this.camera.position.distanceTo(this.tmp2.set(b.cx, b.cy, b.cz))));
+      this.controls.enabled = true;
+      this.aim = -1; this.dirty = true; this.stale = true;
+      this.autoFrame = true;
+      this.updateRotate();
+      this.resetView();
+    }
+    this.cb.onPilot?.(active, text);
+  }
+
+  /** The centre, rough radius and colour of every group that is showing: what Pilot mode draws as wireframe shells. */
+  private clusterShells(): { x: number; y: number; z: number; r: number; color: string }[] {
+    const G = this.groups.length, nodes = this.sim.nodes;
+    const sx = new Float64Array(G), sy = new Float64Array(G), sz = new Float64Array(G), cnt = new Float64Array(G), sq = new Float64Array(G);
+    for (const n of nodes) { if (this.hidden.has(n.gi)) continue; sx[n.gi] += n.x; sy[n.gi] += n.y; sz[n.gi] += n.z; cnt[n.gi]++; }
+    for (let g = 0; g < G; g++) if (cnt[g]) { sx[g] /= cnt[g]; sy[g] /= cnt[g]; sz[g] /= cnt[g]; }
+    for (const n of nodes) { if (this.hidden.has(n.gi)) continue; sq[n.gi] += (n.x - sx[n.gi]) ** 2 + (n.y - sy[n.gi]) ** 2 + (n.z - sz[n.gi]) ** 2; }
+    const out: { x: number; y: number; z: number; r: number; color: string }[] = [];
+    for (let g = 0; g < G; g++) {
+      if (cnt[g] < 3) continue; // a shell around one or two notes says nothing
+      out.push({ x: sx[g], y: sy[g], z: sz[g], r: Math.max(12, Math.sqrt(sq[g] / cnt[g]) * 2.1), color: this.groups[g].color });
+    }
+    return out;
+  }
+
+  private setAim(i: number): void { if (i !== this.aim) { this.aim = i; this.dirty = true; } }
   setSearch(matches: Set<number> | null): void { this.search = matches; this.dirty = true; }
   setHidden(groupIndex: number, hide: boolean): void { hide ? this.hidden.add(groupIndex) : this.hidden.delete(groupIndex); this.dirty = true; }
   isHidden(groupIndex: number): boolean { return this.hidden.has(groupIndex); }
 
   flyTo(i: number): void {
+    if (this.pilot.active) { this.pilot.warpToNode(i); return; }
     const n = this.sim.nodes[i]; if (!n) return;
     const dir = this.tmp.copy(this.camera.position).sub(this.controls.target);
     if (dir.lengthSq() < 1) dir.set(0.3, 0.2, 1);
@@ -282,6 +364,7 @@ export class ConstellationRenderer implements GraphRenderer {
   }
 
   resetView(): void {
+    if (this.pilot.active) { this.pilot.returnToHub(); return; }
     this.follow = -1; this.autoFrame = true;
     const b = this.sim.bounds();
     const dir = this.tmp.copy(this.camera.position).sub(this.controls.target);
@@ -381,6 +464,7 @@ export class ConstellationRenderer implements GraphRenderer {
       ["webglcontextlost", this.onContextLost], ["webglcontextrestored", this.onContextRestored],
     ] as [string, EventListener][]) this.canvas.removeEventListener(ev, fn);
     this.canvas.removeEventListener("pointerdown", this.onPointerDown, true);
+    this.pilot.destroy();
     this.disposeNodes();
     this.stars.geometry.dispose(); (this.stars.material as THREE.Material).dispose();
     // EffectComposer.dispose() does not free its passes, and browsers cap live WebGL contexts
@@ -476,6 +560,7 @@ export class ConstellationRenderer implements GraphRenderer {
     this.pointer.x = e.clientX - r.left; this.pointer.y = e.clientY - r.top; this.pointer.inside = true;
   }
   private onPointerMove = (e: PointerEvent) => {
+    if (this.pilot.active) return;
     this.setPointer(e); this.pointer.moved = true;
     // the button went up without us seeing it (focus moved away, released outside the window): do not stay stuck in a drag
     if ((this.press || this.drag) && e.buttons === 0) { this.onPointerCancel(); return; }
@@ -489,7 +574,7 @@ export class ConstellationRenderer implements GraphRenderer {
   };
   private onPointerLeave = () => { this.pointer.inside = false; this.pointer.moved = true; };
   private onPointerDown = (e: PointerEvent) => {
-    if (e.button !== 0) return;
+    if (e.button !== 0 || this.pilot.active) return; // in Pilot mode a press is a shot, handled by the pilot
     this.setPointer(e);
     let hit = this.pick();
     if (hit < 0) hit = this.pick(PRESS_SLACK_PX); // notes drift while the hand travels, so a press may land just beside one
@@ -501,7 +586,7 @@ export class ConstellationRenderer implements GraphRenderer {
     }
   };
   private onPointerUp = (e: PointerEvent) => {
-    if (e.button !== 0) return;
+    if (e.button !== 0 || this.pilot.active) return;
     const p = this.press; this.press = null;
     if (this.drag) { this.dragEnd(); return; }
     this.endPress(p);
@@ -568,21 +653,26 @@ export class ConstellationRenderer implements GraphRenderer {
     return this.ray.ray.intersectPlane(plane, this.hit) ? this.hit : null;
   }
   /** The note under the pointer. `slack` widens every target by a few pixels (used for a press, since notes drift while the hand travels). */
-  private pick(slack = 0): number {
+  private pick(slack = 0): number { return this.pickAt(this.pointer.x, this.pointer.y, slack); }
+
+  /** The note under a point of the canvas (CSS pixels), ignoring notes behind the camera. */
+  private pickAt(px: number, py: number, slack = 0): number {
     const w = this.canvas.clientWidth, h = this.canvas.clientHeight, dpr = this.renderer.getPixelRatio();
-    const v = this.tmp, nodes = this.sim.nodes;
+    const v = this.tmp, nodes = this.sim.nodes, cam = this.camera.position;
+    const fx = this.fwd.set(0, 0, -1).applyQuaternion(this.camera.quaternion);
     let best = -1, bestScore = 1e9;
     for (let i = 0; i < nodes.length; i++) {
       const p = nodes[i];
       if (this.hidden.has(p.gi) || this.alpha[i] < 0.3) continue;
+      if ((p.x - cam.x) * fx.x + (p.y - cam.y) * fx.y + (p.z - cam.z) * fx.z < 1) continue; // behind the camera
       v.set(p.x, p.y, p.z).project(this.camera);
       if (v.z > 1) continue;
       const sx = (v.x * 0.5 + 0.5) * w, sy = (-v.y * 0.5 + 0.5) * h;
-      const d = Math.hypot(sx - this.pointer.x, sy - this.pointer.y);
+      const d = Math.hypot(sx - px, sy - py);
       if (d > 70) continue;
       const dist = this.camera.position.distanceTo(this.tmp2.set(p.x, p.y, p.z)) || 1;
       const sprite = Math.min(190, Math.max(7, (this.size[i] * this.uniforms.uScale.value) / dist)) / dpr; // CSS pixels
-      const reach = Math.max(14, sprite * CORE * 0.5 + 8) + slack;
+      const reach = Math.max(18, sprite * CORE * 0.5 * 1.3 + 10) + slack; // a little larger than the drawn note, so it is easy to hit
       if (d < reach) { const score = d + dist * 0.01; if (score < bestScore) { bestScore = score; best = i; } }
     }
     return best;
@@ -606,7 +696,7 @@ export class ConstellationRenderer implements GraphRenderer {
 
     let moving = false;
     if (!this.paused) { this.sim.step(dt); moving = this.sim.isActive(); }
-    if (!this.drag && (this.pointer.moved || (this.pointer.inside && moving && this.frameNo % 8 === 0))) {
+    if (!this.drag && !this.pilot.active && (this.pointer.moved || (this.pointer.inside && moving && this.frameNo % 8 === 0))) {
       this.pointer.moved = false;
       this.setHover(this.pointer.inside ? this.pick() : -1);
       this.canvas.style.cursor = this.hover >= 0 ? "pointer" : "grab";
@@ -615,8 +705,16 @@ export class ConstellationRenderer implements GraphRenderer {
     if (this.dirty) this.recomputeTargets();
 
     const animating = this.updateBuffers(dt, moving || this.stale);
-    this.updateCamera(now);
-    const camMoved = this.controls.update(dt);
+    let camMoved = false;
+    if (this.pilot.active) {
+      this.pilot.update(dt);
+      // keep the orbit target ahead of the ship, so labels still fade with distance
+      this.controls.target.copy(this.camera.position).addScaledVector(this.tmp.set(0, 0, -1).applyQuaternion(this.camera.quaternion), 300);
+      this.stale = true;
+    } else {
+      this.updateCamera(now);
+      camMoved = this.controls.update(dt);
+    }
     if (!(moving || animating || camMoved || this.stale || this.tween || this.follow >= 0)) return; // fully at rest: draw nothing
     this.stale = false;
 
@@ -689,7 +787,7 @@ export class ConstellationRenderer implements GraphRenderer {
       let a = 1;
       if (this.hidden.has(nodes[i].gi) || (this.reveal && this.reveal.rank[i] >= this.reveal.count)) a = 0;
       else {
-        if (primary >= 0 && !lit.has(i)) a *= 0.13;
+        if (primary >= 0 && !lit.has(i) && !this.pilot.active) a *= 0.13; // in flight nothing dims, or the notes you have not selected could not be aimed at
         if (this.search && !this.search.has(i)) a *= 0.14;
       }
       this.tAlpha[i] = a;
@@ -697,6 +795,7 @@ export class ConstellationRenderer implements GraphRenderer {
       if (i === primary) { s *= 1.5; e = 0.9; }
       else if (primary >= 0 && lit.has(i)) s *= 1.12;
       if (i === this.selected) e = 1;
+      if (i === this.aim && this.pilot.active) { s *= 1.4; e = Math.max(e, 0.8); } // what the crosshair is on
       if (this.search && this.search.has(i)) { s *= 1.25; e = Math.max(e, 0.7); }
       if (this.settings.highlightActive && i === this.active) e = Math.max(e, 0.75);
       const nv = this.nova;
@@ -795,7 +894,7 @@ export class ConstellationRenderer implements GraphRenderer {
     const seen = new Set<number>();
     const add = (i: number) => { if (i >= 0 && !seen.has(i) && !this.hidden.has(nodes[i].gi)) { seen.add(i); want.push(i); } };
     if (this.reveal) for (let k = this.reveal.count - 1; k >= Math.max(0, this.reveal.count - 3); k--) add(this.reveal.order[k]); // the newest arrivals
-    add(this.hover); add(this.selected); add(this.active);
+    add(this.hover); add(this.selected); add(this.active); add(this.pilot.active ? this.aim : -1);
     const primary = this.hover >= 0 ? this.hover : this.selected;
     if (primary >= 0) {
       let top = this.adj[primary].slice();
@@ -806,6 +905,8 @@ export class ConstellationRenderer implements GraphRenderer {
     else if (primary < 0) for (let k = 0; k < this.labelPriority.length && want.length < s.labelCount + 3; k++) add(this.labelPriority[k]);
 
     const w = this.canvas.clientWidth, h = this.canvas.clientHeight, v = this.tmp, placed = this.placed;
+    const cp = this.camera.position, cx0 = cp.x, cy0 = cp.y, cz0 = cp.z;
+    const fd = this.fwd.set(0, 0, -1).applyQuaternion(this.camera.quaternion), fx0 = fd.x, fy0 = fd.y, fz0 = fd.z;
     placed.length = 0;
     const fs = s.labelSize, focusDist = this.camera.position.distanceTo(this.controls.target) || 1;
     let used = 0;
@@ -813,6 +914,7 @@ export class ConstellationRenderer implements GraphRenderer {
       const n = nodes[i];
       v.set(n.x, n.y, n.z).project(this.camera);
       if (v.z > 1 || Math.abs(v.x) > 1.05 || Math.abs(v.y) > 1.05) continue;
+      if (this.pilot.active && (n.x - cx0) * fx0 + (n.y - cy0) * fy0 + (n.z - cz0) * fz0 < 1) continue; // behind the ship
       const sx = (v.x * 0.5 + 0.5) * w, rise = baseRadius(n.deg) * 2.2 + 6, sy = (-v.y * 0.5 + 0.5) * h - rise;
       const lw = Math.min(260, n.name.length * fs * 0.56 + 14), lh = fs + 8;
       const x = sx - lw / 2, y = sy - lh;

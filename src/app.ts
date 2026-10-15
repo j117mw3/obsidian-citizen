@@ -18,6 +18,7 @@ const HELP = [
   "Space: pause or resume motion",
   "A: animate, watching notes appear in the order they were created",
   "N: supernova, collapse everything, explode it and let it re-settle",
+  "P: Pilot mode. W A S D fly, mouse looks, Shift boosts, X brakes, click or F fires. T locks the target, G warps to it, H returns to the hub, V switches between chase and cockpit view. Esc frees the mouse, P leaves.",
   "R: reset the view · L: note list · /: search · Esc: clear",
   "Mouse: drag to orbit, scroll to zoom, click to select, double-click or Ctrl+click to open",
 ];
@@ -42,6 +43,7 @@ export class ConstellationApp {
   private listBtn: HTMLButtonElement;
   private animBtn: HTMLButtonElement;
   private novaBtn: HTMLButtonElement;
+  private pilotBtn: HTMLButtonElement;
   private statsText = "";
   private activityKind: "animate" | "supernova" | null = null;
   private motionNote: HTMLElement;
@@ -68,6 +70,7 @@ export class ConstellationApp {
       onSelect: i => this.onSelect(i),
       onOpen: (i, t) => this.openIndex(i, t),
       onActivity: (k, text) => this.onActivity(k, text),
+      onPilot: (a, text) => this.onPilot(a, text),
     };
     let made: GraphRenderer | null = null;
     if (webglAvailable()) {
@@ -86,13 +89,15 @@ export class ConstellationApp {
     this.animBtn.setAttribute("aria-pressed", "false");
     this.novaBtn = this.button("cg-btn", "Supernova: collapse the graph, explode it and let it re-settle", "\u273A");
     this.novaBtn.setAttribute("aria-pressed", "false");
+    this.pilotBtn = this.button("cg-btn", "Pilot mode: fly through your notes (P)", "\u2708\uFE0E");
+    this.pilotBtn.setAttribute("aria-pressed", "false");
     this.listBtn = this.button("cg-btn", "Show note list", "\u2630");
     this.listBtn.setAttribute("aria-expanded", "false");
     this.helpBtn = this.button("cg-btn", "Keyboard help", "?");
     this.helpBtn.setAttribute("aria-expanded", "false");
     this.helpBtn.setAttribute("aria-controls", this.helpId);
-    top.append(this.search, this.pauseBtn, resetBtn, this.animBtn, this.novaBtn, this.listBtn, this.helpBtn);
-    if (this.flat) { this.pauseBtn.hidden = true; resetBtn.hidden = true; this.animBtn.hidden = true; this.novaBtn.hidden = true; }
+    top.append(this.search, this.pauseBtn, resetBtn, this.animBtn, this.novaBtn, this.pilotBtn, this.listBtn, this.helpBtn);
+    if (this.flat) { this.pauseBtn.hidden = true; resetBtn.hidden = true; this.animBtn.hidden = true; this.novaBtn.hidden = true; this.pilotBtn.hidden = true; }
     this.root.appendChild(top);
     this.stats = el("div", "cg-stats");
     this.motionNote = el("div", "cg-motion-note");
@@ -132,6 +137,7 @@ export class ConstellationApp {
     this.listBtn.addEventListener("click", () => this.toggleList());
     this.animBtn.addEventListener("click", () => this.renderer.animate());
     this.novaBtn.addEventListener("click", () => this.renderer.supernova());
+    this.pilotBtn.addEventListener("click", () => this.togglePilot());
     this.helpBtn.addEventListener("click", () => this.setHelp(this.help.hidden));
     this.search.addEventListener("input", () => this.runSearch());
     this.search.addEventListener("keydown", e => {
@@ -241,6 +247,16 @@ export class ConstellationApp {
     this.novaBtn.classList.toggle("cg-on", kind === "supernova");
     this.stats.textContent = kind ? text : this.statsText;
     if (text && !progress) this.announce(text);
+  }
+
+  private togglePilot(): void { this.renderer.setPilot(!this.renderer.pilotActive); }
+
+  /** Pilot mode started or stopped (or could not start): mirror it on the button and tell screen readers. */
+  private onPilot(active: boolean, text: string): void {
+    this.pilotBtn.setAttribute("aria-pressed", String(active));
+    this.pilotBtn.classList.toggle("cg-on", active);
+    if (text) this.announce(text);
+    if (!active) this.stage.focus({ preventScroll: true });
   }
 
   private togglePause(): void {
@@ -393,6 +409,7 @@ export class ConstellationApp {
       case " ": this.togglePause(); break;
       case "a": case "A": this.renderer.animate(); break;
       case "n": case "N": this.renderer.supernova(); break;
+      case "p": case "P": this.togglePilot(); break;
       case "Escape": if (!this.help.hidden) this.setHelp(false); else this.selectIndex(-1, false); break;
       case "r": case "R": this.renderer.resetView(); break;
       case "l": case "L": this.toggleList(); break;

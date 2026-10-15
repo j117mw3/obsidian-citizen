@@ -69,6 +69,28 @@ const SECTIONS: Section[] = [
     ],
   },
   {
+    heading: "Pilot mode",
+    items: [
+      { key: "pilotEnabled", name: "Enable Pilot mode", control: { kind: "toggle" },
+        desc: "Fly a small ship through your notes with the keyboard and mouse (press P in the graph). Needs motion, so it stays off when reduced motion is on." },
+      { key: "pilotMouse", name: "Mouse mode", control: { kind: "dropdown", options: { capture: "Capture (mouse look)", cursor: "Cursor (visible, steer from the centre)" } },
+        desc: "Capture hides the pointer and steers with its movement. Cursor keeps the pointer visible, so you can click the panels and buttons while flying: the further it is from the centre, the harder the ship turns, and it stops steering when it is over a panel." },
+      { key: "pilotSensitivity", name: "Mouse sensitivity", control: { kind: "slider", min: 0.2, max: 3, step: 0.1 } },
+      { key: "pilotInvertY", name: "Invert vertical look", control: { kind: "toggle" } },
+      { key: "pilotSpeed", name: "Flight speed", control: { kind: "slider", min: 0.4, max: 3, step: 0.1 },
+        desc: "Scales the ship's speed. It is already set from the size of your vault, so a bigger vault takes longer to cross." },
+      { key: "pilotAgility", name: "Agility", control: { kind: "slider", min: 0.5, max: 1.5, step: 0.1 },
+        desc: "Lower is heavier: the ship turns more slowly and takes longer to start and stop a turn." },
+      { key: "pilotView", name: "View", control: { kind: "dropdown", options: { chase: "Chase (see the plane)", cockpit: "Cockpit (no plane)" } },
+        desc: "Press V in flight to switch." },
+      { key: "pilotWireframe", name: "Wireframe effects", control: { kind: "toggle" },
+        desc: "Glowing plane outline, target brackets, impact bursts and faint shells around each group." },
+      { key: "pilotSound", name: "Sound effects", control: { kind: "toggle" },
+        desc: "Engine, blasters and warp, made on the fly. Nothing plays unless you are flying." },
+      { key: "pilotVolume", name: "Volume", control: { kind: "slider", min: 0, max: 1, step: 0.05 } },
+    ],
+  },
+  {
     heading: "Notes",
     items: [
       { key: "groupBy", name: "Group by", control: { kind: "dropdown", options: { folder: "Folder", tag: "First tag", none: "Nothing" } }, rebuild: true },
