@@ -1,4 +1,34 @@
-# Self-hosted multiplayer service
+# Multiplayer service deployment
+
+## Hosted rooms (normal player install)
+
+The plugin's **Hosted rooms** mode connects to `wss://constellation-rooms.mrassetto.workers.dev`. Players only install the plugin, choose a name, and share an eight-character room code. This endpoint is tied to the maintainer's Cloudflare `workers.dev` subdomain.
+
+The hosted service runs the room protocol in one Cloudflare Durable Object. Membership, host authority, and combat checkpoints stay in memory. The server uses WebRTC signaling only for setup; game traffic remains peer-to-peer or travels through TURN when NAT/firewall rules require a relay.
+
+The relay uses Metered Open Relay's free allowance, currently 20 GB per month shared by every player. The owner should keep the Metered account on its free plan, add no prepaid balance, and leave automatic top-ups disabled. When the allowance is exhausted, direct WebRTC may continue to work; users behind restrictive networks may be unable to connect until the allowance resets. See [Open Relay](https://www.metered.ca/tools/openrelay/) and [Metered billing terms](https://www.metered.ca/terms). Cloudflare Free Durable Objects also have request and compute quotas; see [Cloudflare pricing](https://developers.cloudflare.com/durable-objects/platform/pricing/). The deployment does not enable paid upgrades or billing safeguards that would turn on charges.
+
+### One-time maintainer setup
+
+These steps are for the maintainer only. Players do not install Node.js, run commands, or create provider accounts.
+
+1. Confirm the Cloudflare account is on Workers Free before deploying. The intended address uses the existing `mrassetto.workers.dev` subdomain. If the account is paid, deploy this service from a dedicated Free account instead of changing other services.
+2. Create a free Metered Open Relay account. Keep the account free, do not add prepaid balance or a payment method, and disable automatic top-ups. Copy the app name and account Secret Key from Metered's developer settings.
+3. In this directory, run `npm ci`. Authenticate Wrangler with `npx wrangler login` if it is not already signed in.
+4. Add the two values as Cloudflare Worker secrets. Wrangler prompts for each value; do not paste either value into source files, chat, or shell command arguments:
+
+   ```powershell
+   npx wrangler secret put METERED_APP --config wrangler.jsonc
+   npx wrangler secret put METERED_SECRET_KEY --config wrangler.jsonc
+   ```
+
+5. Run `npm run build:hosted` to validate the Worker bundle, then `npm run deploy:hosted` to publish it. Cloudflare supplies HTTPS/WSS for the `workers.dev` address; no purchased domain is required.
+6. The first room request starts one-hour TURN credential provisioning. While Metered's credentials propagate (up to two minutes), the plugin tries direct connections and checks for relay credentials automatically. A cron trigger rotates credentials every 30 minutes, and the coordinator keeps only the short-lived relay configuration so it survives an idle restart. The account Secret Key never goes to clients; the service never logs provider API keys, TURN credentials, or game payloads.
+7. Verify `https://constellation-rooms.mrassetto.workers.dev/health` returns `{"ok":true,"rooms":0}` when no rooms are open. Then test create/join and forced TURN with two actual Obsidian clients on different internet connections. A synthetic WebSocket check does not establish relay connectivity.
+
+No paid plan, overage, or auto-top-up should be enabled. Free-tier quota exhaustion makes the service or relay unavailable until the provider resets the allowance; the plugin reports room-service failures and confirmed relay quota errors separately.
+
+## Self-hosted Node.js service
 
 The plugin uses direct WebRTC data channels for map and flight traffic. This Node.js service only creates in-memory rooms, relays WebRTC setup messages, issues short-lived TURN credentials, and keeps the host's latest small combat checkpoint so a remaining participant can take over. It does not log gameplay messages or credentials. A room and its checkpoint disappear when its last participant leaves or the service restarts.
 
@@ -15,7 +45,7 @@ From this directory:
 5. Confirm `TURN_URLS` names the same TURN host and ports. Keep the `turns:` URL if the certificate is configured; retain the UDP and TCP `turn:` URLs for ordinary relays.
 6. Start the stack with `docker compose --env-file .env up -d --build`, then check `https://PUBLIC_DOMAIN/health`.
 
-Set the plugin's **Signaling server** setting to `wss://PUBLIC_DOMAIN`. Both players need the same service URL, but only the room creator shares the room code with the other pilots. Do not expose the Node signaling port directly; Compose keeps it on the private bridge behind Caddy.
+Select **Custom server** in plugin settings and enter `wss://PUBLIC_DOMAIN`. Both players need the same service URL, but only the room creator shares the room code with the other pilots. Do not expose the Node signaling port directly; Compose keeps it on the private bridge behind Caddy.
 
 ## Local service development
 
@@ -27,7 +57,7 @@ $env:TURN_SECRET = "local-development-secret"
 npm --prefix server start
 ```
 
-Use `ws://localhost:8787` in Obsidian on the same computer. Local testing can use STUN only; one-hour TURN credentials are included only in a successful room-create or room-join response when both `TURN_SECRET` and `TURN_URLS` are set. There is no public credential-issuance endpoint. For internet use, serve the room endpoint over WSS and provide a reachable TURN service.
+In Obsidian, select **Custom server** and enter `ws://localhost:8787` on the same computer. Local testing can use STUN only; one-hour TURN credentials are included only when both `TURN_SECRET` and `TURN_URLS` are set. There is no public credential-issuance endpoint. For internet use, serve the room endpoint over WSS and provide a reachable TURN service.
 
 ## Data and limits
 
@@ -37,4 +67,4 @@ Use `ws://localhost:8787` in Obsidian on the same computer. Local testing can us
 - Routine game inputs, ships, shots, and map positions travel over WebRTC data channels. The signaling service does not receive those snapshots. The host checkpoint contains only anonymous player IDs, flight state, health, boost, and in-flight shots.
 - A WebRTC peer pair uses an ordered reliable channel for topology and an unordered, zero-retransmit channel for replaceable flight and position snapshots. Position snapshots are sequence-numbered binary chunks; incomplete, stale, or wrong-revision frames are dropped.
 
-The synthetic tests cover protocol privacy, limits, stale snapshots, boost, hits, respawns, room capacity, TURN credential generation, and host election. They run locally and do not establish public DNS, forced TURN relay, or cross-internet Obsidian connectivity.
+The synthetic tests cover protocol privacy, limits, stale snapshots, boost, hits, respawns, room capacity, Worker room creation, host election, credential rotation, provider outages, and quota classification. They do not establish public DNS, forced TURN relay, or cross-internet Obsidian connectivity.

@@ -81,15 +81,15 @@ The controls are also shown on screen as a small panel of key caps that light up
 
 ### Multiplayer rooms
 
-Open the **Multiplayer** panel, enter a display name, and check the shared-data notice. Create a room to get an eight-character code, then share it with up to three other pilots; or enter a code to join someone else's room. The panel includes **Copy code** and **Leave** controls, participant names, health and state, and connection status. Set the signaling URL in the plugin's **Multiplayer** settings first. Each pilot has a nearby region in the shared flight space, and all constellation regions use the same flight scale.
+Open the **Multiplayer** panel, enter a display name, and check the shared-data notice. Create a room to get an eight-character code, then share it with up to three other pilots; or enter a code to join someone else's room. The panel includes **Copy code** and **Leave** controls, participant names, health and state, and connection status. Hosted rooms are the default, so players do not set up a server. Each pilot has a nearby region in the shared flight space, and all constellation regions use the same flight scale.
 
 Joining shares anonymous star positions, connections, and group colors. It never sends note titles, paths, tags, or contents. Remote constellations have no labels, note details, search, selection, dragging, or opening actions. Your own graph retains its normal note actions. Maps update as notes and links change. Sharing supports up to 20,000 stars and 100,000 links per vault; larger maps show an error instead of silently omitting notes. Warps are disabled while in a room.
 
-Rooms use WebRTC data channels for maps and flight; room codes and peer setup use the signaling service, and TURN relays traffic when direct peer connections fail. Leave the signaling URL as `ws://localhost:8787` only for local development; deployed rooms should use `wss://` behind HTTPS. See [server/README.md](server/README.md) for the self-hosted Node.js, Caddy, and coturn setup.
+Rooms use WebRTC data channels for maps and flight. The hosted room service passes room codes and peer setup messages, and automatically supplies temporary TURN relay credentials when direct connections fail. The relay service shares a free monthly allowance across all players; when it is used up, the plugin reports that condition and still tries direct connections. It does not enable paid relay top-ups. To use another deployment, choose **Custom server** in the plugin's Multiplayer settings. See [server/README.md](server/README.md) for the hosted-service and self-hosted deployment guides.
 
 Firing at other pilots is optional: fly together peacefully or choose to engage. A blaster hit removes 10 of 100 health. Destruction is followed by a five-second respawn with full health and boost, then three seconds of spawn protection; firing ends protection. Boost drains at 28% per second, recharges at 8% per second after 1.5 seconds without boosting, and stays empty for three seconds when depleted. Leaving Pilot mode or hiding the game view makes you a spectator; returning takes five seconds and preserves your health and boost.
 
-The signaling service keeps room membership and the latest small combat checkpoint in memory, and does not log gameplay payloads or connection credentials. Room membership disappears when the last player leaves. Outside an active room, the plugin does not connect to the network.
+The hosted service keeps room membership, short-lived relay configuration, and the latest small combat checkpoint in memory, and does not log gameplay payloads or credentials. The relay provider carries only WebRTC-encrypted peer traffic and can observe connection metadata. Room membership disappears when the last player leaves. Outside an active room, the plugin does not connect to the network.
 
 ### Accessibility
 
@@ -102,11 +102,11 @@ The signaling service keeps room membership and the latest small combat checkpoi
 
 ## Settings
 
-Open on startup (off by default; saved in the vault, so it applies to anyone who opens it), flow (off, calm, lively), camera rotation and speed, glow and bloom, palette, label size and count, grouping (folder, first tag, none), folder depth, excluded folders, whether to show notes with no links, and whether to ring the open note. Pilot mode has its own section: enable, mouse mode (capture or cursor), mouse sensitivity, invert vertical look, flight speed, agility, view (chase or cockpit), wireframe effects, sound and volume, and separate saved engine and afterburner mutes. Multiplayer settings include the display name and signaling-service address.
+Open on startup (off by default; saved in the vault, so it applies to anyone who opens it), flow (off, calm, lively), camera rotation and speed, glow and bloom, palette, label size and count, grouping (folder, first tag, none), folder depth, excluded folders, whether to show notes with no links, and whether to ring the open note. Pilot mode has its own section: enable, mouse mode (capture or cursor), mouse sensitivity, invert vertical look, flight speed, agility, view (chase or cockpit), wireframe effects, sound and volume, and separate saved engine and afterburner mutes. Multiplayer settings include the display name and Hosted or Custom server selection; the saved `ws://localhost:8787` development address migrates to Hosted.
 
 ## Privacy and safety
 
-Outside an active room, the plugin does not make network connections. When you explicitly join, WebRTC peers receive a lossy anonymous map of star coordinates, connections, and colors. The plugin does not send note names, paths, tags, or contents, and network messages cannot call Obsidian note-opening actions. The signaling service sees room codes, display names, and WebRTC setup messages; it keeps the current membership and latest compact combat checkpoint in memory and does not log these payloads or credentials. Gameplay is sent peer-to-peer, with TURN used as a relay only when needed. Everything, including Three.js, is bundled into `main.js`. Note titles are only ever written as text, never as HTML. Pilot sound is generated by the plugin; no audio files are loaded or sent. The plugin reads note names and links from Obsidian's index and, when grouping by tag, the first tag. It does not read note contents or write to your vault.
+Outside an active room, the plugin does not make network connections. When you explicitly join, WebRTC peers receive a lossy anonymous map of star coordinates, connections, and colors. The plugin does not send note names, paths, tags, or contents, and network messages cannot call Obsidian note-opening actions. The room service sees room codes, display names, peer setup messages, and compact host checkpoints; it keeps membership and checkpoints in memory and does not log payloads or credentials. Gameplay normally travels peer-to-peer. If TURN is needed, the relay provider can see IP addresses and traffic volume, while WebRTC encrypts the payloads. Everything, including Three.js, is bundled into `main.js`. Note titles are only ever written as text, never as HTML. Pilot sound is generated by the plugin; no audio files are loaded or sent. The plugin reads note names and links from Obsidian's index and, when grouping by tag, the first tag. It does not read note contents or write to your vault.
 
 ## Performance
 
@@ -126,11 +126,12 @@ npm ci --prefix server # signaling service dependency
 npm run dev          # esbuild watch, writes main.js
 npm run build        # type-check, then minified production main.js
 npm test             # synthetic privacy, protocol, combat, and signaling tests
+npm run build:hosted --prefix server  # validate the Cloudflare Worker bundle
 npm run harness -- "<path to a vault>"   # builds dev/harness.html, a browser preview using that vault's notes as mock data
 npm run install-local -- "<path to a vault>"   # build and copy into <vault>/.obsidian/plugins/constellation-graph
 ```
 
-Source layout: `src/main.ts` (plugin), `view.ts` (Obsidian view), `data.ts` (vault to graph), `app.ts` (UI, keyboard, accessibility), `renderer.ts` (Three.js), `sim.ts` (layout and flow), `pilot.ts` (Pilot mode: flight, aiming, collisions, HUD), `multiplayer.ts` (anonymous map protocol and WebRTC mesh), `combat.ts` (host-authoritative flight and combat), `server/` (self-hosted signaling, Caddy, and coturn), `ship.ts` and `cockpit.ts` (the plane and its cockpit, built from primitives), `sfx.ts` (synthesised sound), `fallback.ts` (no-WebGL mode), `settings.ts`, `palette.ts`.
+Source layout: `src/main.ts` (plugin), `view.ts` (Obsidian view), `data.ts` (vault to graph), `app.ts` (UI, keyboard, accessibility), `renderer.ts` (Three.js), `sim.ts` (layout and flow), `pilot.ts` (Pilot mode: flight, aiming, collisions, HUD), `multiplayer.ts` (anonymous map protocol and WebRTC mesh), `combat.ts` (host-authoritative flight and combat), `server/worker.js` (hosted Durable Object service), `server/index.js` (self-hosted Node signaling), `server/` (deployment files), `ship.ts` and `cockpit.ts` (the plane and its cockpit, built from primitives), `sfx.ts` (synthesised sound), `fallback.ts` (no-WebGL mode), `settings.ts`, `palette.ts`.
 
 ## Licence and third-party notices
 

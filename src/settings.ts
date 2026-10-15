@@ -32,7 +32,8 @@ export interface ConstellationSettings {
   pilotSpeed: number;
   pilotMouse: "capture" | "cursor";
   multiplayerName: string;
-  multiplayerSignalingUrl: string;
+  multiplayerConnectionMode: "hosted" | "custom";
+  multiplayerCustomServerUrl: string;
 }
 
 export const DEFAULT_SETTINGS: ConstellationSettings = {
@@ -65,7 +66,8 @@ export const DEFAULT_SETTINGS: ConstellationSettings = {
   pilotSpeed: 1,
   pilotMouse: "capture",
   multiplayerName: "Pilot",
-  multiplayerSignalingUrl: "ws://localhost:8787",
+  multiplayerConnectionMode: "hosted",
+  multiplayerCustomServerUrl: "",
 };
 
 const clamp = (v: unknown, lo: number, hi: number, fallback: number): number =>
@@ -78,6 +80,9 @@ const bool = (v: unknown, fallback: boolean): boolean => (typeof v === "boolean"
 export function sanitizeSettings(raw: unknown): ConstellationSettings {
   const r = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
   const d = DEFAULT_SETTINGS;
+  const legacyServerUrl = typeof r.multiplayerSignalingUrl === "string" ? r.multiplayerSignalingUrl.slice(0, 512) : "";
+  const migratedCustomUrl = legacyServerUrl && legacyServerUrl !== "ws://localhost:8787" ? legacyServerUrl : "";
+  const connectionMode = pick(r.multiplayerConnectionMode, ["hosted", "custom"] as const, migratedCustomUrl ? "custom" : d.multiplayerConnectionMode);
   return {
     motion: pick(r.motion, ["off", "calm", "lively"] as const, d.motion),
     autoRotate: bool(r.autoRotate, d.autoRotate),
@@ -108,7 +113,10 @@ export function sanitizeSettings(raw: unknown): ConstellationSettings {
     pilotSpeed: clamp(r.pilotSpeed, 0.4, 3, d.pilotSpeed),
     pilotMouse: pick(r.pilotMouse, ["capture", "cursor"] as const, d.pilotMouse),
     multiplayerName: typeof r.multiplayerName === "string" ? r.multiplayerName.trim().slice(0, 24) || d.multiplayerName : d.multiplayerName,
-    multiplayerSignalingUrl: typeof r.multiplayerSignalingUrl === "string" ? r.multiplayerSignalingUrl.slice(0, 512) : d.multiplayerSignalingUrl,
+    multiplayerConnectionMode: connectionMode,
+    multiplayerCustomServerUrl: typeof r.multiplayerCustomServerUrl === "string"
+      ? r.multiplayerCustomServerUrl.slice(0, 512)
+      : migratedCustomUrl,
   };
 }
 

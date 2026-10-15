@@ -9,6 +9,7 @@ const turnSecret = process.env.TURN_SECRET || "";
 const turnUrls = (process.env.TURN_URLS || "").split(",").map(x => x.trim()).filter(Boolean);
 const stunUrls = (process.env.STUN_URLS || "stun:stun.l.google.com:19302").split(",").map(x => x.trim()).filter(Boolean);
 const maxRooms = Number(process.env.MAX_ROOMS || 500);
+const turnCredentialLifetimeSeconds = 3600;
 const rooms = new Map();
 const attempts = new Map();
 const CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -34,17 +35,40 @@ function roomCast(room, message, exceptId = "") {
 function publicRoom(room) {
   return [...room.members.values()].map(m => ({ id: m.id, name: m.name, joinedAt: m.joinedAt, slot: m.slot }));
 }
+function cleanPeerSignal(value) {
+  if (!value || typeof value !== "object") return null;
+  const description = value.description;
+  if (description && typeof description === "object" && (description.type === "offer" || description.type === "answer")
+    && typeof description.sdp === "string" && Buffer.byteLength(description.sdp) <= 64_000) {
+    return { description: { type: description.type, sdp: description.sdp } };
+  }
+  const candidate = value.candidate;
+  if (candidate && typeof candidate === "object" && typeof candidate.candidate === "string" && candidate.candidate.length <= 4096
+    && (candidate.sdpMid === undefined || candidate.sdpMid === null || (typeof candidate.sdpMid === "string" && candidate.sdpMid.length <= 256))
+    && (candidate.sdpMLineIndex === undefined || candidate.sdpMLineIndex === null || (Number.isInteger(candidate.sdpMLineIndex) && candidate.sdpMLineIndex >= 0 && candidate.sdpMLineIndex < 100))
+    && (candidate.usernameFragment === undefined || candidate.usernameFragment === null || (typeof candidate.usernameFragment === "string" && candidate.usernameFragment.length <= 256))) {
+    return { candidate: {
+      candidate: candidate.candidate,
+      ...(candidate.sdpMid !== undefined ? { sdpMid: candidate.sdpMid } : {}),
+      ...(candidate.sdpMLineIndex !== undefined ? { sdpMLineIndex: candidate.sdpMLineIndex } : {}),
+      ...(candidate.usernameFragment !== undefined ? { usernameFragment: candidate.usernameFragment } : {}),
+    } };
+  }
+  return null;
+}
 function fail(ws, code, message) { send(ws, { type: "error", code, message }); }
-function iceServers() {
+function iceConfiguration() {
   const servers = [];
   if (stunUrls.length) servers.push({ urls: stunUrls });
+  let expiresAt = 0;
   if (turnSecret && turnUrls.length) {
-    const expiry = Math.floor(Date.now() / 1000) + 3600;
+    const expiry = Math.floor(Date.now() / 1000) + turnCredentialLifetimeSeconds;
     const username = `${expiry}:${crypto.randomUUID()}`;
     const credential = crypto.createHmac("sha1", turnSecret).update(username).digest("base64");
     servers.push({ urls: turnUrls, username, credential });
+    expiresAt = expiry * 1000;
   }
-  return servers;
+  return { iceServers: servers, iceExpiresAt: expiresAt, relayStatus: turnSecret && turnUrls.length ? "ready" : "direct-only" };
 }
 function clientIp(req) {
   // The service is only reachable behind the bundled reverse proxy; trust its forwarded client address.
@@ -82,7 +106,7 @@ wss.on("connection", (ws, req) => {
       if (!name) { fail(ws, "bad-name", "Enter a display name (up to 24 characters)."); return; }
       let room;
       if (msg.type === "create") {
-        if (rooms.size >= maxRooms) { fail(ws, "full", "The room service is at capacity. Try again later."); return; }
+        if (rooms.size >= maxRooms) { fail(ws, "service-full", "The room service is at capacity. Try again later."); return; }
         roomCode = randomCode();
         while (rooms.has(roomCode)) roomCode = randomCode();
         room = { code: roomCode, hostId: "", epoch: 1, members: new Map(), checkpoint: null, nextMemberOrder: 0 };
@@ -100,19 +124,24 @@ wss.on("connection", (ws, req) => {
       member = { id, name, joinedAt: Date.now(), order: room.nextMemberOrder++, slot, ws };
       room.members.set(id, member);
       if (!room.hostId) room.hostId = id;
-      if (msg.type === "create") send(ws, { type: "created", code: roomCode, selfId: id, hostId: room.hostId, epoch: room.epoch, members: publicRoom(room), iceServers: iceServers() });
-      else send(ws, { type: "joined", code: roomCode, selfId: id, hostId: room.hostId, epoch: room.epoch, members: publicRoom(room), checkpoint: room.checkpoint, iceServers: iceServers() });
+      const relay = iceConfiguration();
+      if (msg.type === "create") send(ws, { type: "created", code: roomCode, selfId: id, hostId: room.hostId, epoch: room.epoch, members: publicRoom(room), ...relay });
+      else send(ws, { type: "joined", code: roomCode, selfId: id, hostId: room.hostId, epoch: room.epoch, members: publicRoom(room), checkpoint: room.checkpoint, ...relay });
       roomCast(room, { type: "member-joined", member: { id, name, joinedAt: member.joinedAt, slot }, hostId: room.hostId, epoch: room.epoch }, id);
       return;
     }
 
     if (!member || !rooms.has(roomCode)) { fail(ws, "not-in-room", "Join a room before sending this message."); return; }
     const room = rooms.get(roomCode);
-    if (msg.type === "signal") {
+    if (msg.type === "ice-refresh") {
+      if (!consume(`ice:${member.id}`, 4, 60_000)) { fail(ws, "rate-limited", "Wait before refreshing relay configuration again."); return; }
+      send(ws, { type: "ice-servers", ...iceConfiguration() });
+    } else if (msg.type === "signal") {
       if (!consume(`signal:${ip}`, 300)) { fail(ws, "rate-limited", "Too many connection setup messages."); return; }
       const target = room.members.get(msg.to);
-      if (!target || msg.to === member.id || !msg.data || typeof msg.data !== "object" || Buffer.byteLength(JSON.stringify(msg.data)) > 64_000) return;
-      send(target.ws, { type: "signal", from: member.id, data: msg.data });
+      const data = cleanPeerSignal(msg.data);
+      if (!target || msg.to === member.id || !data || Buffer.byteLength(JSON.stringify(data)) > 64_000) return;
+      send(target.ws, { type: "signal", from: member.id, data });
     } else if (msg.type === "checkpoint") {
       if (member.id !== room.hostId || msg.epoch !== room.epoch || !msg.state || typeof msg.state !== "object" || msg.state.epoch !== room.epoch) return;
       const json = JSON.stringify(msg.state);

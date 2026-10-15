@@ -2,7 +2,7 @@ import { ConstellationRenderer, webglAvailable } from "./renderer";
 import { FallbackRenderer } from "./fallback";
 import type { GraphData, GraphRenderer, Host, RendererCallbacks } from "./types";
 import { ConstellationSettings, effectiveHighContrast, effectiveMotion, prefersReducedMotion } from "./settings";
-import { MultiplayerSession, type AnonymousPlayer, type GameMessage } from "./multiplayer";
+import { HOSTED_SIGNALING_URL, MultiplayerSession, type AnonymousPlayer, type GameMessage } from "./multiplayer";
 
 let instances = 0;
 
@@ -134,7 +134,7 @@ export class ConstellationApp {
     const copyRoom = this.button("cg-btn", "Copy room code", "Copy code");
     const leaveRoom = this.button("cg-btn", "Leave room", "Leave");
     roomActions.append(createRoom, this.multiplayerCode, joinRoom, copyRoom, leaveRoom);
-    this.multiplayerStatus = el("p", "cg-multiplayer-status", { role: "status", "aria-live": "polite" }, "Not connected. Set your signaling server in plugin settings.");
+    this.multiplayerStatus = el("p", "cg-multiplayer-status", { role: "status", "aria-live": "polite" }, "Ready to connect to hosted rooms.");
     this.multiplayerPlayers = el("ul", "cg-multiplayer-players", { "aria-label": "Players in this room" });
     this.multiplayerPanel.append(roomActions, this.multiplayerStatus, this.multiplayerPlayers);
     this.root.appendChild(this.multiplayerPanel);
@@ -228,7 +228,8 @@ export class ConstellationApp {
       shotState: (shots, impacts) => this.renderer.setRemoteShots(shots, impacts),
       removed: id => { if (id) { this.renderer.removeRemote(id); this.remoteIds.delete(id); } },
       authority: (_hostId, _epoch, _checkpoint) => { this.multiplayerStatus.textContent = "Room authority transferred. Reconnecting the shared session…"; },
-    }, () => ({ data: this.data, nodes: this.renderer.nodes }), () => this.settings.multiplayerSignalingUrl);
+    }, () => ({ data: this.data, nodes: this.renderer.nodes }), () => this.settings.multiplayerConnectionMode === "hosted"
+      ? HOSTED_SIGNALING_URL : this.settings.multiplayerCustomServerUrl);
   }
 
   // ----------------------------------------------------------------- public

@@ -110,8 +110,10 @@ const SECTIONS: Section[] = [
     items: [
       { key: "multiplayerName", name: "Display name", control: { kind: "text", placeholder: "Pilot" },
         desc: "Shown to other players in a room. Up to 24 characters." },
-      { key: "multiplayerSignalingUrl", name: "Signaling server", control: { kind: "text", placeholder: "wss://your-server.example" },
-        desc: "Your self-hosted room server. See the plugin's server deployment guide." },
+      { key: "multiplayerConnectionMode", name: "Room service", control: { kind: "dropdown", options: { hosted: "Hosted rooms", custom: "Custom server" } },
+        desc: "Hosted rooms work after installing the plugin. Use a custom server only if you run your own." },
+      { key: "multiplayerCustomServerUrl", name: "Custom signaling address", control: { kind: "text", placeholder: "wss://your-server.example" },
+        desc: "Used only when Room service is set to Custom server. Local development can use ws://localhost:8787." },
     ],
   },
 ];

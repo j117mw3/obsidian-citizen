@@ -3,6 +3,7 @@ import { CombatWorld, type RoomCheckpoint } from "./combat";
 
 export const MAX_SHARED_NODES = 20_000;
 export const MAX_SHARED_LINKS = 100_000;
+export const HOSTED_SIGNALING_URL = "wss://constellation-rooms.mrassetto.workers.dev";
 const MAX_COORDINATE = 1_000_000;
 const MAGIC = 0x43475031; // CGP1
 const POSITION_HEADER_BYTES = 16;
@@ -132,7 +133,7 @@ function validMembers(value: unknown): value is AnonymousPlayer[] {
 }
 
 function validIceServers(value: unknown): RTCIceServer[] {
-  if (!Array.isArray(value) || value.length > 4) return [];
+  if (!Array.isArray(value) || value.length > 12) return [];
   const result: RTCIceServer[] = [];
   for (const entry of value) {
     if (!entry || typeof entry !== "object") continue;
@@ -175,6 +176,11 @@ export class MultiplayerSession {
   private lastShipSequence = new Map<string, number>();
   private lastShotSequence = 0;
   private relay: RTCIceServer[] = [];
+  private iceExpiresAt = 0;
+  private iceRefreshTimer = 0;
+  private relayStatus: "ready" | "pending" | "unavailable" | "quota" | "direct-only" = "pending";
+  private lastIceErrorAt = 0;
+  private lastIceRequestAt = 0;
   private closed = false;
 
   constructor(private callbacks: MultiplayerCallbacks, private graph: () => { data: GraphData; nodes: readonly SimNode[] }, private signalingUrl: () => string) {}
@@ -190,7 +196,7 @@ export class MultiplayerSession {
     if (this.active) throw new Error("Leave the current room before joining another.");
     if (!globalThis.RTCPeerConnection || !globalThis.WebSocket) throw new Error("This Obsidian WebView does not provide WebRTC.");
     const url = this.signalingUrl().trim();
-    if (!/^wss?:\/\//i.test(url)) throw new Error("Enter a signaling address that starts with ws:// or wss://.");
+    if (!/^wss?:\/\//i.test(url)) throw new Error("Choose Hosted rooms or enter a custom address that starts with ws:// or wss://.");
     const cleanName = name.trim().slice(0, 24);
     if (!cleanName) throw new Error("Enter a display name in plugin settings.");
     if (action === "join" && !/^[A-HJ-NP-Z2-9]{8}$/i.test(code.trim())) throw new Error("Enter the eight-character room code.");
@@ -198,12 +204,25 @@ export class MultiplayerSession {
     this.closed = false;
     await new Promise<void>((resolve, reject) => {
       const ws = this.socket = new WebSocket(url);
-      const timeout = window.setTimeout(() => { reject(new Error("Signaling server did not respond.")); ws.close(); }, 15_000);
+      const host = (() => { try { return new URL(url).host; } catch { return "the selected server"; } })();
+      const timeout = window.setTimeout(() => { reject(new Error(`The room service at ${host} did not respond within 15 seconds.`)); ws.close(); }, 15_000);
       ws.addEventListener("open", () => { ws.send(JSON.stringify(action === "create" ? { type: "create", name: cleanName } : { type: "join", code: code.trim().toUpperCase(), name: cleanName })); });
       ws.addEventListener("message", event => {
         let msg: SignalMessage;
         try { msg = JSON.parse(String(event.data)) as SignalMessage; } catch { this.callbacks.status("The signaling service sent invalid data.", true); return; }
-        if (msg.type === "error") { window.clearTimeout(timeout); reject(new Error(String(msg.message || "The room service rejected the request."))); this.leave(); return; }
+        if (msg.type === "error") {
+          window.clearTimeout(timeout);
+          const error = this.roomServiceError(msg);
+          if (this.active) {
+            this.callbacks.status(error, true);
+            if (msg.code === "rate-limited") {
+              window.clearTimeout(this.iceRefreshTimer);
+              this.iceRefreshTimer = window.setTimeout(() => this.requestIceConfiguration(), 60_000);
+            }
+            return;
+          }
+          reject(new Error(error)); this.leave(); return;
+        }
         if (msg.type === "created" || msg.type === "joined") {
           const selfId = String(msg.selfId || ""), hostId = String(msg.hostId || ""), members = msg.members;
           if (!/^[0-9a-f-]{36}$/i.test(selfId) || !/^[0-9a-f-]{36}$/i.test(hostId) || !validMembers(members)
@@ -213,6 +232,8 @@ export class MultiplayerSession {
           }
           window.clearTimeout(timeout); this.selfId = selfId; this.hostId = hostId; this.roomCode = msg.code; this.epoch = msg.epoch as number;
           this.relay = validIceServers(msg.iceServers);
+          this.iceExpiresAt = Number.isSafeInteger(msg.iceExpiresAt) ? Number(msg.iceExpiresAt) : 0;
+          this.relayStatus = this.readRelayStatus(msg.relayStatus, this.relay);
           this.roster = members;
           this.callbacks.members(this.roster, this.selfId, this.hostId, this.epoch);
           this.createWorldIfHost();
@@ -222,7 +243,7 @@ export class MultiplayerSession {
         }
         void this.onSignal(msg);
       });
-      ws.addEventListener("error", () => { window.clearTimeout(timeout); reject(new Error("Could not connect to the signaling service.")); });
+      ws.addEventListener("error", () => { window.clearTimeout(timeout); reject(new Error(`Could not reach the room service at ${host}. Check your internet connection or try again later.`)); });
       ws.addEventListener("close", () => { if (!this.closed && this.selfId) this.leave("Signaling connection closed; you left the room."); });
     });
   }
@@ -233,10 +254,12 @@ export class MultiplayerSession {
     const state: NonNullable<ReturnType<typeof this.peers.get>> = { pc, positionSequence: 0, lastPositionSequence: 0, topologySend: null, topologyReceive: null, positionReceive: new Map() };
     this.peers.set(id, state);
     pc.onicecandidate = e => { if (e.candidate) this.signal(id, { candidate: e.candidate.toJSON() }); };
+    pc.onicecandidateerror = event => this.reportIceError(event);
     pc.ondatachannel = e => this.bindChannel(id, e.channel);
     pc.onconnectionstatechange = () => {
       if (pc.connectionState === "connected") this.updatePeerStatus();
       else if (pc.connectionState === "failed") { this.callbacks.status(`Connection to ${this.memberName(id)} was lost; retrying.`, true); this.schedulePeerRetry(id); }
+      else if (pc.connectionState === "disconnected") this.schedulePeerRetry(id, 5000);
     };
     if (offer) {
       this.bindChannel(id, pc.createDataChannel("constellation-control", { ordered: true }));
@@ -266,6 +289,19 @@ export class MultiplayerSession {
   }
 
   private async onSignal(msg: SignalMessage): Promise<void> {
+    if (msg.type === "ice-servers") {
+      const servers = validIceServers(msg.iceServers);
+      const expiresAt = Number.isSafeInteger(msg.iceExpiresAt) ? Number(msg.iceExpiresAt) : 0;
+      const status = this.readRelayStatus(msg.relayStatus, servers);
+      const changed = expiresAt !== this.iceExpiresAt || status !== this.relayStatus || JSON.stringify(servers) !== JSON.stringify(this.relay);
+      this.relay = servers; this.iceExpiresAt = expiresAt; this.relayStatus = status;
+      if (changed) await this.applyIceConfiguration();
+      if (status === "quota") this.callbacks.status("The free TURN relay allowance is exhausted. Direct peer connections may still work.", true);
+      else if (status === "unavailable") this.callbacks.status("The relay service is temporarily unavailable. Trying direct peer connections.", true);
+      else if (status === "pending") this.callbacks.status("Preparing relay access; trying direct peer connections and checking again shortly.");
+      this.scheduleIceRefresh();
+      return;
+    }
     if (msg.type === "member-joined") {
       const p = msg.member as AnonymousPlayer;
       if (!p || typeof p.id !== "string" || p.id === this.selfId) return;
@@ -426,12 +462,13 @@ export class MultiplayerSession {
   }
 
   private startLoops(): void {
-    window.clearInterval(this.sendTimer); window.clearInterval(this.checkpointTimer); window.clearInterval(this.topologyTimer);
+    window.clearInterval(this.sendTimer); window.clearInterval(this.checkpointTimer); window.clearInterval(this.topologyTimer); window.clearTimeout(this.iceRefreshTimer);
     this.sendTimer = window.setInterval(() => this.sendPositions(), 100);
     this.topologyTimer = window.setInterval(() => this.pumpTopologies(), 8);
     this.checkpointTimer = window.setInterval(() => {
       if (this.isHost && this.world && this.socket?.readyState === WebSocket.OPEN) this.socket.send(JSON.stringify({ type: "checkpoint", epoch: this.epoch, state: this.world.snapshot(Date.now()) }));
     }, 200);
+    this.scheduleIceRefresh();
     this.createWorldIfHost();
   }
 
@@ -446,11 +483,77 @@ export class MultiplayerSession {
     if (!this.active) return;
     const expected = this.roster.filter(p => p.id !== this.selfId).length;
     const linked = [...this.peers.values()].filter(p => p.pc.connectionState === "connected" && p.control?.readyState === "open" && p.live?.readyState === "open").length;
-    if (!expected) this.callbacks.status(`Room ${this.roomCode} is ready; waiting for other pilots.`);
-    else this.callbacks.status(`${linked} of ${expected} participant connections ready.`);
+    const relayNote = this.relayStatus === "pending" ? " Relay access is preparing; direct connections are being tried." :
+      this.relayStatus === "unavailable" ? " Relay service unavailable; direct connections are being tried." :
+      this.relayStatus === "quota" ? " Free relay allowance exhausted; direct connections may still work." : "";
+    if (!expected) this.callbacks.status(`Room ${this.roomCode} is ready; waiting for other pilots.${relayNote}`, this.relayStatus === "quota" || this.relayStatus === "unavailable");
+    else this.callbacks.status(`${linked} of ${expected} participant connections ready.${relayNote}`, this.relayStatus === "quota" || this.relayStatus === "unavailable");
   }
 
-  private schedulePeerRetry(id: string): void {
+  private readRelayStatus(value: unknown, servers: RTCIceServer[]): "ready" | "pending" | "unavailable" | "quota" | "direct-only" {
+    if (value === "ready" || value === "pending" || value === "unavailable" || value === "quota" || value === "direct-only") return value;
+    return servers.some(server => (Array.isArray(server.urls) ? server.urls : [server.urls]).some(url => typeof url === "string" && /^turns?:/i.test(url))) ? "ready" : "direct-only";
+  }
+
+  private roomServiceError(message: SignalMessage): string {
+    const code = typeof message.code === "string" ? message.code : "";
+    if (code === "room-not-found") return "That room code is invalid or the room has closed.";
+    if (code === "full") return "That room already has four pilots.";
+    if (code === "service-full") return "The hosted room service is at capacity. Try again later.";
+    if (code === "rate-limited") return "The room service is receiving too many requests. Wait a minute and try again.";
+    if (code === "service-unavailable") return "The hosted room service is temporarily unavailable. Try again shortly.";
+    if (code === "relay-quota") return "The free TURN relay allowance is exhausted. Direct connections may still work.";
+    return typeof message.message === "string" ? message.message.slice(0, 180) : "The room service rejected the request.";
+  }
+
+  private requestIceConfiguration(): void {
+    const now = Date.now();
+    if (now - this.lastIceRequestAt < 20_000) return;
+    if (this.socket?.readyState === WebSocket.OPEN && this.active) {
+      try { this.socket.send(JSON.stringify({ type: "ice-refresh" })); this.lastIceRequestAt = now; } catch { /* socket may be closing */ }
+    }
+  }
+
+  private scheduleIceRefresh(): void {
+    window.clearTimeout(this.iceRefreshTimer);
+    if (!this.active) return;
+    const now = Date.now();
+    const delay = this.iceExpiresAt > now ? Math.max(30_000, this.iceExpiresAt - now - 15 * 60_000) : 30_000;
+    this.iceRefreshTimer = window.setTimeout(() => this.requestIceConfiguration(), delay);
+  }
+
+  private async applyIceConfiguration(): Promise<void> {
+    for (const [id, peer] of this.peers) {
+      try {
+        peer.pc.setConfiguration({ ...peer.pc.getConfiguration(), iceServers: this.relay });
+        if (peer.pc.connectionState === "failed") { this.schedulePeerRetry(id); continue; }
+        if (this.selfId.localeCompare(id) < 0 && peer.pc.connectionState === "connected") {
+          peer.pc.restartIce();
+          const offer = await peer.pc.createOffer({ iceRestart: true });
+          await peer.pc.setLocalDescription(offer);
+          this.signal(id, { description: peer.pc.localDescription });
+        }
+      } catch { this.schedulePeerRetry(id); }
+    }
+  }
+
+  private reportIceError(event: Event): void {
+    const now = Date.now();
+    if (now - this.lastIceErrorAt < 10_000) return;
+    this.lastIceErrorAt = now;
+    const detail = event as Event & { errorCode?: number; errorText?: string };
+    const code = Number.isInteger(detail.errorCode) ? detail.errorCode : 0;
+    const message = typeof detail.errorText === "string" ? detail.errorText.slice(0, 140) : "";
+    if (/quota|monthly allowance|usage limit|out of data/i.test(message)) {
+      this.relayStatus = "quota";
+      this.callbacks.status("The relay provider reports that its free allowance is exhausted. Direct connections may still work.", true);
+    } else if (code || message) {
+      this.callbacks.status(`ICE relay setup failed${code ? ` (error ${code})` : ""}${message ? `: ${message}` : "."} Trying available direct paths.`, true);
+    }
+    this.requestIceConfiguration();
+  }
+
+  private schedulePeerRetry(id: string, delayMs = 2000): void {
     if (this.retryTimers.has(id) || !this.roster.some(p => p.id === id)) return;
     const timer = window.setTimeout(() => {
       this.retryTimers.delete(id);
@@ -459,7 +562,7 @@ export class MultiplayerSession {
       this.removePeer(id);
       if (localOrder > remoteOrder) void this.connectPeer(id, true);
       else this.updatePeerStatus();
-    }, 2000);
+    }, delayMs);
     this.retryTimers.set(id, timer);
   }
 
@@ -550,7 +653,7 @@ export class MultiplayerSession {
 
   leave(message = "Left the room."): void {
     if (this.closed) return;
-    this.closed = true; window.clearInterval(this.sendTimer); window.clearInterval(this.checkpointTimer); window.clearInterval(this.topologyTimer);
+    this.closed = true; window.clearInterval(this.sendTimer); window.clearInterval(this.checkpointTimer); window.clearInterval(this.topologyTimer); window.clearTimeout(this.iceRefreshTimer);
     window.clearInterval(this.gameTimer); this.world = null;
     for (const timer of this.retryTimers.values()) window.clearTimeout(timer);
     this.retryTimers.clear();
@@ -558,6 +661,7 @@ export class MultiplayerSession {
     const ws = this.socket; this.socket = null;
     if (ws) { if (ws.readyState === WebSocket.OPEN) { try { ws.send(JSON.stringify({ type: "leave" })); } catch { /* closing anyway */ } } ws.close(); }
     const self = this.selfId; this.roomCode = ""; this.selfId = ""; this.hostId = ""; this.roster = []; this.topology = null; this.ids.clear(); this.revision = 0;
+    this.relay = []; this.iceExpiresAt = 0; this.relayStatus = "pending"; this.lastIceRequestAt = 0;
     this.lastShipSequence.clear(); this.lastShotSequence = 0; this.stateSequence = 0; this.positionSequence = 0;
     this.callbacks.shotState([], []);
     this.callbacks.removed(self); this.callbacks.members([], "", "", 0); this.callbacks.status(message);
