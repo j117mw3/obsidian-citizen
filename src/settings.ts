@@ -7,6 +7,9 @@ export interface ConstellationSettings {
   autoRotate: boolean;
   rotateSpeed: number;
   glow: number;
+  nodeSize: number;
+  linkBrightness: number;
+  spacing: number;
   bloom: boolean;
   labelCount: number;
   labelSize: number;
@@ -43,6 +46,9 @@ export const DEFAULT_SETTINGS: ConstellationSettings = {
   autoRotate: true,
   rotateSpeed: 0.5,
   glow: 1,
+  nodeSize: 1,
+  linkBrightness: 1,
+  spacing: 1,
   bloom: true,
   labelCount: 14,
   labelSize: 13,
@@ -89,6 +95,9 @@ export function sanitizeSettings(raw: unknown): ConstellationSettings {
     autoRotate: bool(r.autoRotate, d.autoRotate),
     rotateSpeed: clamp(r.rotateSpeed, 0.1, 2, d.rotateSpeed),
     glow: clamp(r.glow, 0, 1.5, d.glow),
+    nodeSize: clamp(r.nodeSize, 0.5, 2, d.nodeSize),
+    linkBrightness: clamp(r.linkBrightness, 0.3, 2.5, d.linkBrightness),
+    spacing: clamp(r.spacing, 0.5, 2.5, d.spacing),
     bloom: bool(r.bloom, d.bloom),
     labelCount: Math.round(clamp(r.labelCount, 0, 40, d.labelCount)),
     labelSize: Math.round(clamp(r.labelSize, 10, 24, d.labelSize)),

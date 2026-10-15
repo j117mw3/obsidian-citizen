@@ -35,6 +35,7 @@ export class Simulation {
   private linkForce: ForceLink<SimNode, SimLink>;
   private charge: ForceManyBody<SimNode>;
   private level: MotionLevel | null = null;
+  private spacing = 1; // scales the repel force, the link distance and the starting spread
   private avgTick = 0;
   private frameNo = 0;
   private dragIdx = -1;
@@ -85,6 +86,14 @@ export class Simulation {
       n.x += dx; n.y += dy; n.z += dz;
       if (n.fx != null) n.fx += dx; if (n.fy != null) n.fy += dy; if (n.fz != null) n.fz += dz;
     }
+  }
+
+  /** Spread the layout out (above 1) or pull it together (below 1). True when it changed, so the caller can rebuild the layout. */
+  setSpacing(k: number): boolean {
+    if (Math.abs(k - this.spacing) < 1e-3) return false;
+    this.spacing = k;
+    this.charge.strength(-30 * k); this.linkForce.distance(26 * k);
+    return true;
   }
 
   /** Cheaper repulsion on big vaults: a wider Barnes-Hut opening angle and a shorter reach. */
@@ -155,7 +164,7 @@ export class Simulation {
   novaCancel(): void {
     if (!this.nova) return;
     this.nova = null;
-    this.charge.strength(-30);
+    this.charge.strength(-30 * this.spacing);
     this.sim.alphaTarget(this.gain === 0 ? 0 : 0.03);
   }
 
@@ -190,8 +199,8 @@ export class Simulation {
     const gIndex = new Map(data.groups.map((g, i) => [g.key, i]));
     this.groups = Math.max(1, data.groups.length);
     const N = Math.max(1, data.nodes.length);
-    const R = 26 * Math.cbrt(N);
-    const spread = 9 + 3.2 * Math.cbrt(N / this.groups);
+    const R = 26 * Math.cbrt(N) * this.spacing;
+    const spread = (9 + 3.2 * Math.cbrt(N / this.groups)) * this.spacing;
 
     this.axes = [];
     for (let g = 0; g < this.groups; g++) {
@@ -339,7 +348,7 @@ export class Simulation {
 
   /** The explosion: every note is thrown outward along its own direction, with a sideways twist so it spirals. */
   private blast(nodes: SimNode[], cx: number, cy: number, cz: number): void {
-    this.charge.strength(-30);
+    this.charge.strength(-30 * this.spacing);
     nodes.forEach((n, i) => {
       let dx = n.x - cx, dy = n.y - cy, dz = n.z - cz, r = Math.hypot(dx, dy, dz);
       if (r < 1e-3) { dx = hash(i + 11) - 0.5; dy = hash(i + 17) - 0.5; dz = hash(i + 23) - 0.5; r = Math.hypot(dx, dy, dz) || 1; }

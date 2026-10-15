@@ -1226,6 +1226,9 @@ export class PilotController {
     return true;
   }
 
+  /** The note you have locked as a flight target, or -1. */
+  get lockedIndex(): number { return this.lockedNode; }
+
   /** True once after you were destroyed by another pilot's bolt, so the room can be told who did it. */
   takeDeath(): boolean { const d = this.died; this.died = false; return d; }
 

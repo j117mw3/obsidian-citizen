@@ -14,12 +14,12 @@ THREE.ColorManagement.enabled = false; // we feed sRGB values straight to the sc
 
 const VERT = /* glsl */ `
 attribute vec3 aColor; attribute float aSize; attribute float aAlpha; attribute float aEmph;
-uniform float uScale; uniform float uPulse;
+uniform float uScale; uniform float uPulse; uniform float uNodeScale;
 varying vec3 vColor; varying float vAlpha; varying float vEmph; varying float vFade;
 void main() {
   vColor = aColor; vAlpha = aAlpha; vEmph = aEmph;
   vec4 mv = modelViewMatrix * vec4(position, 1.0);
-  float raw = aSize * uPulse * uScale / max(0.001, -mv.z);
+  float raw = aSize * uNodeScale * uPulse * uScale / max(0.001, -mv.z);
   gl_PointSize = clamp(raw, 5.0, 190.0);
   vFade = clamp(raw / 16.0, 0.22, 1.0); // far away a star is only a speck: dim it, so thousands of them do not add up to a white wash
   gl_Position = projectionMatrix * mv;
@@ -39,10 +39,12 @@ void main() {
   col += vec3(core * uNova * 0.55 + halo * uNova * 0.45); // white-hot during the supernova
   col = vec3(1.0) - exp(-col * 1.15); // soft shoulder: bright stars level off instead of clipping to white
   float a = clamp((core * mix(0.7, 1.0, vFade) + halo + ring) * vAlpha, 0.0, 1.0);
-  gl_FragColor = vec4(col, a);
+  gl_FragColor = vec4(col * a, a); // premultiplied, for the screen blend below
 }`;
 
 const FOV = 55;
+const NEAR_LABELS = 6;   // flying: at most this many notes are named because they are close
+const clamp01 = (v: number): number => Math.min(1, Math.max(0.0, v));
 const PILOT_AUTO_COLLAPSE = 400; // a vault with more notes than this starts folded into its groups when you first fly
 const CORE = 0.34; // fraction of a point sprite that is the solid disc
 
@@ -85,10 +87,13 @@ export class ConstellationRenderer implements GraphRenderer {
   private canvas: HTMLCanvasElement;
   private labelLayer: HTMLDivElement;
   private labels: HTMLDivElement[] = [];
+  private nearLabels: number[] = []; // flying: the notes close enough to be named
+  private nearAt = false;
+  private nearRadius = 100;
   private stars: THREE.Points;
   private nodePoints: THREE.Points | null = null;
   private lines: THREE.LineSegments | null = null;
-  private uniforms = { uScale: { value: 500 }, uGlow: { value: 1 }, uContrast: { value: 0 }, uPulse: { value: 1 }, uNova: { value: 0 } };
+  private uniforms = { uScale: { value: 500 }, uGlow: { value: 1 }, uContrast: { value: 0 }, uPulse: { value: 1 }, uNova: { value: 0 }, uNodeScale: { value: 1 } };
 
   private pos = new Float32Array(0);
   private col = new Float32Array(0);
@@ -313,6 +318,8 @@ export class ConstellationRenderer implements GraphRenderer {
     this.sim.setMotion(level);
     const hc = effectiveHighContrast(s);
     this.uniforms.uGlow.value = hc ? 0.35 : s.glow;
+    this.uniforms.uNodeScale.value = s.nodeSize;
+    if (this.sim.setSpacing(s.spacing) && this.sim.nodes.length) { this.sim.relayout(); this.frameB = null; }
     this.uniforms.uContrast.value = hc ? 1 : 0;
     this.bloom.strength = (hc ? 0 : 0.35 * s.glow) + this.novaBloom;
     this.controls.enableDamping = effectiveMotion(s) !== "off"; // a room holds the notes still, but the camera should still glide: only the reader's own motion setting turns damping off
@@ -350,7 +357,9 @@ export class ConstellationRenderer implements GraphRenderer {
   // ----------------------------------------------------------------- multiplayer
 
   private nodeMaterial(): THREE.ShaderMaterial {
-    return new THREE.ShaderMaterial({ uniforms: this.uniforms, vertexShader: VERT, fragmentShader: FRAG, transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending });
+    return new THREE.ShaderMaterial({ uniforms: this.uniforms, vertexShader: VERT, fragmentShader: FRAG, transparent: true, depthWrite: false, depthTest: false,
+      // screen blending: overlapping stars brighten toward white but never clip, so a crowded group keeps its colour
+      blending: THREE.CustomBlending, blendEquation: THREE.AddEquation, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcColorFactor });
   }
 
   /** Start or stop a room: every constellation holds still, and flying follows the room's rules. */
@@ -1032,7 +1041,7 @@ export class ConstellationRenderer implements GraphRenderer {
     (geo.getAttribute("aEmph") as THREE.BufferAttribute).needsUpdate = true;
 
     const src = this.sim.srcs, dst = this.sim.dsts, hc = effectiveHighContrast(this.settings);
-    const base = hc ? 0.55 : 0.2, boost = hc ? 1.6 : 2.6;
+    const base = (hc ? 0.55 : 0.2) * this.settings.linkBrightness, boost = hc ? 1.6 : 2.6;
     const primary = this.hover >= 0 ? this.hover : this.selected;
     for (let l = 0; l < src.length; l++) {
       const s = src[l], d = dst[l], a = s.index, b = d.index, o = l * 6;
@@ -1124,6 +1133,24 @@ export class ConstellationRenderer implements GraphRenderer {
     }
   }
 
+  /** The few notes closest to the ship, for the names shown while flying. Worked out a few times a second, not every frame. */
+  private refreshNear(): void {
+    this.nearAt = true;
+    const nodes = this.sim.nodes, cp = this.camera.position, r = this.nearRadius = Math.max(60, this.sim.bounds().radius * 0.22), r2 = r * r;
+    const fd = this.fwd.set(0, 0, -1).applyQuaternion(this.camera.quaternion);
+    const best: { i: number; d: number }[] = [];
+    for (let i = 0; i < nodes.length; i++) {
+      const n = nodes[i], dx = n.x - cp.x, dy = n.y - cp.y, dz = n.z - cp.z, d2 = dx * dx + dy * dy + dz * dz;
+      if (d2 > r2 || dx * fd.x + dy * fd.y + dz * fd.z < 0 || !this.host_solid(i)) continue; // close, in front of you, and showing
+      best.push({ i, d: d2 });
+    }
+    best.sort((a, b) => a.d - b.d);
+    this.nearLabels.length = 0;
+    for (let k = 0; k < Math.min(NEAR_LABELS, best.length); k++) this.nearLabels.push(best[k].i);
+  }
+
+  private host_solid(i: number): boolean { const n = this.sim.nodes[i]; return !!n && !this.hidden.has(n.gi) && this.alpha[i] > 0.3; }
+
   private updateLabels(): void {
     const s = this.settings, nodes = this.sim.nodes, hc = effectiveHighContrast(s);
     if (this.nova && this.nova.stage !== "trace") { for (const l of this.labels) l.toggleClass("cg-hidden", true); return; }
@@ -1139,6 +1166,11 @@ export class ConstellationRenderer implements GraphRenderer {
       top.forEach(add);
     }
     if (this.search) { let c = 0; for (const i of this.search) { add(i); if (++c > 14) break; } }
+    else if (this.pilot.active) { // flying: only what you are aiming at or have locked, and whatever is close to the ship
+      add(this.pilot.lockedIndex); add(this.labelPriority[0] ?? -1); // the vault's centre (its most-connected note) is always named; nothing else is
+      if (this.frameNo % 8 === 0 || !this.nearAt) this.refreshNear();
+      for (const i of this.nearLabels) add(i);
+    }
     else if (primary < 0) for (let k = 0; k < this.labelPriority.length && want.length < s.labelCount + 3; k++) add(this.labelPriority[k]);
 
     const w = this.canvas.clientWidth, h = this.canvas.clientHeight, v = this.tmp, placed = this.placed;
@@ -1155,7 +1187,7 @@ export class ConstellationRenderer implements GraphRenderer {
       const sx = (v.x * 0.5 + 0.5) * w, rise = baseRadius(n.deg) * 2.2 + 6, sy = (-v.y * 0.5 + 0.5) * h - rise;
       const lw = Math.min(260, n.name.length * fs * 0.56 + 14), lh = fs + 8;
       const x = sx - lw / 2, y = sy - lh;
-      const must = i === this.hover || i === this.selected;
+      const must = i === this.hover || i === this.selected || (this.pilot.active && (i === this.aim || i === this.pilot.lockedIndex));
       if (!must && placed.some(r => x < r.x + r.w && x + lw > r.x && y < r.y + r.h && y + lh > r.y)) continue;
       placed.push({ x, y, w: lw, h: lh });
       let el = this.labels[used];
@@ -1164,7 +1196,8 @@ export class ConstellationRenderer implements GraphRenderer {
       // fade with real distance from the camera; labels never drop below 60% and are always opaque in high contrast
       const dist = this.camera.position.distanceTo(this.tmp2.set(n.x, n.y, n.z));
       const depth = hc ? 1 : Math.max(0.6, Math.min(1, 1.25 - 0.45 * (dist / (focusDist * 1.4))));
-      el.style.opacity = String(must || hc ? 1 : Math.min(1, depth * Math.min(1, this.alpha[i] * 1.3)));
+      const near = this.pilot.active && i !== this.labelPriority[0] ? clamp01(1.3 - dist / this.nearRadius) : 1; // flying: a name fades in as you come close (the vault's centre stays)
+      el.style.opacity = String(must || hc ? 1 : Math.min(1, depth * near * Math.min(1, this.alpha[i] * 1.3)));
       el.style.transform = `translate(${Math.round(sx)}px, ${Math.round(sy)}px) translate(-50%, -100%)`;
       el.classList.toggle("cg-label-strong", must);
       el.toggleClass("cg-hidden", false);

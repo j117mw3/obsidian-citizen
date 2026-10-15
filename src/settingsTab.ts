@@ -50,6 +50,12 @@ const SECTIONS: Section[] = [
     heading: "Appearance",
     items: [
       { key: "glow", name: "Glow", control: { kind: "slider", min: 0, max: 1.5, step: 0.1 } },
+      { key: "nodeSize", name: "Node size", control: { kind: "slider", min: 0.5, max: 2, step: 0.1 },
+        desc: "How big the notes are drawn. Lower it if a busy group looks like one white blob." },
+      { key: "linkBrightness", name: "Link brightness", control: { kind: "slider", min: 0.3, max: 2.5, step: 0.1 },
+        desc: "How bright the links between notes are." },
+      { key: "spacing", name: "Spacing", control: { kind: "slider", min: 0.5, max: 2.5, step: 0.1 },
+        desc: "How far apart notes and groups sit: it scales the repel force and the link distance. The layout is rebuilt when you change it." },
       { key: "bloom", name: "Bloom effect", control: { kind: "toggle" },
         desc: "Soft light bleed around bright notes. Turn off on slower computers." },
       { key: "palette", name: "Colour palette", control: { kind: "dropdown", options: { vibrant: "Vibrant", colorblind: "Colour-blind safe", theme: "Match theme accent" } },
