@@ -23,8 +23,16 @@ function randomCode() {
 function byteLength(value) { return new TextEncoder().encode(value).byteLength; }
 
 function publicRoom(room) {
-  return [...room.members.values()].map(member => ({ id: member.id, name: member.name, joinedAt: member.joinedAt, slot: member.slot }));
+  return [...room.members.values()].map(member => ({ id: member.id, name: member.name, joinedAt: member.joinedAt, slot: member.slot, profile: member.profile }));
 }
+
+function validProfile(value) {
+  return value && Number.isSafeInteger(value.revision) && value.revision > 0
+    && ["classic", "vector", "dart", "bulwark", "crescent"].includes(value.ship)
+    && ["classic", "ion"].includes(value.engine) && ["classic", "plasma"].includes(value.afterburner)
+    && ["classic", "pulse"].includes(value.laser);
+}
+function cleanProfile(value) { return { revision: value.revision, ship: value.ship, engine: value.engine, afterburner: value.afterburner, laser: value.laser }; }
 
 function cleanPeerSignal(value) {
   if (!value || typeof value !== "object") return null;
@@ -220,9 +228,10 @@ export class RoomCoordinator extends DurableObject {
     if (message.type === "create" || message.type === "join") {
       if (!this.consume(`room:${connection.ip}`, 20)) { this.fail(ws, "rate-limited", "Too many room requests. Wait a minute and try again."); return; }
       if (connection.member) { this.fail(ws, "already-joined", "This connection already joined a room."); return; }
-      if (message.protocol !== 2) { this.fail(ws, "update-required", "Update the plugin to version 0.3.2 or newer to use this room service."); return; }
+      if (message.protocol !== 3) { this.fail(ws, "update-required", "Update the plugin to version 0.3.3 or newer to use this room service."); return; }
       const name = typeof message.name === "string" ? message.name.trim().slice(0, 24) : "";
       if (!name) { this.fail(ws, "bad-name", "Enter a display name (up to 24 characters)."); return; }
+      if (!validProfile(message.profile)) { this.fail(ws, "bad-profile", "Choose a valid ship and sound profile before joining."); return; }
       let room;
       if (message.type === "create") {
         if (this.rooms.size >= this.maxRooms) { this.fail(ws, "service-full", "The room service is at capacity. Try again later."); return; }
@@ -234,7 +243,7 @@ export class RoomCoordinator extends DurableObject {
         const code = typeof message.code === "string" ? message.code.toUpperCase() : "";
         room = this.rooms.get(code);
         if (!room) { this.fail(ws, "room-not-found", "That room code is invalid or the room has closed."); return; }
-        if (room.protocol !== message.protocol) { this.fail(ws, "update-required", "Everyone in the room must install plugin version 0.3.2 or newer."); return; }
+        if (room.protocol !== message.protocol) { this.fail(ws, "update-required", "Everyone in the room must install plugin version 0.3.3 or newer."); return; }
         if (room.members.size >= ROOM_CAPACITY) { this.fail(ws, "full", "This room already has four players."); return; }
         connection.roomCode = code;
       }
@@ -242,19 +251,23 @@ export class RoomCoordinator extends DurableObject {
       const slot = [0, 1, 2, 3].find(candidate => !usedSlots.has(candidate));
       if (slot === undefined) { this.fail(ws, "full", "This room already has four players."); return; }
       const id = crypto.randomUUID();
-      const member = { id, name, joinedAt: Date.now(), order: room.nextMemberOrder++, slot, ws };
+      const member = { id, name, joinedAt: Date.now(), order: room.nextMemberOrder++, slot, profile: cleanProfile(message.profile), ws };
       connection.member = member; room.members.set(id, member);
       if (!room.hostId) room.hostId = id;
       const relay = await this.iceConfiguration();
       if (message.type === "create") this.send(ws, { type: "created", code: room.code, selfId: id, hostId: room.hostId, epoch: room.epoch, members: publicRoom(room), ...relay });
       else this.send(ws, { type: "joined", code: room.code, selfId: id, hostId: room.hostId, epoch: room.epoch, members: publicRoom(room), checkpoint: room.checkpoint, ...relay });
-      this.roomCast(room, { type: "member-joined", member: { id, name, joinedAt: member.joinedAt, slot }, hostId: room.hostId, epoch: room.epoch }, id);
+      this.roomCast(room, { type: "member-joined", member: { id, name, joinedAt: member.joinedAt, slot, profile: member.profile }, hostId: room.hostId, epoch: room.epoch }, id);
       return;
     }
 
     const room = this.rooms.get(connection.roomCode);
     if (!connection.member || !room) { this.fail(ws, "not-in-room", "Join a room before sending this message."); return; }
-    if (message.type === "ice-refresh") {
+    if (message.type === "profile") {
+      if (!validProfile(message.profile) || message.profile.revision <= connection.member.profile.revision) { this.fail(ws, "bad-profile", "The ship or sound profile is invalid or out of date."); return; }
+      connection.member.profile = cleanProfile(message.profile);
+      this.roomCast(room, { type: "member-profile", id: connection.member.id, profile: connection.member.profile });
+    } else if (message.type === "ice-refresh") {
       if (!this.consume(`ice:${connection.member.id}`, 4)) { this.fail(ws, "rate-limited", "Wait before refreshing relay configuration again."); return; }
       this.send(ws, { type: "ice-servers", ...await this.iceConfiguration() });
     } else if (message.type === "signal") {

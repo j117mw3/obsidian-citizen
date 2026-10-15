@@ -7,6 +7,7 @@ import { createHmac } from "node:crypto";
 
 const require = createRequire(import.meta.url);
 const { WebSocket } = require("../server/node_modules/ws");
+const profile = { revision: 1, ship: "classic", engine: "classic", afterburner: "classic", laser: "classic" };
 
 async function freePort() {
   const server = createServer();
@@ -56,7 +57,7 @@ test("signaling supports four members, temporary TURN credentials, and determini
     assert.equal(ready, true, "signaling service did not start");
     const url = `ws://127.0.0.1:${port}`;
     const connect = async () => { const client = socketClient(url); clients.push(client); await client.opened; return client; };
-    const host = await connect(); host.ws.send(JSON.stringify({ type: "create", protocol: 2, name: "Host" }));
+    const host = await connect(); host.ws.send(JSON.stringify({ type: "create", protocol: 3, name: "Host", profile }));
     const created = await host.wait(m => m.type === "created");
     const oldClient = await connect(); oldClient.ws.send(JSON.stringify({ type: "join", protocol: 1, code: created.code, name: "Old Client" }));
     assert.equal((await oldClient.wait(m => m.type === "error")).code, "update-required");
@@ -68,14 +69,23 @@ test("signaling supports four members, temporary TURN credentials, and determini
     assert.equal(turn.credential, createHmac("sha1", secret).update(turn.username).digest("base64"));
     assert.equal((await fetch(`http://127.0.0.1:${port}/ice`)).status, 404, "TURN credentials are only issued to a room participant");
     const members = [created];
-    for (const name of ["Pilot 2", "Pilot 3", "Pilot 4"]) {
-      const client = await connect(); client.ws.send(JSON.stringify({ type: "join", protocol: 2, code: created.code, name }));
-      members.push(await client.wait(m => m.type === "joined"));
+    for (const [index, name] of ["Pilot 2", "Pilot 3", "Pilot 4"].entries()) {
+      const pilotProfile = { ...profile, ship: ["vector", "dart", "bulwark"][index] };
+      const client = await connect(); client.ws.send(JSON.stringify({ type: "join", protocol: 3, code: created.code, name, profile: pilotProfile }));
+      const joined = await client.wait(m => m.type === "joined");
+      if (index === 0) {
+        assert.equal(joined.members[0].profile.ship, "classic", "the room roster carries the host's chosen profile");
+        const updated = { revision: 2, ship: "crescent", engine: "ion", afterburner: "plasma", laser: "pulse", privateTitle: "must-not-be-shared" };
+        host.ws.send(JSON.stringify({ type: "profile", profile: updated }));
+        const propagated = await client.wait(m => m.type === "member-profile" && m.id === created.selfId);
+        assert.deepEqual(propagated.profile, { revision: 2, ship: "crescent", engine: "ion", afterburner: "plasma", laser: "pulse" });
+      }
+      members.push(joined);
     }
     assert.equal(members[3].members.length, 4);
     assert.deepEqual(members[3].members.map(m => m.slot), [0, 1, 2, 3]);
 
-    const tooMany = await connect(); tooMany.ws.send(JSON.stringify({ type: "join", protocol: 2, code: created.code, name: "Fifth" }));
+    const tooMany = await connect(); tooMany.ws.send(JSON.stringify({ type: "join", protocol: 3, code: created.code, name: "Fifth", profile }));
     const capacity = await tooMany.wait(m => m.type === "error");
     assert.equal(capacity.code, "full");
     tooMany.ws.close();

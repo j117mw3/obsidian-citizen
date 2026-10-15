@@ -1,4 +1,5 @@
 import type { ConstellationSettings } from "./settings";
+import type { PilotProfile } from "./pilotProfile";
 import type { AnonymousTopology } from "./multiplayer";
 import type { FlightInput, ImpactSnapshot, Pose, ShotSnapshot } from "./multiplayer";
 import type { NavigationTarget } from "./multiplayer";
@@ -62,6 +63,8 @@ export interface RendererCallbacks {
   /** Pilot mode started or stopped; `text` is a message for the reader (read out by screen readers too). */
   onPilot?(active: boolean, text: string): void;
   onAudioMute?(which: "engine" | "afterburner", muted: boolean): void;
+  onHangar?(): void;
+  onPilotChoice?(patch: Partial<Pick<ConstellationSettings, "pilotShip" | "pilotEngineSound" | "pilotAfterburnerSound" | "pilotLaserSound" | "pilotNearbyAudio">>): void;
   onNetworkFrame?(input: FlightInput): void;
   onNavigationTarget?(target: NavigationTarget | null): void;
   onFastTravel?(target: NavigationTarget): void;
@@ -103,8 +106,12 @@ export interface GraphRenderer {
   setLocalTopology(playerId: string, topology: AnonymousTopology | null): void;
   setPlayerNames(names: Map<string, string>): void;
   setRemotePositions(playerId: string, positions: Float32Array): void;
-  setRemoteShip(playerId: string, pose: Pose, name?: string): void;
+  setRemoteShip(playerId: string, pose: Pose, name?: string, profile?: PilotProfile): void;
+  setPlayerProfile(playerId: string, profile: PilotProfile): void;
+  setHangarOpen(open: boolean): void;
+  previewSound(kind: "engine" | "afterburner" | "laser"): void;
   setRemoteShots(shots: ShotSnapshot[], impacts: ImpactSnapshot[], localPlayerId?: string): void;
+  reconcileLocalShot(sequence: number, accepted: boolean): void;
   setAuthoritativePose(pose: Pose): void;
   clearSelection(): void;
   requestFastTravel(): void;

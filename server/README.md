@@ -2,7 +2,7 @@
 
 ## Hosted rooms (normal player install)
 
-The plugin's **Hosted rooms** mode connects to `wss://constellation-rooms.mrassetto.workers.dev`. Players only install the plugin, choose a name, and share an eight-character room code. This endpoint is tied to the maintainer's Cloudflare `workers.dev` subdomain.
+The plugin's **Hosted rooms** mode connects to `wss://constellation-rooms.mrassetto.workers.dev`. Release 0.3.3 uses room protocol 3, which shares a validated ship and sound profile containing only enumerated IDs. Older clients receive an update-required response. Players only install the plugin, choose a name, and share an eight-character room code. This endpoint is tied to the maintainer's Cloudflare `workers.dev` subdomain.
 
 The hosted service runs the room protocol in one Cloudflare Durable Object. Membership, host authority, and combat checkpoints stay in memory. The server uses WebRTC signaling only for setup; game traffic remains peer-to-peer or travels through TURN when NAT/firewall rules require a relay.
 
@@ -67,7 +67,7 @@ In Obsidian, select **Custom server** and enter `ws://localhost:8787` on the sam
 - Routine game inputs, ships, shots, and map positions travel over WebRTC data channels. The signaling service does not receive those snapshots. The host checkpoint contains only anonymous player IDs, flight state, health, boost, and in-flight shots.
 - A WebRTC peer pair uses an ordered reliable channel for topology and an unordered, zero-retransmit channel for replaceable flight and position snapshots. Position snapshots are sequence-numbered binary chunks; incomplete, stale, or wrong-revision frames are dropped.
 
-The synthetic tests cover protocol privacy, limits, stale snapshots, boost, hits, respawns, room capacity, Worker room creation, host election, credential rotation, provider outages, and quota classification. They do not establish public DNS, forced TURN relay, or cross-internet Obsidian connectivity.
+The synthetic tests cover protocol privacy, validated and late-joining pilot profiles, limits, stale snapshots, boost, accepted and rejected shots, hits, respawns, room capacity, Worker room creation, host election, credential rotation, provider outages, and quota classification. They do not establish public DNS, forced TURN relay, or cross-internet Obsidian connectivity.
 
 From the repository root, `npm run check:hosted` checks the deployed WebSocket service with Obsidian's desktop Origin header. It creates an independent synthetic room, joins with a second synthetic client, reports only the relay status and server count, and disconnects both clients. It does not send vault data or make WebRTC/TURN connections, and never prints credential payloads. This verifies hosted signaling from the machine running the check; it does not verify another player's network.
 

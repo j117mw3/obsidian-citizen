@@ -11,6 +11,7 @@ const serverDir = join(testDir, "..", "server");
 const wrangler = join(serverDir, "node_modules", "wrangler", "bin", "wrangler.js");
 const require = createRequire(import.meta.url);
 const { WebSocket } = require("../server/node_modules/ws");
+const profile = { revision: 1, ship: "classic", engine: "classic", afterburner: "classic", laser: "classic" };
 
 async function freePort() {
   const server = createServer();
@@ -61,7 +62,7 @@ test("hosted Worker serves four-player rooms and elects a replacement host", { t
     assert.equal(ready, true, `hosted Worker did not start: ${logs.slice(-1500)}`);
     const url = `ws://127.0.0.1:${port}/`;
     const connect = async () => { const item = client(url); clients.push(item); await item.opened; return item; };
-    const host = await connect(); host.ws.send(JSON.stringify({ type: "create", protocol: 2, name: "Synthetic Host" }));
+    const host = await connect(); host.ws.send(JSON.stringify({ type: "create", protocol: 3, name: "Synthetic Host", profile }));
     const created = await host.wait(message => message.type === "created");
     assert.match(created.code, /^[A-HJ-NP-Z2-9]{8}$/);
     assert.equal(created.members.length, 1);
@@ -70,12 +71,19 @@ test("hosted Worker serves four-player rooms and elects a replacement host", { t
     oldClient.ws.close();
 
     const members = [created];
-    for (const name of ["Synthetic Two", "Synthetic Three", "Late Joiner"]) {
-      const pilot = await connect(); pilot.ws.send(JSON.stringify({ type: "join", protocol: 2, code: created.code, name }));
+    for (const [index, name] of ["Synthetic Two", "Synthetic Three", "Late Joiner"].entries()) {
+      const pilotProfile = { ...profile, ship: ["vector", "dart", "bulwark"][index] };
+      const pilot = await connect(); pilot.ws.send(JSON.stringify({ type: "join", protocol: 3, code: created.code, name, profile: pilotProfile }));
       const joined = await pilot.wait(message => message.type === "joined");
+      if (index === 0) {
+        host.ws.send(JSON.stringify({ type: "profile", profile: { revision: 2, ship: "crescent", engine: "ion", afterburner: "plasma", laser: "pulse", privateTitle: "must-not-be-shared" } }));
+        const propagated = await pilot.wait(message => message.type === "member-profile" && message.id === created.selfId);
+        assert.deepEqual(propagated.profile, { revision: 2, ship: "crescent", engine: "ion", afterburner: "plasma", laser: "pulse" });
+      }
       members.push(joined);
       assert.equal(joined.members.length, members.length);
     }
+    assert.equal(members[3].members[0].profile.ship, "crescent", "late joiners receive the latest sanitized pilot profile");
     assert.deepEqual(members[3].members.map(member => member.slot), [0, 1, 2, 3]);
 
     const privateFixturePath = "Distinctive-Vault-Path-79Q4.md";
@@ -88,7 +96,7 @@ test("hosted Worker serves four-player rooms and elects a replacement host", { t
     assert.ok(["pending", "unavailable"].includes(refreshed.relayStatus));
     assert.ok(refreshed.iceServers.every(server => String(server.urls).startsWith("stun:")), "test requests do not call a paid or metered relay");
 
-    const fifth = await connect(); fifth.ws.send(JSON.stringify({ type: "join", protocol: 2, code: created.code, name: "Fifth Pilot" }));
+    const fifth = await connect(); fifth.ws.send(JSON.stringify({ type: "join", protocol: 3, code: created.code, name: "Fifth Pilot", profile }));
     const capacity = await fifth.wait(message => message.type === "error");
     assert.equal(capacity.code, "full");
     fifth.ws.close();

@@ -1,9 +1,10 @@
 import type { GraphData, RawLink, RawNode, SimNode } from "./types";
 import { CombatWorld, type RoomCheckpoint } from "./combat";
+import { DEFAULT_PILOT_PROFILE, LASER_SOUND_IDS, validPilotProfile, type PilotProfile, type LaserSoundId } from "./pilotProfile";
 
 export const MAX_SHARED_NODES = 20_000;
 export const MAX_SHARED_LINKS = 100_000;
-export const ROOM_PROTOCOL = 2;
+export const ROOM_PROTOCOL = 3;
 export const HOSTED_SIGNALING_URL = "wss://constellation-rooms.mrassetto.workers.dev";
 const MAX_COORDINATE = 1_000_000;
 const MAGIC = 0x43475031; // CGP1
@@ -17,10 +18,10 @@ const MAX_TOPOLOGY_CHARS = 16 * 1024 * 1024;
 export interface AnonymousGroup { color: string; count: number }
 export interface AnonymousNode { id: string; group: number; degree: number }
 export interface AnonymousTopology { revision: number; nodes: AnonymousNode[]; groups: AnonymousGroup[]; links: [string, string][] }
-export interface AnonymousPlayer { id: string; name: string; joinedAt: number; slot: number }
+export interface AnonymousPlayer { id: string; name: string; joinedAt: number; slot: number; profile: PilotProfile }
 export interface NavigationTarget { ownerId: string; starId: string; revision: number }
-export interface Pose { position: [number, number, number]; rotation: [number, number, number, number]; velocity: [number, number, number]; health: number; energy: number; boostLocked: boolean; boostHold: number; regenDelay: number; active: boolean; respawnAt: number; protectedUntil: number }
-export interface ShotSnapshot { id: string; ownerId: string; gun: number; origin: [number, number, number]; position: [number, number, number]; direction: [number, number, number] }
+export interface Pose { position: [number, number, number]; rotation: [number, number, number, number]; velocity: [number, number, number]; health: number; energy: number; boostLocked: boolean; boostHold: number; regenDelay: number; active: boolean; respawnAt: number; protectedUntil: number; thrust: number; boosting: boolean; bank: number; tilt: number }
+export interface ShotSnapshot { id: string; ownerId: string; gun: number; origin: [number, number, number]; position: [number, number, number]; direction: [number, number, number]; sound: LaserSoundId; startedAt: number }
 export interface ImpactSnapshot { id: string; position: [number, number, number]; kind: "star" | "ship" }
 
 /** Build a deliberately lossy network representation. File IDs and all note labels stop here. */
@@ -90,6 +91,7 @@ type SignalMessage = { type: string; [key: string]: unknown };
 export type GameMessage = { type: "input"; epoch: number; input: FlightInput }
   | { type: "navigate"; epoch: number; target: NavigationTarget }
   | { type: "fire"; epoch: number; sequence: number; gun: number; aimPoint: [number, number, number] }
+  | { type: "shot-result"; epoch: number; sequence: number; accepted: boolean }
   | { type: "ship"; epoch: number; sequence: number; playerId: string; pose: Pose }
   | { type: "shots"; epoch: number; sequence: number; shots: ShotSnapshot[]; impacts: ImpactSnapshot[] };
 export interface FlightInput { thrust: number; strafe: number; lift: number; roll: number; pitch: number; yaw: number; boost: boolean; brake: boolean; fire: boolean; active: boolean }
@@ -104,6 +106,7 @@ export interface MultiplayerCallbacks {
   authority(hostId: string, epoch: number, checkpoint: unknown): void;
   playerState(playerId: string, pose: Pose): void;
   shotState(shots: ShotSnapshot[], impacts: ImpactSnapshot[]): void;
+  shotResult?(sequence: number, accepted: boolean): void;
   navigation?(target: NavigationTarget | null, state?: "selected" | "travelling" | "cancelled"): void;
 }
 
@@ -129,7 +132,7 @@ function validMembers(value: unknown): value is AnonymousPlayer[] {
   for (const item of value) {
     if (!item || typeof item !== "object") return false;
     const member = item as AnonymousPlayer;
-    if (typeof member.id !== "string" || !/^[0-9a-f-]{36}$/i.test(member.id) || ids.has(member.id)
+    if (typeof member.id !== "string" || !/^[0-9a-f-]{36}$/i.test(member.id) || ids.has(member.id) || !validPilotProfile(member.profile)
       || typeof member.name !== "string" || member.name.length > 24 || !Number.isSafeInteger(member.joinedAt)
       || !Number.isInteger(member.slot) || member.slot < 0 || member.slot > 3 || slots.has(member.slot)) return false;
     ids.add(member.id); slots.add(member.slot);
@@ -199,12 +202,20 @@ export class MultiplayerSession {
   get localPlayerId(): string { return this.selfId; }
   get localTopology(): AnonymousTopology | null { return this.topology; }
   get members(): readonly AnonymousPlayer[] { return this.roster; }
+  updateProfile(profile: PilotProfile): void {
+    if (!this.active || !validPilotProfile(profile)) return;
+    this.roster = this.roster.map(member => member.id === this.selfId ? { ...member, profile } : member);
+    this.world?.setProfile(this.selfId, profile);
+    this.callbacks.members(this.roster, this.selfId, this.hostId, this.epoch);
+    this.socket?.send(JSON.stringify({ type: "profile", profile }));
+  }
 
-  async create(name: string): Promise<void> { await this.open("create", name); }
-  async join(code: string, name: string): Promise<void> { await this.open("join", name, code); }
+  async create(name: string, profile: PilotProfile = DEFAULT_PILOT_PROFILE): Promise<void> { await this.open("create", name, "", profile); }
+  async join(code: string, name: string, profile: PilotProfile = DEFAULT_PILOT_PROFILE): Promise<void> { await this.open("join", name, code, profile); }
 
-  private async open(action: "create" | "join", name: string, code = ""): Promise<void> {
+  private async open(action: "create" | "join", name: string, code = "", profile: PilotProfile = DEFAULT_PILOT_PROFILE): Promise<void> {
     if (this.active) throw new Error("Leave the current room before joining another.");
+    if (!validPilotProfile(profile)) throw new Error("The selected ship or sound profile is invalid.");
     if (this.opening) throw new Error("A room connection is already in progress.");
     if (!globalThis.RTCPeerConnection || !globalThis.WebSocket) throw new Error("This Obsidian WebView does not provide WebRTC.");
     const url = this.signalingUrl().trim();
@@ -227,7 +238,7 @@ export class MultiplayerSession {
       timeout = window.setTimeout(() => fail(new Error(`The room service at ${host} did not respond within 15 seconds.`)), 15_000);
       ws.addEventListener("open", () => {
         if (this.socket !== ws || this.closed) return;
-        ws.send(JSON.stringify(action === "create" ? { type: "create", protocol: ROOM_PROTOCOL, name: cleanName } : { type: "join", protocol: ROOM_PROTOCOL, code: code.trim().toUpperCase(), name: cleanName }));
+        ws.send(JSON.stringify(action === "create" ? { type: "create", protocol: ROOM_PROTOCOL, name: cleanName, profile } : { type: "join", protocol: ROOM_PROTOCOL, code: code.trim().toUpperCase(), name: cleanName, profile }));
       });
       ws.addEventListener("message", event => {
         if (this.socket !== ws || this.closed) return;
@@ -348,10 +359,18 @@ export class MultiplayerSession {
     }
     if (msg.type === "member-joined") {
       const p = msg.member as AnonymousPlayer;
-      if (!p || typeof p.id !== "string" || p.id === this.selfId) return;
+      if (!p || typeof p.id !== "string" || p.id === this.selfId || !validMembers([p])) return;
       this.roster = [...this.roster.filter(x => x.id !== p.id), p]; this.callbacks.members(this.roster, this.selfId, this.hostId, this.epoch);
-      if (this.isHost) this.world?.add(p);
+      if (this.isHost) { this.world?.add(p); this.world?.setProfile(p.id, p.profile); }
       await this.connectPeer(p.id, false); this.updatePeerStatus(); return;
+    }
+    if (msg.type === "member-profile") {
+      if (typeof msg.id !== "string" || !validPilotProfile(msg.profile)) return;
+      const existing = this.roster.find(member => member.id === msg.id);
+      if (!existing || msg.profile.revision <= existing.profile.revision) return;
+      this.roster = this.roster.map(member => member.id === msg.id ? { ...member, profile: msg.profile as PilotProfile } : member);
+      this.world?.setProfile(msg.id, msg.profile as PilotProfile);
+      this.callbacks.members(this.roster, this.selfId, this.hostId, this.epoch); return;
     }
     if (msg.type === "member-left") {
       const id = String(msg.id || ""); this.removePeer(id); this.roster = this.roster.filter(x => x.id !== id); this.callbacks.removed(id);
@@ -368,7 +387,7 @@ export class MultiplayerSession {
         const checkpoint = msg.checkpoint as { state?: unknown; ageMs?: number } | null;
         if (checkpoint?.state && Number.isFinite(checkpoint.ageMs) && (checkpoint.ageMs as number) <= 15_000) this.world.restore(checkpoint.state, Date.now());
         this.world.epoch = this.epoch;
-        for (const member of this.roster) this.world.add(member);
+        for (const member of this.roster) { this.world.add(member); this.world.setProfile(member.id, member.profile); }
         this.startGameLoop();
       }
       this.callbacks.authority(this.hostId, this.epoch, msg.checkpoint);
@@ -413,10 +432,16 @@ export class MultiplayerSession {
       let msg: unknown; try { msg = JSON.parse(data); } catch { return; }
       if (!msg || typeof msg !== "object") return;
       const m = msg as Record<string, unknown>;
+      if (m.type === "shot-result" && id === this.hostId && m.epoch === this.epoch && Number.isSafeInteger(m.sequence)
+        && (m.sequence as number) > 0 && typeof m.accepted === "boolean") {
+        this.callbacks.shotResult?.(m.sequence as number, m.accepted); return;
+      }
       if (m.type === "navigate" && this.isHost && m.epoch === this.epoch && this.validNavigationTarget(m.target)) { this.startRequestedTravel(id, m.target); return; }
       if (m.type === "fire" && this.isHost && m.epoch === this.epoch && Number.isSafeInteger(m.sequence) && Number.isInteger(m.gun)
         && Array.isArray(m.aimPoint) && m.aimPoint.length === 3 && m.aimPoint.every(v => typeof v === "number" && Number.isFinite(v))) {
-        this.world?.fireShot(id, m.sequence as number, m.gun as number, Date.now(), m.aimPoint as [number, number, number]); return;
+        const sequence = m.sequence as number;
+        const accepted = this.world?.fireShot(id, sequence, m.gun as number, Date.now(), m.aimPoint as [number, number, number]) ?? false;
+        this.sendReliable(id, { type: "shot-result", epoch: this.epoch, sequence, accepted }); return;
       }
       if (m.type !== "topology-chunk" || !Number.isSafeInteger(m.revision) || (m.revision as number) < 1
         || !Number.isInteger(m.index) || !Number.isInteger(m.total) || (m.index as number) < 0 || (m.total as number) < 1
@@ -510,7 +535,8 @@ export class MultiplayerSession {
       && Number.isInteger(s.gun) && s.gun >= 0 && s.gun <= 3
       && Array.isArray(s.origin) && s.origin.length === 3 && s.origin.every(v => Number.isFinite(v) && Math.abs(v) <= MAX_COORDINATE)
       && Array.isArray(s.position) && s.position.length === 3 && s.position.every(v => Number.isFinite(v) && Math.abs(v) <= MAX_COORDINATE)
-      && Array.isArray(s.direction) && s.direction.length === 3 && s.direction.every(v => Number.isFinite(v) && Math.abs(v) <= 1.01);
+      && Array.isArray(s.direction) && s.direction.length === 3 && s.direction.every(v => Number.isFinite(v) && Math.abs(v) <= 1.01)
+      && LASER_SOUND_IDS.includes(s.sound) && Number.isSafeInteger(s.startedAt);
   }
   private validImpact(value: unknown): value is ImpactSnapshot {
     if (!value || typeof value !== "object") return false;
@@ -532,7 +558,9 @@ export class MultiplayerSession {
       && Array.isArray(p.velocity) && p.velocity.length === 3 && p.velocity.every(v => Number.isFinite(v) && Math.abs(v) <= 20_000)
       && Number.isFinite(p.health) && p.health >= 0 && p.health <= 100 && Number.isFinite(p.energy) && p.energy >= 0 && p.energy <= 1 && typeof p.boostLocked === "boolean"
       && Number.isFinite(p.boostHold) && p.boostHold >= 0 && p.boostHold <= 3 && Number.isFinite(p.regenDelay) && p.regenDelay >= 0 && p.regenDelay <= 1.5
-      && typeof p.active === "boolean" && Number.isFinite(p.respawnAt) && Number.isFinite(p.protectedUntil);
+      && typeof p.active === "boolean" && Number.isFinite(p.respawnAt) && Number.isFinite(p.protectedUntil)
+      && Number.isFinite(p.thrust) && p.thrust >= 0 && p.thrust <= 3 && typeof p.boosting === "boolean"
+      && Number.isFinite(p.bank) && Math.abs(p.bank) <= 0.56 && Number.isFinite(p.tilt) && Math.abs(p.tilt) <= 0.41;
   }
 
   private startLoops(): void {
@@ -549,7 +577,7 @@ export class MultiplayerSession {
   private createWorldIfHost(): void {
     if (!this.isHost) { this.world = null; return; }
     this.world = new CombatWorld(this.epoch);
-    for (const member of this.roster) this.world.add(member);
+    for (const member of this.roster) { this.world.add(member); this.world.setProfile(member.id, member.profile); }
     this.startGameLoop();
   }
 
@@ -577,7 +605,7 @@ export class MultiplayerSession {
     const code = typeof message.code === "string" ? message.code : "";
     if (code === "room-not-found") return "That room code is invalid or the room has closed.";
     if (code === "full") return "That room already has four pilots.";
-    if (code === "update-required") return "Everyone in the room must install plugin version 0.3.2 or newer.";
+    if (code === "update-required") return "Everyone in the room must install plugin version 0.3.3 or newer.";
     if (code === "service-full") return "The hosted room service is at capacity. Try again later.";
     if (code === "rate-limited") return "The room service is receiving too many requests. Wait a minute and try again.";
     if (code === "service-unavailable") return "The hosted room service is temporarily unavailable. Try again shortly.";
@@ -727,7 +755,7 @@ export class MultiplayerSession {
     if (!this.active || !Number.isSafeInteger(sequence) || sequence < 1 || !Number.isInteger(gun) || gun < 0 || gun > 3) return;
     const now = Date.now();
     if (!aimPoint.every(Number.isFinite) || aimPoint.some(v => Math.abs(v) > MAX_COORDINATE)) return;
-    if (this.isHost) this.world?.fireShot(this.selfId, sequence, gun, now, aimPoint);
+    if (this.isHost) this.callbacks.shotResult?.(sequence, this.world?.fireShot(this.selfId, sequence, gun, now, aimPoint) ?? false);
     else this.sendReliable(this.hostId, { type: "fire", epoch: this.epoch, sequence, gun, aimPoint });
   }
 

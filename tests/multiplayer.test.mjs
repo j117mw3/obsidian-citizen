@@ -125,11 +125,25 @@ test("host accepts only current-epoch anonymous navigation and bounded authorita
   session.onPeerMessage(guestId, JSON.stringify({ type: "fire", epoch: 2, sequence: 1, gun: 0, aimPoint: [2300, 0, -900] }), "control");
   session.onPeerMessage(guestId, JSON.stringify({ type: "fire", epoch: 3, sequence: 1, gun: 0, aimPoint: [2300, 0, 900] }), "control");
   assert.equal(session.world.shotSnapshots().length, 0, "stale and backward shots are rejected");
+  assert.equal(JSON.parse(peer.control.sent.at(-1)).accepted, false, "the host reliably rejects an invalid predicted shot");
   session.onPeerMessage(guestId, JSON.stringify({ type: "fire", epoch: 3, sequence: 1, gun: 2, aimPoint: [2300, 0, -900] }), "control");
   assert.equal(session.world.shotSnapshots()[0]?.gun, 2);
+  assert.equal(JSON.parse(peer.control.sent.at(-1)).accepted, true, "the host reliably acknowledges an accepted predicted shot");
   assert.equal(session.world.players.get(guestId).travel, null, "an accepted shot cancels travel");
   session.onPeerMessage(guestId, JSON.stringify({ type: "open", path: privateMarkers[1] }), "control");
   assert.equal(session.world.shotSnapshots().length, 1, "remote note-opening requests are ignored");
+});
+
+test("shot results are accepted only from the current host and authority epoch", () => {
+  const hostId = "11111111-1111-4111-8111-111111111111", clientId = "22222222-2222-4222-8222-222222222222", otherId = "33333333-3333-4333-8333-333333333333";
+  const results = [];
+  const session = new network.MultiplayerSession(callbacks({ shotResult: (...result) => results.push(result) }), () => ({ data: fixture(), nodes: [] }), () => "ws://localhost:8787");
+  session.selfId = clientId; session.hostId = hostId; session.epoch = 5;
+  session.peers.set(hostId, peerStub()); session.peers.set(otherId, peerStub());
+  session.onPeerMessage(hostId, JSON.stringify({ type: "shot-result", epoch: 4, sequence: 3, accepted: true }), "control");
+  session.onPeerMessage(otherId, JSON.stringify({ type: "shot-result", epoch: 5, sequence: 3, accepted: false }), "control");
+  session.onPeerMessage(hostId, JSON.stringify({ type: "shot-result", epoch: 5, sequence: 3, accepted: false }), "control");
+  assert.deepEqual(results, [[3, false]]);
 });
 
 test("multiplayer map coordinates double around their stable region and restore exactly in solo", () => {
@@ -292,6 +306,18 @@ test("rapid boost taps reset the delay and an empty tank stays locked until thir
   assert.equal(pilot.boostLocked, false);
   world.step(0.1, 11900);
   assert.ok(pilot.energy < 0.3 && !pilot.boostLocked, "after reaching thirty percent, boost may run the tank down again");
+});
+
+test("replicated thrust audio follows effective propulsion and goes quiet during travel", () => {
+  const world = new combat.CombatWorld(1);
+  world.add({ id: "pilot", slot: 0, name: "P", joinedAt: 1 });
+  const pilot = world.players.get("pilot"); pilot.active = true;
+  pilot.input = { ...emptyInput, active: true, thrust: 1, boost: true };
+  let pose = world.poses(1000).find(item => item.id === "pilot").pose;
+  assert.equal(pose.thrust, 1); assert.equal(pose.boosting, true);
+  assert.equal(world.startTravel("pilot", [0, 0, -1000], 1, 1000), true);
+  pose = world.poses(1000).find(item => item.id === "pilot").pose;
+  assert.equal(pose.thrust, 0); assert.equal(pose.boosting, false);
 });
 
 function signalingStubs(t) {

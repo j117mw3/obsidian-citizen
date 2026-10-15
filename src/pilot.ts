@@ -3,7 +3,10 @@ import type { SimNode } from "./types";
 import { PilotAudio } from "./sfx";
 import { buildShip, type Ship } from "./ship";
 import { buildCockpit, type Cockpit } from "./cockpit";
-import type { FlightInput, NavigationTarget, Pose } from "./multiplayer";
+import type { FlightInput, NavigationTarget, Pose, ShotSnapshot } from "./multiplayer";
+import type { PilotProfile, ShipId } from "./pilotProfile";
+import { stepPresentation } from "./pilotProfile";
+import type { RemoteAudioState } from "./sfx";
 
 /** What the pilot needs from the renderer. Kept narrow so the controller never reaches into renderer state. */
 export interface PilotHost {
@@ -31,6 +34,7 @@ export interface PilotHost {
   onState(active: boolean, text: string): void;
   /** The reader pressed Esc with the mouse already free: leave Pilot mode. */
   leave(): void;
+  onHangar?(): void;
   onAudioMute(which: "engine" | "afterburner", muted: boolean): void;
   onNetworkFrame(input: FlightInput): void;
   onFire(sequence: number, gun: number, aimPoint: [number, number, number]): void;
@@ -52,6 +56,11 @@ export interface PilotOptions {
   /** Capture: the mouse is locked and its movement steers. Cursor: the pointer stays visible and its distance from the centre steers. */
   mouse: "capture" | "cursor";
   multiplayer: boolean;
+  ship: ShipId;
+  engineSound: PilotProfile["engine"];
+  afterburnerSound: PilotProfile["afterburner"];
+  laserSound: PilotProfile["laser"];
+  nearbyAudio: boolean;
 }
 
 // ---- scale. Cruise speed is set from how big the network is, so crossing it takes a believable amount of time.
@@ -157,7 +166,7 @@ interface Warp {
   dist: number;                 // how far from the target to stop
 }
 /** A bolt flies from the gun to the note it was aimed at, and the shot counts when it lands. */
-interface Bolt { from: THREE.Vector3; node: number; point: THREE.Vector3; travelled: number; ctrl: boolean; landed: boolean; fade: number; sequence?: number }
+interface Bolt { from: THREE.Vector3; origin: THREE.Vector3; node: number; point: THREE.Vector3; travelled: number; ctrl: boolean; landed: boolean; fade: number; sequence?: number; sentAt?: number; confirmed?: boolean }
 interface Burst { age: number; pos: THREE.Vector3; size: number; line: THREE.LineSegments }
 
 const clamp = (v: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, v));
@@ -207,6 +216,8 @@ export class PilotController {
   private aimDestination: NavigationTarget | null = null;
   private aimX = 0; private aimY = 0;          // where the nose points, on screen (CSS px)
   private firing = false;
+  private firePending = false;
+  private firePendingCtrl = false;
   private cooldown = 0;
   private gun = 0;
   private fireSequence = 0;
@@ -218,6 +229,7 @@ export class PilotController {
   private clock = 0; // ms of flight time; warps and double-hits run on it, so they pause with the frame loop
   private unlockedAt = 0;
   private opts: PilotOptions;
+  private hangarOpen = false;
   private bank = 0; private tilt = 0;          // how far the plane's model leans, for looks only
   private flagsText = "";
 
@@ -275,6 +287,8 @@ export class PilotController {
   ) {
     this.opts = { ...opts };
     this.audio.setOptions(opts.sound, opts.volume);
+    this.audio.setProfile({ revision: 1, ship: opts.ship, engine: opts.engineSound, afterburner: opts.afterburnerSound, laser: opts.laserSound });
+    this.audio.setNearbyAudio(opts.nearbyAudio);
 
     // the cockpit (first-person view)
     this.cockpit = buildCockpit();
@@ -322,6 +336,8 @@ export class PilotController {
     this.muteAfterburnerButton = audioControls.createEl("button", { cls: "cg-pilot-audio-btn", text: "Afterburner on", attr: { type: "button", "aria-pressed": "false", "aria-label": "Mute afterburner" } });
     this.muteEngineButton.addEventListener("click", () => this.host.onAudioMute("engine", !this.opts.muteEngine));
     this.muteAfterburnerButton.addEventListener("click", () => this.host.onAudioMute("afterburner", !this.opts.muteAfterburner));
+    const hangarButton = audioControls.createEl("button", { cls: "cg-pilot-audio-btn", text: "Hangar", attr: { type: "button", "aria-label": "Open spacecraft hangar" } });
+    hangarButton.addEventListener("click", () => this.host.onHangar?.());
     const speed = this.hud.createDiv({ cls: "cg-pilot-speed" });
     this.speedFill = speed.createDiv({ cls: "cg-pilot-speed-fill" });
     const energy = this.hud.createDiv({ cls: "cg-pilot-energy" });
@@ -377,6 +393,7 @@ export class PilotController {
   setOptions(opts: PilotOptions): void {
     const mouseChanged = opts.mouse !== this.opts.mouse;
     const multiplayerChanged = opts.multiplayer !== this.opts.multiplayer;
+    const shipChanged = opts.ship !== this.opts.ship;
     this.opts = { ...opts };
     if (multiplayerChanged) {
       this.lastShot = { i: -1, t: -1e9 }; this.aimDestination = null; this.bolts.length = 0; this.warp = null; this.cooldown = 0;
@@ -389,6 +406,8 @@ export class PilotController {
       this.applyLook(); this.setHint();
     }
     this.audio.setOptions(opts.sound, opts.volume);
+    this.audio.setProfile({ revision: 1, ship: opts.ship, engine: opts.engineSound, afterburner: opts.afterburnerSound, laser: opts.laserSound });
+    this.audio.setNearbyAudio(opts.nearbyAudio);
     this.audio.setEngineMuted(opts.muteEngine);
     this.audio.setAfterburnerMuted(opts.muteAfterburner);
     this.muteEngineButton.textContent = opts.muteEngine ? "Engine muted" : "Engine on";
@@ -396,7 +415,40 @@ export class PilotController {
     this.muteAfterburnerButton.textContent = opts.muteAfterburner ? "Afterburner muted" : "Afterburner on";
     this.muteAfterburnerButton.setAttribute("aria-pressed", String(opts.muteAfterburner));
     if (this.active) this.cruise = this.cruiseSpeed();
+    if (shipChanged) this.setShipModel(opts.ship);
     this.applyLook();
+  }
+
+  setShipModel(style: ShipId): void {
+    const wasVisible = this.ship.group.visible, old = this.ship;
+    this.scene.remove(old.group); old.lights.forEach(light => this.scene.remove(light)); old.dispose();
+    this.ship = buildShip(style); this.ship.group.visible = wasVisible;
+    this.ship.lights.forEach(light => { light.visible = wasVisible; this.scene.add(light); });
+    this.scene.add(this.ship.group); this.applyLook();
+  }
+
+  setHangarOpen(open: boolean): void {
+    this.hangarOpen = open;
+    if (open) {
+      this.audio.setRemoteAudioActive(false);
+      this.keys.clear(); this.firing = false; this.firePending = false; this.firePendingCtrl = false; this.stick.set(0, 0); this.mouseDX = this.mouseDY = 0;
+      if (this.locked) document.exitPointerLock();
+      if (this.active && this.opts.multiplayer) this.host.onNetworkFrame(this.networkInput());
+    } else if (this.active && this.opts.mouse === "capture") this.requestLock();
+  }
+
+  previewSound(kind: "engine" | "afterburner" | "laser"): void { this.audio.preview(kind); }
+
+  updateNearbyAudio(players: RemoteAudioState[], enabled: boolean): void {
+    const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion).toArray() as [number, number, number];
+    const up = new THREE.Vector3(0, 1, 0).applyQuaternion(this.camera.quaternion).toArray() as [number, number, number];
+    this.audio.setNearbyAudio(enabled);
+    this.audio.updateRemoteAudio({ position: this.pos.toArray() as [number, number, number], forward, up }, players, this.active && this.health > 0 && !this.hangarOpen);
+  }
+
+  playRemoteShot(id: string, shotId: string, sound: PilotProfile["laser"], position: [number, number, number], startedAt: number): void {
+    if (!this.active || !this.roomVisible || this.hangarOpen || this.health <= 0 || document.hidden) return;
+    this.audio.remoteLaser(id, shotId, sound, position, startedAt);
   }
 
   /**
@@ -434,8 +486,27 @@ export class PilotController {
   get locked(): boolean { return document.pointerLockElement === this.canvas; }
   get cockpitView(): boolean { return !this.chase; }
 
-  acknowledgeShot(sequence: number): void {
-    this.bolts = this.bolts.filter(bolt => bolt.sequence !== sequence);
+  reconcileShot(sequence: number, accepted: boolean, shot?: ShotSnapshot): void {
+    const bolt = this.bolts.find(item => item.sequence === sequence);
+    if (!bolt) return;
+    if (!accepted) { bolt.node = -1; bolt.landed = true; bolt.fade = 0; return; }
+    bolt.confirmed = true;
+    if (!shot) return;
+
+    // Preserve the already visible head, then bend the same bolt onto the host's physical firing direction.
+    // Rebuilding it at the host's older muzzle pose makes turns look like shots spawn behind the local ship.
+    const predictedDirection = this.tmpV.copy(bolt.point).sub(bolt.from).normalize();
+    const predictedDistance = Math.min(bolt.travelled, bolt.point.distanceTo(bolt.from));
+    const predictedHead = bolt.from.clone().addScaledVector(predictedDirection, predictedDistance);
+    const direction = this.tmpV2.set(...shot.direction).normalize();
+    const origin = this.tmpV3.set(...shot.origin);
+    const authoritativeDistance = Math.max(0, this.tmpV4.set(...shot.position).sub(origin).dot(direction));
+    const distance = Math.max(predictedDistance, authoritativeDistance);
+    if (distance <= BOLT_LENGTH) bolt.from.copy(origin);
+    else bolt.from.copy(predictedHead).addScaledVector(direction, -distance);
+    bolt.origin.copy(origin);
+    bolt.point.copy(bolt.from).addScaledVector(direction, Math.max(900, distance + BOLT_LENGTH));
+    bolt.travelled = distance;
   }
 
   clearTarget(): void {
@@ -544,6 +615,7 @@ export class PilotController {
   setViewVisible(visible: boolean): void {
     this.roomVisible = visible;
     if (!visible) {
+      this.audio.setRemoteAudioActive(false);
       this.keys.clear(); this.firing = false;
       if (this.active && this.opts.multiplayer) this.host.onNetworkFrame(this.networkInput());
     }
@@ -618,6 +690,7 @@ export class PilotController {
   }
 
   private onKeyDown = (e: KeyboardEvent) => {
+    if (this.hangarOpen) return;
     if (e.ctrlKey || e.metaKey || e.altKey) return; // Obsidian's shortcuts keep working
     if (e.code === "Escape") {
       // the first Esc is taken by the browser to release the mouse; if one reaches us the mouse is already free, so leave
@@ -659,8 +732,8 @@ export class PilotController {
     if (e.button !== 0) return;
     if (this.opts.mouse === "capture" && !this.locked) { this.requestLock(); return; }
     this.container.focus({ preventScroll: true });
-    this.firing = true; this.clickCap?.classList.add("cg-down");
-    this.fire(e.ctrlKey || e.metaKey);
+    this.firing = true; this.firePendingCtrl = e.ctrlKey || e.metaKey; this.clickCap?.classList.add("cg-down");
+    this.firePending = true;
   };
   private onPointerUp = () => { this.firing = false; this.clickCap?.classList.remove("cg-down"); };
 
@@ -692,7 +765,7 @@ export class PilotController {
   private onLockError = () => this.setHint();
   private onVisibility = () => {
     this.audio.mute(document.hidden);
-    if (document.hidden) { this.keys.clear(); this.firing = false; if (this.active && this.opts.multiplayer) this.host.onNetworkFrame(this.networkInput()); }
+    if (document.hidden) { this.audio.setRemoteAudioActive(false); this.keys.clear(); this.firing = false; if (this.active && this.opts.multiplayer) this.host.onNetworkFrame(this.networkInput()); }
   };
   private onWindowBlur = () => { this.audio.mute(true); this.cursor.inside = false; this.firing = false; this.keys.clear(); if (this.active && this.opts.multiplayer) this.host.onNetworkFrame(this.networkInput()); };
   private onWindowFocus = () => this.audio.mute(document.hidden);
@@ -710,12 +783,12 @@ export class PilotController {
     this.respawnLeft = Math.max(0, this.respawnLeft - dt * 1000);
     this.protectionLeft = Math.max(0, this.protectionLeft - dt * 1000);
 
-    const thrust = (k.has("KeyW") ? 1 : 0) - (k.has("KeyS") ? 1 : 0);
-    const strafe = (k.has("KeyD") ? 1 : 0) - (k.has("KeyA") ? 1 : 0);
-    const lift = (k.has("Space") ? 1 : 0) - (k.has("KeyC") ? 1 : 0);
-    const rollIn = (k.has("KeyQ") ? 1 : 0) - (k.has("KeyE") ? 1 : 0);
-    const wantBoost = k.has("ShiftLeft") || k.has("ShiftRight");
-    const brake = k.has("KeyX");
+    const thrust = this.hangarOpen ? 0 : (k.has("KeyW") ? 1 : 0) - (k.has("KeyS") ? 1 : 0);
+    const strafe = this.hangarOpen ? 0 : (k.has("KeyD") ? 1 : 0) - (k.has("KeyA") ? 1 : 0);
+    const lift = this.hangarOpen ? 0 : (k.has("Space") ? 1 : 0) - (k.has("KeyC") ? 1 : 0);
+    const rollIn = this.hangarOpen ? 0 : (k.has("KeyQ") ? 1 : 0) - (k.has("KeyE") ? 1 : 0);
+    const wantBoost = !this.hangarOpen && (k.has("ShiftLeft") || k.has("ShiftRight"));
+    const brake = !this.hangarOpen && k.has("KeyX");
 
     if (this.warp) { this.stepWarp(); if (thrust || strafe || lift) this.warp = null; } // taking the controls cancels a warp
     const speed01 = clamp(this.vel.length() / (this.cruise * BOOST_TOP), 0, 1);
@@ -742,6 +815,8 @@ export class PilotController {
       if (!this.opts.multiplayer) this.keepInRange(dt);
     }
 
+    if (this.opts.multiplayer) [this.bank, this.tilt] = stepPresentation(this.bank, this.tilt, this.networkInput(), dt);
+
     this.updateCamera(dt);
     const speed = this.vel.length();
     this.updateShip(dt, strafe, lift, clamp(speed / (this.cruise * BOOST_TOP), 0, 1));
@@ -749,7 +824,8 @@ export class PilotController {
 
     this.updateAimPoint();
     this.cooldown = Math.max(0, this.cooldown - dt);
-    if (this.health > 0 && (this.firing || k.has("KeyF")) && this.cooldown <= 0 && (this.locked || k.has("KeyF") || this.opts.mouse === "cursor")) this.fire(false);
+    if (this.firePending) { this.firePending = false; if (!this.hangarOpen && this.health > 0) this.fire(this.firePendingCtrl); }
+    if (!this.hangarOpen && this.health > 0 && (this.firing || k.has("KeyF")) && this.cooldown <= 0 && (this.locked || k.has("KeyF") || this.opts.mouse === "cursor")) this.fire(false);
 
     if (this.frame % 2 === 0) this.updateAim();
     this.updateBolts(dt);
@@ -976,8 +1052,10 @@ export class PilotController {
   /** Put the plane at the ship's position, leaning into turns and strafes, with its flames following the throttle. */
   private updateShip(dt: number, strafe: number, lift: number, speed01: number): void {
     const s = 1 - Math.exp(-dt * 8);
-    this.bank += (clamp(this.spin.y * 0.32, -0.85, 0.85) - strafe * 0.22 - this.bank) * s;
-    this.tilt += (clamp(this.spin.x * 0.14, -0.4, 0.4) + lift * 0.1 - this.tilt) * s;
+    if (!this.opts.multiplayer) {
+      this.bank += (clamp(this.spin.y * 0.32, -0.85, 0.85) - strafe * 0.22 - this.bank) * s;
+      this.tilt += (clamp(this.spin.x * 0.14, -0.4, 0.4) + lift * 0.1 - this.tilt) * s;
+    }
     if (!this.chase) return;
 
     const g = this.ship.group;
@@ -1060,13 +1138,15 @@ export class PilotController {
     if (this.bolts.length >= MAX_BOLTS) this.bolts.shift();
     if (this.opts.multiplayer) {
       const sequence = ++this.fireSequence;
-      this.bolts.push({ from: this.muzzle(gun, new THREE.Vector3()), node: -1, point, travelled: 0, ctrl: false, landed: false, fade: 0, sequence });
+      const from = this.muzzle(gun, new THREE.Vector3());
+      this.bolts.push({ from, origin: from.clone(), node: -1, point, travelled: 0, ctrl: false, landed: false, fade: 0, sequence, sentAt: this.clock, confirmed: false });
       this.host.onFire(sequence, gun, point.toArray() as [number, number, number]);
     } else {
       const i = this.host.pickAt(this.aimX, this.aimY, FIRE_SLACK);
-      this.bolts.push({ from: this.muzzle(gun, new THREE.Vector3()), node: i, point, travelled: 0, ctrl, landed: false, fade: 0 });
+      const from = this.muzzle(gun, new THREE.Vector3());
+      this.bolts.push({ from, origin: from.clone(), node: i, point, travelled: 0, ctrl, landed: false, fade: 0 });
     }
-    this.audio.laser(gun);
+    this.audio.laser(gun, this.opts.laserSound);
   }
 
   /** A bolt has reached the note it was aimed at. The first hit selects it; a second hit soon after opens it. */
@@ -1101,7 +1181,8 @@ export class PilotController {
         if (b.travelled >= dist) { b.landed = true; b.travelled = dist; if (b.node >= 0) this.land(b); }
       } else { b.fade += dt; if (b.fade >= BOLT_FADE) { this.bolts.splice(k, 1); continue; } }
       if (out >= MAX_BOLTS) continue;
-      const head = Math.min(b.travelled, dist), tail = Math.max(0, head - BOLT_LENGTH);
+      const head = Math.min(b.travelled, dist), originDistance = (b.origin.x - b.from.x) * dir.x + (b.origin.y - b.from.y) * dir.y + (b.origin.z - b.from.z) * dir.z;
+      const tail = Math.min(head, Math.max(0, originDistance, head - BOLT_LENGTH));
       const f = b.landed ? 1 - b.fade / BOLT_FADE : 1;
       const side = this.tmpV4.crossVectors(dir, fwd).normalize().multiplyScalar(0.07); // sideways to the bolt, as the camera sees it
       for (let w = -1; w <= 1; w++) {

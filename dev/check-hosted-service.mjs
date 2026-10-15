@@ -7,6 +7,7 @@ import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 const { WebSocket } = require("../server/node_modules/ws");
 const url = process.argv[2] || "wss://constellation-rooms.mrassetto.workers.dev";
+const profile = { revision: 1, ship: "classic", engine: "classic", afterburner: "classic", laser: "classic" };
 const clients = [];
 
 function client() {
@@ -35,11 +36,11 @@ function client() {
 
 try {
   const host = client(); await host.opened;
-  host.ws.send(JSON.stringify({ type: "create", protocol: 2, name: "Synthetic check A" }));
+  host.ws.send(JSON.stringify({ type: "create", protocol: 3, name: "Synthetic check A", profile }));
   const created = await host.wait(message => message.type === "created" || message.type === "error");
   assert.equal(created.type, "created", `Create failed: ${created.code || "unknown error"}`);
   const peer = client(); await peer.opened;
-  peer.ws.send(JSON.stringify({ type: "join", protocol: 2, code: created.code, name: "Synthetic check B" }));
+  peer.ws.send(JSON.stringify({ type: "join", protocol: 3, code: created.code, name: "Synthetic check B", profile }));
   const joined = await peer.wait(message => message.type === "joined" || message.type === "error");
   assert.equal(joined.type, "joined", `Join failed: ${joined.code || "unknown error"}`);
   assert.equal(joined.members.length, 2);

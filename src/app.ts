@@ -4,6 +4,8 @@ import type { GraphData, GraphRenderer, Host, RendererCallbacks } from "./types"
 import { ConstellationSettings, effectiveHighContrast, effectiveMotion, prefersReducedMotion } from "./settings";
 import { HOSTED_SIGNALING_URL, MultiplayerSession, type AnonymousPlayer, type GameMessage, type Pose } from "./multiplayer";
 import { version as CLIENT_VERSION } from "../manifest.json";
+import { PilotHangar } from "./hangar";
+import type { PilotProfile } from "./pilotProfile";
 
 let instances = 0;
 
@@ -46,6 +48,8 @@ export class ConstellationApp {
   private animBtn: HTMLButtonElement;
   private novaBtn: HTMLButtonElement;
   private pilotBtn: HTMLButtonElement;
+  private hangarBtn: HTMLButtonElement;
+  private hangar!: PilotHangar;
   private multiplayerBtn: HTMLButtonElement;
   private multiplayerPanel: HTMLElement;
   private multiplayerName: HTMLInputElement;
@@ -66,6 +70,7 @@ export class ConstellationApp {
   private mqs: MediaQueryList[] = [];
   private onMq = () => this.applySettings(this.settings);
   private lastAnnounce = "";
+  private profileRevision = 1;
 
   get inRoom(): boolean { return !!this.network?.active; }
 
@@ -87,6 +92,7 @@ export class ConstellationApp {
       onOpen: (i, t) => this.openIndex(i, t),
       onActivity: (k, text) => this.onActivity(k, text),
       onPilot: (a, text) => this.onPilot(a, text),
+      onHangar: () => this.openHangar(),
       onAudioMute: (which, muted) => this.host.updateSettings?.(which === "engine" ? { pilotMuteEngine: muted } : { pilotMuteAfterburner: muted }),
       onNetworkFrame: input => this.network?.sendInput(input),
       onNavigationTarget: target => { if (this.inRoom) this.multiplayerStatus.textContent = target ? `Star marked. ${this.renderer.pilotActive ? "Press G to travel there." : "Enter Pilot mode (P), then press G to travel."}` : "Navigation target cleared."; },
@@ -100,6 +106,9 @@ export class ConstellationApp {
     }
     this.flat = !made;
     this.renderer = made ?? new FallbackRenderer(callbacks);
+    this.hangar = new PilotHangar(this.root, settings, patch => this.savePilotChoice(patch), kind => this.renderer.previewSound(kind), () => {
+      this.renderer.setHangarOpen(false); this.stage.focus({ preventScroll: true });
+    });
 
     // toolbar
     const top = el("div", "cg-top", { role: "toolbar", "aria-label": "Graph controls" });
@@ -112,6 +121,7 @@ export class ConstellationApp {
     this.novaBtn.setAttribute("aria-pressed", "false");
     this.pilotBtn = this.button("cg-btn", "Pilot mode: fly through your notes (P)", "\u2708\uFE0E");
     this.pilotBtn.setAttribute("aria-pressed", "false");
+    this.hangarBtn = this.button("cg-btn", "Spacecraft hangar", "\u2699");
     this.listBtn = this.button("cg-btn", "Show note list", "\u2630");
     this.listBtn.setAttribute("aria-expanded", "false");
     this.helpBtn = this.button("cg-btn", "Keyboard help", "?");
@@ -119,7 +129,7 @@ export class ConstellationApp {
     this.helpBtn.setAttribute("aria-controls", this.helpId);
     this.multiplayerBtn = this.button("cg-btn", "Multiplayer rooms", "\u2726");
     this.multiplayerBtn.setAttribute("aria-expanded", "false");
-    top.append(this.search, this.pauseBtn, resetBtn, this.animBtn, this.novaBtn, this.pilotBtn, this.multiplayerBtn, this.listBtn, this.helpBtn);
+    top.append(this.search, this.pauseBtn, resetBtn, this.animBtn, this.novaBtn, this.pilotBtn, this.hangarBtn, this.multiplayerBtn, this.listBtn, this.helpBtn);
     if (this.flat) { this.pauseBtn.hidden = true; resetBtn.hidden = true; this.animBtn.hidden = true; this.novaBtn.hidden = true; this.pilotBtn.hidden = true; }
     this.root.appendChild(top);
     this.multiplayerPanel = el("aside", "cg-multiplayer", { "aria-label": "Multiplayer room" });
@@ -188,6 +198,7 @@ export class ConstellationApp {
     this.animBtn.addEventListener("click", () => this.renderer.animate());
     this.novaBtn.addEventListener("click", () => this.renderer.supernova());
     this.pilotBtn.addEventListener("click", () => this.togglePilot());
+    this.hangarBtn.addEventListener("click", () => this.openHangar());
     this.multiplayerBtn.addEventListener("click", () => {
       this.multiplayerPanel.hidden = !this.multiplayerPanel.hidden;
       this.multiplayerBtn.setAttribute("aria-expanded", String(!this.multiplayerPanel.hidden));
@@ -227,11 +238,13 @@ export class ConstellationApp {
       positions: (id, positions) => this.renderer.setRemotePositions(id, positions),
       message: (from, message) => this.onNetworkMessage(from, message),
       playerState: (id, pose) => {
-        if (id === this.network?.localPlayerId) this.renderer.setAuthoritativePose(pose); else this.renderer.setRemoteShip(id, pose, this.network?.members.find(member => member.id === id)?.name ?? "Pilot");
+        const member = this.network?.members.find(player => player.id === id);
+        if (id === this.network?.localPlayerId) this.renderer.setAuthoritativePose(pose); else this.renderer.setRemoteShip(id, pose, member?.name ?? "Pilot", member?.profile);
         this.playerStates.set(id, pose);
         this.updatePlayerRow(id, pose);
       },
       shotState: (shots, impacts) => this.renderer.setRemoteShots(shots, impacts, this.network?.localPlayerId),
+      shotResult: (sequence, accepted) => this.renderer.reconcileLocalShot(sequence, accepted),
       removed: id => { if (id) { this.renderer.removeRemote(id); this.remoteIds.delete(id); } },
       authority: (_hostId, _epoch, _checkpoint) => { this.multiplayerStatus.textContent = "Room authority transferred. Reconnecting the shared session…"; },
     }, () => ({ data: this.data, nodes: this.renderer.nodes }), () => this.roomServiceUrl());
@@ -279,6 +292,7 @@ export class ConstellationApp {
 
   destroy(): void {
     this.network?.leave("Graph closed; you left the room.");
+    this.hangar.destroy();
     this.mqs.forEach(m => m.removeEventListener("change", this.onMq));
     this.renderer.destroy();
     this.root.remove();
@@ -303,8 +317,8 @@ export class ConstellationApp {
       if (!name) throw new Error("Enter a display name before joining.");
       this.multiplayerName.value = name;
       this.host.updateSettings?.({ multiplayerName: name });
-      if (action === "create") await this.network.create(name);
-      else await this.network.join(this.multiplayerCode.value, name);
+      if (action === "create") await this.network.create(name, this.pilotProfile());
+      else await this.network.join(this.multiplayerCode.value, name, this.pilotProfile());
       this.multiplayerCode.value = this.network.room;
       this.network.setLocalGraph(this.data);
     } catch (e) {
@@ -350,6 +364,7 @@ export class ConstellationApp {
     }
     const joined = !!selfId;
     this.renderer.setPlayerNames(new Map(members.filter(member => member.id !== selfId).map(member => [member.id, member.name])));
+    for (const member of members) if (member.id !== selfId) this.renderer.setPlayerProfile(member.id, member.profile);
     this.renderer.setLocalTopology(joined ? selfId : "", joined ? this.network.localTopology : null);
     this.multiplayerCode.disabled = joined; this.multiplayerConsent.disabled = joined;
     this.search.disabled = joined; this.listBtn.disabled = joined;
@@ -424,8 +439,31 @@ export class ConstellationApp {
 
   private togglePilot(): void { this.renderer.setPilot(!this.renderer.pilotActive); }
 
+  private openHangar(): void {
+    const flying = this.renderer.pilotActive;
+    this.hangar.setFlightActive(flying);
+    if (flying) this.renderer.setHangarOpen(true);
+    this.hangar.show();
+  }
+
+  private savePilotChoice(patch: Partial<Pick<ConstellationSettings, "pilotShip" | "pilotEngineSound" | "pilotAfterburnerSound" | "pilotLaserSound" | "pilotNearbyAudio">>): void {
+    const changed = Object.keys(patch).some(key => this.settings[key as keyof ConstellationSettings] !== patch[key as keyof typeof patch]);
+    if (!changed) return;
+    this.settings = { ...this.settings, ...patch };
+    this.host.updateSettings?.(patch);
+    this.renderer.applySettings(this.settings);
+    this.profileRevision++;
+    this.network?.updateProfile(this.pilotProfile());
+  }
+
+  private pilotProfile(): PilotProfile {
+    return { revision: this.profileRevision, ship: this.settings.pilotShip, engine: this.settings.pilotEngineSound,
+      afterburner: this.settings.pilotAfterburnerSound, laser: this.settings.pilotLaserSound };
+  }
+
   /** Pilot mode started or stopped (or could not start): mirror it on the button and tell screen readers. */
   private onPilot(active: boolean, text: string): void {
+    this.hangar.setFlightActive(active);
     this.pilotBtn.setAttribute("aria-pressed", String(active));
     this.pilotBtn.classList.toggle("cg-on", active);
     if (text) this.announce(text);

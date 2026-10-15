@@ -33,8 +33,15 @@ function roomCast(room, message, exceptId = "") {
   for (const [id, member] of room.members) if (id !== exceptId) send(member.ws, message);
 }
 function publicRoom(room) {
-  return [...room.members.values()].map(m => ({ id: m.id, name: m.name, joinedAt: m.joinedAt, slot: m.slot }));
+  return [...room.members.values()].map(m => ({ id: m.id, name: m.name, joinedAt: m.joinedAt, slot: m.slot, profile: m.profile }));
 }
+function validProfile(value) {
+  return value && Number.isSafeInteger(value.revision) && value.revision > 0
+    && ["classic", "vector", "dart", "bulwark", "crescent"].includes(value.ship)
+    && ["classic", "ion"].includes(value.engine) && ["classic", "plasma"].includes(value.afterburner)
+    && ["classic", "pulse"].includes(value.laser);
+}
+function cleanProfile(value) { return { revision: value.revision, ship: value.ship, engine: value.engine, afterburner: value.afterburner, laser: value.laser }; }
 function cleanPeerSignal(value) {
   if (!value || typeof value !== "object") return null;
   const description = value.description;
@@ -102,9 +109,10 @@ wss.on("connection", (ws, req) => {
     if (msg.type === "create" || msg.type === "join") {
       if (!consume(`room:${ip}`, 20)) { fail(ws, "rate-limited", "Too many room requests. Wait a minute and try again."); return; }
       if (member) { fail(ws, "already-joined", "This connection already joined a room."); return; }
-      if (msg.protocol !== 2) { fail(ws, "update-required", "Update the plugin to version 0.3.2 or newer to use this room service."); return; }
+      if (msg.protocol !== 3) { fail(ws, "update-required", "Update the plugin to version 0.3.3 or newer to use this room service."); return; }
       const name = typeof msg.name === "string" ? msg.name.trim().slice(0, 24) : "";
       if (!name) { fail(ws, "bad-name", "Enter a display name (up to 24 characters)."); return; }
+      if (!validProfile(msg.profile)) { fail(ws, "bad-profile", "Choose a valid ship and sound profile before joining."); return; }
       let room;
       if (msg.type === "create") {
         if (rooms.size >= maxRooms) { fail(ws, "service-full", "The room service is at capacity. Try again later."); return; }
@@ -116,26 +124,30 @@ wss.on("connection", (ws, req) => {
         roomCode = typeof msg.code === "string" ? msg.code.toUpperCase() : "";
         room = rooms.get(roomCode);
         if (!room) { fail(ws, "room-not-found", "That room code is invalid or the room has closed."); return; }
-        if (room.protocol !== msg.protocol) { fail(ws, "update-required", "Everyone in the room must install plugin version 0.3.2 or newer."); return; }
+        if (room.protocol !== msg.protocol) { fail(ws, "update-required", "Everyone in the room must install plugin version 0.3.3 or newer."); return; }
         if (room.members.size >= 4) { fail(ws, "full", "This room already has four players."); return; }
       }
       const usedSlots = new Set([...room.members.values()].map(m => m.slot));
       const slot = [0, 1, 2, 3].find(n => !usedSlots.has(n));
       if (slot === undefined) { fail(ws, "full", "This room already has four players."); return; }
       const id = crypto.randomUUID();
-      member = { id, name, joinedAt: Date.now(), order: room.nextMemberOrder++, slot, ws };
+      member = { id, name, joinedAt: Date.now(), order: room.nextMemberOrder++, slot, profile: cleanProfile(msg.profile), ws };
       room.members.set(id, member);
       if (!room.hostId) room.hostId = id;
       const relay = iceConfiguration();
       if (msg.type === "create") send(ws, { type: "created", code: roomCode, selfId: id, hostId: room.hostId, epoch: room.epoch, members: publicRoom(room), ...relay });
       else send(ws, { type: "joined", code: roomCode, selfId: id, hostId: room.hostId, epoch: room.epoch, members: publicRoom(room), checkpoint: room.checkpoint, ...relay });
-      roomCast(room, { type: "member-joined", member: { id, name, joinedAt: member.joinedAt, slot }, hostId: room.hostId, epoch: room.epoch }, id);
+      roomCast(room, { type: "member-joined", member: { id, name, joinedAt: member.joinedAt, slot, profile: member.profile }, hostId: room.hostId, epoch: room.epoch }, id);
       return;
     }
 
     if (!member || !rooms.has(roomCode)) { fail(ws, "not-in-room", "Join a room before sending this message."); return; }
     const room = rooms.get(roomCode);
-    if (msg.type === "ice-refresh") {
+    if (msg.type === "profile") {
+      if (!validProfile(msg.profile) || msg.profile.revision <= member.profile.revision) { fail(ws, "bad-profile", "The ship or sound profile is invalid or out of date."); return; }
+      member.profile = cleanProfile(msg.profile);
+      roomCast(room, { type: "member-profile", id: member.id, profile: member.profile });
+    } else if (msg.type === "ice-refresh") {
       if (!consume(`ice:${member.id}`, 4, 60_000)) { fail(ws, "rate-limited", "Wait before refreshing relay configuration again."); return; }
       send(ws, { type: "ice-servers", ...iceConfiguration() });
     } else if (msg.type === "signal") {
