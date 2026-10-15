@@ -360,6 +360,7 @@ export class ConstellationApp {
     const known = killer !== null && killer !== victim && this.members.some(m => m.id === killer);
     this.bump(victim, "deaths");
     if (known && killer) this.bump(killer, "kills");
+    if (known && killer === this.session.selfId) this.renderer.rewardKill?.(); // destroying a pilot heals you
     const me = this.session.selfId, v = this.nameOf(victim), k = known ? this.nameOf(killer) : null;
     const text = k ? (killer === me ? `You destroyed ${v}` : victim === me ? `${k} destroyed you` : `${k} destroyed ${v}`) : victim === me ? "You were destroyed" : `${v} was destroyed`;
     const item = el("div", "cg-feed-item" + (victim === me || killer === me ? " cg-mine" : ""), {}, text);

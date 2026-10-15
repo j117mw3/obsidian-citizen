@@ -104,6 +104,8 @@ export interface GraphRenderer {
   toggleAllGroups?(): void;
   /** Multiplayer (not available without WebGL). */
   setMultiplayer?(active: boolean, selfId?: string): void;
+  /** You destroyed another pilot (heals you a little). */
+  rewardKill?(): void;
   setWorldOrigin?(slot: number): void;
   setRemoteTopology?(id: string, topology: AnonymousTopology, name: string, slot: number): void;
   setRemotePositions?(id: string, positions: Float32Array): void;

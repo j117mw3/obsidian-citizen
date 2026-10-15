@@ -118,6 +118,7 @@ const HEAT_PER_SHOT = 0.1; // blaster: how much each shot heats it (it overheats
 const HEAT_COOL = 0.26;    // blaster: how fast it cools, per second
 const HEAT_RESET = 0.4;    // after overheating, it works again once it is this cool
 const CANNON_GAP = 0.5;    // cannon: seconds between rounds
+const KILL_HEAL = 30;      // health you get back for destroying another pilot (out of 100)
 const AMMO_MAX = 36;       // cannon: rounds per life
 const BOLT_FADE = 0.12;    // seconds a bolt lingers after it lands
 const MAX_BOLTS = 10;
@@ -1224,6 +1225,14 @@ export class PilotController {
     this.shake = Math.max(this.shake, 0.8);
     if (this.health <= 0) this.destroyed(); else this.audio.bump(0.5);
     return true;
+  }
+
+  /** You destroyed another pilot: a reward of some health back (never past full). */
+  healOnKill(): void {
+    if (!this.active || this.health <= 0 || this.watching) return;
+    this.health = Math.min(100, this.health + KILL_HEAL);
+    this.audio.lock(true);
+    this.host.onState(true, `Kill: +${KILL_HEAL} health`);
   }
 
   /** The note you have locked as a flight target, or -1. */

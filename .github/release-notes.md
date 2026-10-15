@@ -12,6 +12,7 @@ Pilot mode becomes a sandbox, and you can now fly together.
 - **One size for every ship:** your ship and everyone else's are the same size wherever they are, with a ring that stays visible on screen when a pilot is far away.
 - **Direct mouse aim:** the nose now turns exactly as far as the mouse moves and stops when it stops, with a tighter chase camera, so lining up a shot is easy. Cursor steering is crisper too.
 - **Kill announcements and a scoreboard:** when someone is destroyed everyone sees who did it, and holding Tab shows kills and deaths (also listed in the Fly together panel).
+- **Heal on kill:** destroying another pilot gives you back 30 health.
 - **Names only where you look:** while flying, only the note you are aiming at or have locked, the notes close to your ship, and the vault's centre are named.
 - **Layout controls:** new Node size, Link brightness and Spacing settings (like Obsidian's own graph forces) to tidy a vault whose groups sit too tight or too far apart.
 - **No more white blobs:** crowded groups now blend like screen light, so overlapping notes keep their colour instead of clipping to white.

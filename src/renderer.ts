@@ -382,6 +382,8 @@ export class ConstellationRenderer implements GraphRenderer {
   setRemotePositions(id: string, positions: Float32Array): void { this.remote.setPositions(id, positions); this.stale = true; }
   setRemotePose(id: string, pose: Pose): void { this.remote.setPose(id, pose); this.stale = true; }
   addRemoteShot(id: string, shot: ShotMsg): void { this.remote.addShot(id, shot); this.stale = true; }
+  /** You destroyed another pilot. */
+  rewardKill(): void { this.pilot.healOnKill(); }
   showRemoteHit(hit: HitMsg): void { this.remote.showHit(hit); this.pilot.hitConfirmed(); this.stale = true; }
   removeRemote(id: string): void { this.remote.remove(id); this.stale = true; }
 
