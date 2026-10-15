@@ -9,6 +9,8 @@ import type { GraphData, GraphRenderer, RendererCallbacks, SimNode } from "./typ
 import { ConstellationSettings, effectiveAutoRotate, effectiveHighContrast, effectiveMotion, prefersReducedMotion } from "./settings";
 import type { AnonymousTopology, ImpactSnapshot, NavigationTarget, Pose, ShotSnapshot } from "./multiplayer";
 import { buildShip, type Ship } from "./ship";
+import type { PilotProfile, ShipId } from "./pilotProfile";
+import type { RemoteAudioState } from "./sfx";
 
 THREE.ColorManagement.enabled = false; // we feed sRGB values straight to the screen
 
@@ -54,7 +56,8 @@ function baseRadius(deg: number): number {
 }
 
 function pilotOptions(s: ConstellationSettings, multiplayer = false) {
-  return { sensitivity: s.pilotSensitivity, invertY: s.pilotInvertY, view: s.pilotView, sound: s.pilotSound, volume: s.pilotVolume, muteEngine: s.pilotMuteEngine, muteAfterburner: s.pilotMuteAfterburner, wireframe: s.pilotWireframe, agility: multiplayer ? 1 : s.pilotAgility, speed: multiplayer ? 1 : s.pilotSpeed, mouse: s.pilotMouse, multiplayer };
+  return { sensitivity: s.pilotSensitivity, invertY: s.pilotInvertY, view: s.pilotView, sound: s.pilotSound, volume: s.pilotVolume, muteEngine: s.pilotMuteEngine, muteAfterburner: s.pilotMuteAfterburner, wireframe: s.pilotWireframe, agility: multiplayer ? 1 : s.pilotAgility, speed: multiplayer ? 1 : s.pilotSpeed, mouse: s.pilotMouse, multiplayer,
+    ship: s.pilotShip, engineSound: s.pilotEngineSound, afterburnerSound: s.pilotAfterburnerSound, laserSound: s.pilotLaserSound, nearbyAudio: s.pilotNearbyAudio };
 }
 
 export function webglAvailable(): boolean {
@@ -66,8 +69,8 @@ export function webglAvailable(): boolean {
 
 interface Tween { t0: number; dur: number; p0: THREE.Vector3; p1: THREE.Vector3; t0v: THREE.Vector3; t1v: THREE.Vector3 }
 interface RemoteMap { playerId: string; points: THREE.Points; links: THREE.LineSegments; ids: Map<string, number>; nodeIds: string[]; revision: number; target: Float32Array; current: Float32Array; initialized: boolean }
-interface RemoteShip { ship: Ship; target: Pose | null; name: string; indicator: HTMLDivElement; label: HTMLSpanElement; arrow: HTMLSpanElement }
-interface RemoteBolt { line: THREE.Line; ownerId: string; target: THREE.Vector3; current: THREE.Vector3; direction: THREE.Vector3 }
+interface RemoteShip { ship: Ship; target: Pose | null; name: string; profile: PilotProfile; indicator: HTMLDivElement; label: HTMLSpanElement; arrow: HTMLSpanElement }
+interface RemoteBolt { line: THREE.Line; ownerId: string; origin: THREE.Vector3; target: THREE.Vector3; current: THREE.Vector3; direction: THREE.Vector3 }
 interface NetworkImpact { mesh: THREE.Mesh; expires: number }
 interface Rect { x: number; y: number; w: number; h: number }
 
@@ -158,6 +161,8 @@ export class ConstellationRenderer implements GraphRenderer {
   private aim = -1; // the note under the Pilot crosshair
   private fwd = new THREE.Vector3();
   private netQ = new THREE.Quaternion();
+  private tmpQ = new THREE.Quaternion();
+  private tmpE = new THREE.Euler();
   private remoteMaps = new Map<string, RemoteMap>();
   private multiplayer = false;
   private regionOrigin: [number, number, number] = [0, 0, 0];
@@ -229,6 +234,7 @@ export class ConstellationRenderer implements GraphRenderer {
       onState: (active, text) => this.onPilotState(active, text),
       leave: () => this.setPilot(false),
       onAudioMute: (which, muted) => this.cb.onAudioMute?.(which, muted),
+      onHangar: () => this.cb.onHangar?.(),
       onNetworkFrame: input => this.cb.onNetworkFrame?.(input),
       onFire: (sequence, gun, aimPoint) => this.cb.onFire?.(sequence, gun, aimPoint),
     }, pilotOptions(settings));
@@ -479,17 +485,29 @@ export class ConstellationRenderer implements GraphRenderer {
     remote.target.set(positions); remote.initialized = true; this.stale = true;
   }
 
-  setRemoteShip(playerId: string, pose: Pose, name = "Pilot"): void {
+  setPlayerProfile(playerId: string, profile: PilotProfile): void {
+    const remote = this.remoteShips.get(playerId); if (!remote || remote.profile.revision >= profile.revision) return;
+    const old = remote.ship, visible = old.group.visible, position = old.group.position.clone(), quaternion = old.group.quaternion.clone();
+    this.scene.remove(old.group); old.lights.forEach(light => this.scene.remove(light)); old.dispose();
+    remote.profile = profile; remote.ship = buildShip(profile.ship); remote.ship.group.scale.setScalar(this.multiplayer ? 0.68 : 0.34);
+    remote.ship.group.visible = visible; remote.ship.group.position.copy(position); remote.ship.group.quaternion.copy(quaternion);
+    this.scene.add(remote.ship.group); remote.ship.lights.forEach(light => { light.visible = visible; this.scene.add(light); });
+    this.stale = true;
+  }
+
+  setRemoteShip(playerId: string, pose: Pose, name = "Pilot", profile?: PilotProfile): void {
     let remote = this.remoteShips.get(playerId);
     if (!remote) {
-      const ship = buildShip(); ship.group.scale.setScalar(this.multiplayer ? 0.68 : 0.34); ship.group.visible = false;
+      const chosen = profile ?? { revision: 1, ship: "classic", engine: "classic", afterburner: "classic", laser: "classic" } as PilotProfile;
+      const ship = buildShip(chosen.ship); ship.group.scale.setScalar(this.multiplayer ? 0.68 : 0.34); ship.group.visible = false;
       this.scene.add(ship.group); ship.lights.forEach(light => this.scene.add(light));
       const indicator = document.createElement("div"); indicator.className = "cg-player-indicator"; indicator.hidden = true;
       const arrow = document.createElement("span"); arrow.className = "cg-player-indicator-arrow";
       const label = document.createElement("span"); label.className = "cg-player-indicator-label";
       indicator.append(arrow, label); this.indicatorLayer.appendChild(indicator);
-      remote = { ship, target: null, name, indicator, label, arrow }; this.remoteShips.set(playerId, remote);
+      remote = { ship, target: null, name, profile: chosen, indicator, label, arrow }; this.remoteShips.set(playerId, remote);
     }
+    if (profile && profile.revision > remote.profile.revision) this.setPlayerProfile(playerId, profile);
     remote.name = name; remote.label.textContent = name;
     remote.target = pose;
     if (!pose.active || pose.health <= 0) { remote.ship.group.visible = false; remote.indicator.hidden = true; }
@@ -499,24 +517,28 @@ export class ConstellationRenderer implements GraphRenderer {
   setRemoteShots(shots: ShotSnapshot[], impacts: ImpactSnapshot[], localPlayerId = ""): void {
     const seen = new Set<string>(), now = performance.now();
     for (const shot of shots) {
-      if (shot.ownerId === localPlayerId && this.pilot.cockpitView) continue;
       seen.add(shot.id);
       if (shot.ownerId === localPlayerId) {
         const sequence = Number(shot.id.slice(shot.id.lastIndexOf(":") + 1));
-        if (Number.isSafeInteger(sequence)) this.pilot.acknowledgeShot(sequence);
+        if (Number.isSafeInteger(sequence)) this.pilot.reconcileShot(sequence, true, shot);
+        continue;
       }
+      const shooter = this.remoteShips.get(shot.ownerId);
+      if (shooter?.target?.active && shooter.target.health > 0) this.pilot.playRemoteShot(shot.ownerId, shot.id, shot.sound, shot.position, shot.startedAt);
       let bolt = this.remoteShots.get(shot.id);
       if (!bolt) {
         const geometry = new THREE.BufferGeometry(); geometry.setAttribute("position", new THREE.BufferAttribute(new Float32Array(6), 3));
         const line = new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: 0x8cecff, transparent: true, opacity: 0.95 }));
         line.frustumCulled = false; line.renderOrder = 4; this.scene.add(line);
-        bolt = { line, ownerId: shot.ownerId, target: new THREE.Vector3(), current: new THREE.Vector3(), direction: new THREE.Vector3() };
-        bolt.current.set(...shot.origin);
+        bolt = { line, ownerId: shot.ownerId, origin: new THREE.Vector3(...shot.origin), target: new THREE.Vector3(), current: new THREE.Vector3(), direction: new THREE.Vector3() };
+        bolt.current.set(...shot.position);
         const initial = geometry.getAttribute("position") as THREE.BufferAttribute;
-        initial.setXYZ(0, ...shot.origin); initial.setXYZ(1, ...shot.position); initial.needsUpdate = true;
+        const direction = new THREE.Vector3(...shot.direction).normalize(), traveled = bolt.origin.distanceTo(bolt.current), tail = Math.min(22, traveled);
+        initial.setXYZ(0, bolt.current.x - direction.x * tail, bolt.current.y - direction.y * tail, bolt.current.z - direction.z * tail);
+        initial.setXYZ(1, ...shot.position); initial.needsUpdate = true;
         this.remoteShots.set(shot.id, bolt);
       }
-      bolt.target.set(...shot.position); bolt.direction.set(...shot.direction).normalize();
+      bolt.origin.set(...shot.origin); bolt.target.set(...shot.position); bolt.direction.set(...shot.direction).normalize();
     }
     for (const [id, bolt] of this.remoteShots) if (!seen.has(id)) {
       this.scene.remove(bolt.line); bolt.line.geometry.dispose(); (bolt.line.material as THREE.Material).dispose(); this.remoteShots.delete(id);
@@ -529,7 +551,12 @@ export class ConstellationRenderer implements GraphRenderer {
     this.stale = true;
   }
 
+  reconcileLocalShot(sequence: number, accepted: boolean): void { this.pilot.reconcileShot(sequence, accepted); }
+
   setAuthoritativePose(pose: Pose): void { this.localPose = pose; this.pilot.applyAuthorityPose(pose); }
+
+  setHangarOpen(open: boolean): void { this.pilot.setHangarOpen(open); this.stale = true; }
+  previewSound(kind: "engine" | "afterburner" | "laser"): void { this.pilot.previewSound(kind); }
 
   removeRemote(playerId: string): void {
     this.stale = true;
@@ -574,15 +601,17 @@ export class ConstellationRenderer implements GraphRenderer {
       const pose = remote.target; if (!pose || !pose.active) continue;
       const group = remote.ship.group;
       const target = this.tmp.set(...pose.position);
-      if (!group.visible) { group.position.copy(target); group.quaternion.set(...pose.rotation).normalize(); group.visible = true; }
-      else { group.position.lerp(target, 0.45); this.netQ.set(...pose.rotation).normalize(); group.quaternion.slerp(this.netQ, 0.45); }
+      this.netQ.set(...pose.rotation).normalize().multiply(this.tmpQ.setFromEuler(this.tmpE.set(pose.tilt, 0, pose.bank)));
+      if (!group.visible) { group.position.copy(target); group.quaternion.copy(this.netQ); group.visible = true; }
+      else { group.position.lerp(target, 0.45); group.quaternion.slerp(this.netQ, 0.45); }
       moving = moving || group.position.distanceTo(target) > 0.05;
     }
     for (const bolt of this.remoteShots.values()) {
       bolt.current.lerp(bolt.target, 0.55);
       const a = bolt.line.geometry.getAttribute("position") as THREE.BufferAttribute;
-      a.setXYZ(0, bolt.current.x, bolt.current.y, bolt.current.z);
-      a.setXYZ(1, bolt.current.x - bolt.direction.x * 22, bolt.current.y - bolt.direction.y * 22, bolt.current.z - bolt.direction.z * 22);
+      const tail = Math.min(22, bolt.origin.distanceTo(bolt.current));
+      a.setXYZ(0, bolt.current.x - bolt.direction.x * tail, bolt.current.y - bolt.direction.y * tail, bolt.current.z - bolt.direction.z * tail);
+      a.setXYZ(1, bolt.current.x, bolt.current.y, bolt.current.z);
       a.needsUpdate = true; moving = true;
     }
     const now = performance.now();
@@ -1081,11 +1110,17 @@ export class ConstellationRenderer implements GraphRenderer {
       this.controls.target.copy(this.camera.position).addScaledVector(this.tmp.set(0, 0, -1).applyQuaternion(this.camera.quaternion), 300);
       this.stale = true;
     } else {
-    this.updateCamera(now);
-    this.updateNavigationMarker();
-    this.updatePlayerIndicators();
+      this.updateCamera(now);
       camMoved = this.controls.update(dt);
     }
+    this.updateNavigationMarker();
+    this.updatePlayerIndicators();
+    const remoteAudio: RemoteAudioState[] = [...this.remoteShips].map(([id, remote]) => ({
+      id, profile: remote.profile, position: remote.ship.group.position.toArray() as [number, number, number],
+      active: !!remote.target?.active && remote.target.health > 0 && remote.ship.group.visible,
+      speed: remote.target ? Math.hypot(...remote.target.velocity) : 0, thrust: remote.target?.thrust ?? 0, boosting: remote.target?.boosting ?? false,
+    }));
+    this.pilot.updateNearbyAudio(remoteAudio, this.multiplayer && this.pilot.active && this.settings.pilotNearbyAudio);
     if (!(moving || animating || camMoved || this.stale || this.tween || this.follow >= 0)) return; // fully at rest: draw nothing
     this.stale = false;
 
