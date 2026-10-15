@@ -42,6 +42,8 @@ export interface PilotHost {
   /** Multiplayer: your ship's pose (about twenty times a second), and a bolt you have fired. */
   onNetworkPose(pose: Pose): void;
   onNetworkShot(shot: ShotMsg): void;
+  /** The scoreboard key (Tab) went down or up. */
+  showScores(on: boolean): void;
   /** The other pilots flying right now (reused every frame), the ones you could watch, and where a pilot is (for the spectator camera). */
   remoteTargets(): readonly { id: string; x: number; y: number; z: number; vx: number; vy: number; vz: number; dist: number }[];
   watchable(): string[];
@@ -95,14 +97,16 @@ const PITCH_RATE = 2.0;    // radians per second at full stick
 const YAW_RATE = 1.5;
 const ROLL_RATE = 3.0;
 const ANG_ACC = 4.0;       // radians per second squared: how quickly the ship can start and stop a turn (its rotational inertia)
-const STICK_GAIN = 0.0035; // stick deflection per pixel of mouse movement at sensitivity 1
-const STICK_DECAY = 0.9;   // how quickly the virtual stick re-centres when the mouse stops
+const MOUSE_RAD = 0.0022;  // radians the ship turns per pixel of mouse movement at sensitivity 1: the nose goes exactly where the mouse goes
+const MOUSE_MAX_RATE = 9;  // ...but never faster than this many radians per second, so a wild flick cannot spin the ship
+const AIM_RESP = 16;       // cursor steering: how quickly the spin follows the stick (per second); high, so aiming is crisp
+const AIM_ANG_ACC = 14;    // and how fast the spin may change (radians per second squared)
 const BOOST_DRAIN = 0.28;  // afterburner energy per second (1 is full)
 const BOOST_REGEN = 0.16;
 const BOOST_HOLD = 3.0;    // seconds the tank stays completely empty after it runs dry, before it starts to refill
 const BOOST_RELOCK = 0.3;  // and then the afterburner stays off until the tank has refilled this far
 const AFK_SECONDS = 30;    // no keys pressed for this long in a room and you start watching the other pilots
-const CAM_RATE = 4.5;      // how tightly the chase camera follows the ship's orientation; lower trails more
+const CAM_RATE = 8;        // how tightly the chase camera follows the ship's orientation; lower trails more
 const CAM_OFFSET = new THREE.Vector3(0, 1.3, 6.2); // behind and above the ship, in the camera's own space
 
 const WARP_MIN_MS = 1200;  // a warp is fast travel, but it still takes time: longer trips take longer
@@ -138,7 +142,7 @@ const Z_AXIS = new THREE.Vector3(0, 0, 1);
 /** Keys the pilot owns. Anything else (Enter, /, ?, L, ...) is left to the normal keyboard handling. */
 const OWNED = new Set([
   "KeyW", "KeyA", "KeyS", "KeyD", "Space", "KeyC", "KeyQ", "KeyE", "ShiftLeft", "ShiftRight",
-  "KeyX", "KeyF", "KeyT", "KeyG", "KeyH", "KeyV", "KeyK", "KeyB", "KeyR", "KeyN",
+  "KeyX", "KeyF", "KeyT", "KeyG", "KeyH", "KeyV", "KeyK", "KeyB", "KeyR", "KeyN", "Tab",
 ]);
 
 type KeyRow = { caps: string[]; label: string | ((p: PilotController) => string); codes: (string | null)[] };
@@ -163,6 +167,7 @@ const KEY_GROUPS: { title: string; rows: KeyRow[] }[] = [
   { title: "View", rows: [
     { caps: ["V"], label: "Chase / cockpit", codes: ["KeyV"] },
     { caps: ["N"], label: "Watch other pilots", codes: ["KeyN"] },
+    { caps: ["Tab"], label: p => p.multiplayer ? "Scoreboard (hold)" : "Scoreboard (in a room)", codes: ["Tab"] },
     { caps: ["K"], label: "Show / hide this", codes: ["KeyK"] },
     { caps: ["Esc"], label: p => p.cursorMode ? "Leave" : "Free the mouse", codes: [null] },
     { caps: ["P"], label: "Leave Pilot mode", codes: [null] },
@@ -228,6 +233,7 @@ export class PilotController {
   private aimC = -1;                         // the collapsed group under the crosshair
   private aimX = 0; private aimY = 0;          // where the nose points, on screen (CSS px)
   private firing = false;
+  private died = false;
   // spectator mode and the lead pip
   private watching: string | null = null;
   private idleFor = 0;
@@ -526,6 +532,7 @@ export class PilotController {
   exit(say = true): void {
     if (!this.active) return;
     this.active = false;
+    this.host.showScores(false);
     this.container.removeEventListener("keydown", this.onKeyDown, true);
     this.container.removeEventListener("keyup", this.onKeyUp, true);
     this.container.removeEventListener("blur", this.onBlur);
@@ -672,12 +679,13 @@ export class PilotController {
       case "KeyR": this.weapon = this.weapon === 0 ? 1 : 0; this.audio.lock(this.weapon === 1); this.host.onState(true, this.weapon === 1 ? "Cannon" : "Blaster"); break;
       case "KeyH": this.returnToHub(); break;
       case "KeyN": this.cycleWatch(); break;
+      case "Tab": this.host.showScores(true); break;
       case "KeyV": this.opts = { ...this.opts, view: this.chase ? "cockpit" : "chase" }; this.applyLook(); this.host.onState(true, this.chase ? "Chase view" : "Cockpit view"); break;
     }
   };
 
-  private onKeyUp = (e: KeyboardEvent) => { this.keys.delete(e.code); this.lightKey(e.code, false); };
-  private onBlur = () => { this.keys.clear(); this.firing = false; for (const list of this.keyCaps.values()) for (const el of list) el.classList.remove("cg-down"); };
+  private onKeyUp = (e: KeyboardEvent) => { this.keys.delete(e.code); this.lightKey(e.code, false); if (e.code === "Tab") this.host.showScores(false); };
+  private onBlur = () => { this.keys.clear(); this.firing = false; this.host.showScores(false); for (const list of this.keyCaps.values()) for (const el of list) el.classList.remove("cg-down"); };
 
   /** T locks the note under the crosshair as a flight target (G warps to it); T again, or T over nothing, lets go. */
   private toggleLock(): void {
@@ -804,39 +812,32 @@ export class PilotController {
    * flick builds up and a released stick keeps coming round for a moment before it settles. It turns less sharply at speed.
    */
   private turn(dt: number, rollIn: number, speed01: number): void {
+    const agility = this.opts.agility * (1 - 0.3 * speed01) * (this.boosting ? 0.8 : 1);
     if (this.opts.mouse === "cursor") {
+      // the cursor holds the stick off-centre; the ship follows it quickly, so it is easy to line up a shot
       this.steerWithCursor(dt);
+      const cap = AIM_ANG_ACC * agility * dt, ease = 1 - Math.exp(-AIM_RESP * dt);
+      this.spin.x += clamp((this.stick.y * PITCH_RATE * agility - this.spin.x) * ease, -cap, cap);
+      this.spin.y += clamp((this.stick.x * YAW_RATE * agility - this.spin.y) * ease, -cap, cap);
     } else {
-      // the mouse moved since the last frame: smooth it (so it does not arrive in lumps), and move the virtual stick
-      const a = 1 - Math.exp(-dt * 40);
+      // direct aim: the nose follows the mouse by exactly as much as it moved, and stops when the mouse stops.
+      // (There is no virtual stick to wind up and no spin that keeps going, so it is easy to put the crosshair on a target.)
+      const a = 1 - Math.exp(-dt * 90);
       this.smX += (this.mouseDX - this.smX) * a; this.smY += (this.mouseDY - this.smY) * a;
       this.mouseDX = 0; this.mouseDY = 0;
-      const k = STICK_GAIN * this.opts.sensitivity;
-      this.stick.x += -this.smX * k;
-      this.stick.y += -this.smY * k * (this.opts.invertY ? -1 : 1);
-      if (this.stick.length() > 1) this.stick.normalize();
-      this.stick.multiplyScalar(Math.exp(-STICK_DECAY * dt));
+      const k = MOUSE_RAD * this.opts.sensitivity * (0.75 + 0.25 * this.opts.agility), inv = this.opts.invertY ? -1 : 1;
+      this.spin.y = clamp(-this.smX * k / Math.max(dt, 1e-3), -MOUSE_MAX_RATE, MOUSE_MAX_RATE);
+      this.spin.x = clamp(-this.smY * k * inv / Math.max(dt, 1e-3), -MOUSE_MAX_RATE, MOUSE_MAX_RATE);
+      this.stick.set(clamp(this.spin.y / YAW_RATE, -1, 1), clamp(this.spin.x / PITCH_RATE, -1, 1));
     }
-
-    // the spin eases toward the rate the stick asks for, and can change only so fast
-    const agility = this.opts.agility * (1 - 0.3 * speed01) * (this.boosting ? 0.8 : 1);
+    // roll is still a heavy turn: it eases toward the rate the keys ask for, and can change only so fast
     const cap = ANG_ACC * agility * dt, ease = 1 - Math.exp(-RESP * dt);
-    const toward = (cur: number, target: number, c: number) => cur + clamp((target - cur) * ease, -c, c);
-    this.spin.x = toward(this.spin.x, this.stick.y * PITCH_RATE * agility, cap);
-    this.spin.y = toward(this.spin.y, this.stick.x * YAW_RATE * agility, cap);
-    this.spin.z = toward(this.spin.z, rollIn * ROLL_RATE * agility, cap * 1.4);
+    this.spin.z += clamp((rollIn * ROLL_RATE * agility - this.spin.z) * ease, -cap * 1.4, cap * 1.4);
     this.quat.multiply(this.tmpQ.setFromAxisAngle(X_AXIS, this.spin.x * dt));
     this.quat.multiply(this.tmpQ.setFromAxisAngle(Y_AXIS, this.spin.y * dt));
     this.quat.multiply(this.tmpQ.setFromAxisAngle(Z_AXIS, this.spin.z * dt));
     this.quat.normalize();
   }
-
-  /**
-   * Cursor steering: how far the pointer is from the middle of the scene is how hard the stick is pushed, with a dead zone in
-   * the middle and a gentle curve so small movements are fine. With the pointer over a panel or outside the pane the stick
-   * returns to centre, so the cursor is free to click things without the ship veering off. The ship still turns with its
-   * usual weight: only where the stick comes from has changed.
-   */
   private steerWithCursor(dt: number): void {
     let tx = 0, ty = 0;
     const w = this.canvas.clientWidth, h = this.canvas.clientHeight;
@@ -1225,7 +1226,11 @@ export class PilotController {
     return true;
   }
 
+  /** True once after you were destroyed by another pilot's bolt, so the room can be told who did it. */
+  takeDeath(): boolean { const d = this.died; this.died = false; return d; }
+
   private destroyed(): void {
+    this.died = true;
     this.respawnAt = this.clock + RESPAWN_MS; this.vel.set(0, 0, 0); this.spin.set(0, 0, 0);
     this.spawnBurstAt(this.pos.x, this.pos.y, this.pos.z, 14);
     this.audio.bump(1);

@@ -153,6 +153,8 @@ export interface SessionCallbacks {
   pose(id: string, pose: Pose): void;
   shot(id: string, shot: ShotMsg): void;
   hit(from: string, hit: HitMsg): void;
+  /** A pilot was destroyed (by another pilot's bolt, or null if unknown). Only the pilot who was hit reports it. */
+  kill(victim: string, killer: string | null): void;
   removed(id: string): void;
 }
 
@@ -347,6 +349,7 @@ export class MultiplayerSession {
     }
     if (m.t === "shot" && validShot(m.shot)) { this.cb.shot(id, m.shot); return; }
     if (m.t === "hit" && validHit(m.hit, this.selfId) && m.hit.target === id) { this.cb.hit(id, m.hit); return; }
+    if (m.t === "kill") { const by = m.by; if (by === null || (typeof by === "string" && by.length > 0 && by.length <= 64 && by !== id)) this.cb.kill(id, by); return; }
     if (m.type === "topology-chunk") this.acceptTopologyChunk(id, peer, m);
   }
 
@@ -457,6 +460,8 @@ export class MultiplayerSession {
   }
 
   sendShot(shot: ShotMsg): void { this.sendControl({ t: "shot", shot }); }
+  /** Tell everyone you were destroyed, and by whom. */
+  sendKill(by: string | null): void { this.sendControl({ t: "kill", by }); }
   sendHit(hit: HitMsg): void { const ch = this.peers.get(hit.shooter)?.control; if (ch?.readyState === "open") try { ch.send(JSON.stringify({ t: "hit", hit })); } catch { /* closing */ } }
 
   private sendControl(message: object): void {

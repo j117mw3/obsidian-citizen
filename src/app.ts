@@ -2,6 +2,7 @@ import { ConstellationRenderer, webglAvailable } from "./renderer";
 import { MultiplayerSession, type LinkState } from "./multiplayer";
 import { MultiplayerPanel } from "./multiplayerUi";
 import type { RoomMember } from "./room";
+import { SLOT_COLORS } from "./remote";
 import { FallbackRenderer } from "./fallback";
 import type { GraphData, GraphRenderer, Host, RendererCallbacks } from "./types";
 import { ConstellationSettings, effectiveHighContrast, effectiveMotion, prefersReducedMotion } from "./settings";
@@ -56,6 +57,9 @@ export class ConstellationApp {
   private link = new Map<string, LinkState>();
   private health = new Map<string, { hp: number; flying: boolean }>();
   private mpStatus = ""; private mpError = false;
+  private score = new Map<string, { kills: number; deaths: number }>();
+  private feed!: HTMLElement;              // kill announcements, top of the view
+  private board!: HTMLElement;             // the scoreboard (hold Tab while flying)
   private mpActive = false;               // true while you are in a room
   private queuedData: GraphData | null = null; // vault changes that arrive during a room wait until it ends
   private statsText = "";
@@ -88,6 +92,8 @@ export class ConstellationApp {
       onNetworkPose: pose => this.session.sendPose(pose),
       onNetworkShot: shot => this.session.sendShot(shot),
       onNetworkHit: (shooter, shotId, at) => this.session.sendHit({ shooter, target: this.session.selfId, shotId, at }),
+      onNetworkKill: killer => { this.session.sendKill(killer); this.onKill(this.session.selfId, killer); },
+      onScores: on => this.showBoard(on),
     };
     let made: GraphRenderer | null = null;
     if (webglAvailable()) {
@@ -156,6 +162,7 @@ export class ConstellationApp {
       pose: (id, pose) => { this.health.set(id, { hp: pose.hp, flying: pose.ac }); this.renderer.setRemotePose?.(id, pose); this.refreshPanel(); },
       shot: (id, shot) => this.renderer.addRemoteShot?.(id, shot),
       hit: (_id, hit) => this.renderer.showRemoteHit?.(hit),
+      kill: (victim, killer) => this.onKill(victim, killer),
       removed: id => { this.link.delete(id); this.health.delete(id); this.renderer.removeRemote?.(id); this.refreshPanel(); },
     }, () => ({ data: this.data, nodes: this.renderer.nodes }), () => this.sessionOptions());
     this.panel = new MultiplayerPanel(this.root, {
@@ -173,6 +180,8 @@ export class ConstellationApp {
     }, () => this.closePanel());
     this.live = el("div", "cg-sr", { "aria-live": "polite", "aria-atomic": "true", role: "status" });
     this.root.appendChild(this.live);
+    this.feed = el("div", "cg-feed", { "aria-hidden": "true" }); this.root.appendChild(this.feed);
+    this.board = el("div", "cg-board", { "aria-hidden": "true" }); this.board.hidden = true; this.root.appendChild(this.board);
     this.tip = el("div", "cg-tip", { "aria-hidden": "true" });
     this.tip.hidden = true;
     this.root.appendChild(this.tip);
@@ -307,7 +316,7 @@ export class ConstellationApp {
   }
 
   private refreshPanel(): void {
-    this.panel.setState({ code: this.session.code, selfId: this.session.selfId, members: this.members, link: this.link, health: this.health, status: this.mpStatus, error: this.mpError });
+    this.panel.setState({ code: this.session.code, selfId: this.session.selfId, members: this.members, link: this.link, health: this.health, score: this.score, status: this.mpStatus, error: this.mpError });
   }
 
   /** The room's pilots changed. The first time you are in one: put your constellation in your corner, and share its shape. */
@@ -315,7 +324,7 @@ export class ConstellationApp {
     this.members = members;
     const inRoom = !!selfId && members.some(m => m.id === selfId);
     if (inRoom && !this.mpActive) {
-      this.mpActive = true;
+      this.mpActive = true; this.score.clear();
       this.renderer.setMultiplayer?.(true);
       this.renderer.setWorldOrigin?.(members.find(m => m.id === selfId)?.slot ?? 0);
       this.session.publishGraph();
@@ -323,12 +332,63 @@ export class ConstellationApp {
     } else if (!inRoom && this.mpActive) {
       this.mpActive = false;
       this.renderer.setMultiplayer?.(false);
-      this.health.clear(); this.link.clear();
+      this.health.clear(); this.link.clear(); this.score.clear(); this.feed.replaceChildren(); this.board.hidden = true;
       if (this.queuedData) { const d = this.queuedData; this.queuedData = null; this.setData(d); }
       this.announce("Left the room");
     }
     this.syncShowButtons();
+    // a room is a public lobby: the note list and the group list (which show your folder and note names) are put away while you are in one
+    this.legend.classList.toggle("cg-hidden", this.mpActive); this.listBtn.classList.toggle("cg-hidden", this.mpActive);
+    if (this.mpActive) this.toggleList(false);
     this.refreshPanel();
+  }
+
+  private nameOf(id: string | null): string {
+    if (id === null) return "A pilot";
+    if (id === this.session.selfId) return "You";
+    return this.members.find(m => m.id === id)?.name ?? "A pilot";
+  }
+
+  private bump(id: string, field: "kills" | "deaths"): void {
+    const s = this.score.get(id) ?? { kills: 0, deaths: 0 };
+    s[field]++; this.score.set(id, s);
+  }
+
+  /** A pilot was destroyed: announce it to everyone in the room, and keep the score. */
+  private onKill(victim: string, killer: string | null): void {
+    if (!this.mpActive || !this.members.some(m => m.id === victim)) return;
+    const known = killer !== null && killer !== victim && this.members.some(m => m.id === killer);
+    this.bump(victim, "deaths");
+    if (known && killer) this.bump(killer, "kills");
+    const me = this.session.selfId, v = this.nameOf(victim), k = known ? this.nameOf(killer) : null;
+    const text = k ? (killer === me ? `You destroyed ${v}` : victim === me ? `${k} destroyed you` : `${k} destroyed ${v}`) : victim === me ? "You were destroyed" : `${v} was destroyed`;
+    const item = el("div", "cg-feed-item" + (victim === me || killer === me ? " cg-mine" : ""), {}, text);
+    this.feed.appendChild(item);
+    while (this.feed.childElementCount > 5) this.feed.firstElementChild?.remove();
+    window.setTimeout(() => item.remove(), 7000);
+    this.announce(text);
+    this.refreshPanel();
+    if (!this.board.hidden) this.renderBoard();
+  }
+
+  private showBoard(on: boolean): void {
+    this.board.hidden = !(on && this.mpActive);
+    if (!this.board.hidden) this.renderBoard();
+  }
+
+  private renderBoard(): void {
+    this.board.replaceChildren();
+    this.board.appendChild(el("div", "cg-board-title", {}, "Scoreboard"));
+    const head = el("div", "cg-board-row cg-board-head", {}); head.append(el("span", "", {}, ""), el("span", "cg-board-name", {}, "Pilot"), el("span", "", {}, "Kills"), el("span", "", {}, "Deaths"));
+    this.board.appendChild(head);
+    const rows = [...this.members].sort((a, b) => (this.score.get(b.id)?.kills ?? 0) - (this.score.get(a.id)?.kills ?? 0) || (this.score.get(a.id)?.deaths ?? 0) - (this.score.get(b.id)?.deaths ?? 0));
+    for (const m of rows) {
+      const sc = this.score.get(m.id) ?? { kills: 0, deaths: 0 }, mine = m.id === this.session.selfId;
+      const row = el("div", "cg-board-row" + (mine ? " cg-mine" : ""), {});
+      const dot = el("span", "cg-dot"); const c = mine ? "#7fe8ff" : SLOT_COLORS[Math.max(0, Math.min(3, m.slot))]; dot.style.color = c; dot.style.background = c;
+      row.append(dot, el("span", "cg-board-name", {}, mine ? `${m.name} (you)` : m.name), el("span", "", {}, String(sc.kills)), el("span", "", {}, String(sc.deaths)));
+      this.board.appendChild(row);
+    }
   }
 
   /** Animate and Supernova re-lay-out the whole graph, so they are off while you fly or are in a room. */
@@ -366,7 +426,7 @@ export class ConstellationApp {
   }
 
   private toggleList(force?: boolean): void {
-    const show = force ?? this.list.hidden;
+    const show = (force ?? this.list.hidden) && !this.mpActive; // not in a room: it would show your note names to the lobby
     this.list.hidden = !show;
     this.listBtn.setAttribute("aria-expanded", String(show));
     this.listBtn.setAttribute("aria-label", show ? "Hide note list" : "Show note list");

@@ -66,6 +66,10 @@ export interface RendererCallbacks {
   onNetworkPose?(pose: Pose): void;
   onNetworkShot?(shot: ShotMsg): void;
   onNetworkHit?(shooterId: string, shotId: string, at: [number, number, number]): void;
+  /** You were destroyed by this pilot's bolt. */
+  onNetworkKill?(killerId: string): void;
+  /** The scoreboard key went down (true) or up (false). */
+  onScores?(on: boolean): void;
 }
 
 /** The 3D renderer and the list-only fallback expose the same surface, so the UI never has to care which it has. */

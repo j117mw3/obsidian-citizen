@@ -13,7 +13,7 @@ export const WORLD_ORIGINS: [number, number, number][] = [[0, 0, 0], [1500, 0, 0
 export const SLOT_COLORS = ["#ffb347", "#c792ff", "#7dff9a", "#ff7a9a"];
 
 const CORE = 0.34;           // as in the renderer: the solid part of a note sprite
-const REMOTE_STARS = 1.5;    // other constellations are drawn with slightly larger, brighter stars, so they read from across the gap
+const REMOTE_STARS = 1.15;    // other constellations are drawn with slightly larger, brighter stars, so they read from across the gap
 const PIP_FROM = 45;         // beyond this distance a ship also gets a ring that stays the same size on screen, so it is never lost
 const LATENCY_LEAD = 0.05;   // a shot is news by the time it arrives: the copy starts this many seconds along its way
 const MAX_BOLTS = 48;
@@ -96,7 +96,7 @@ export class RemoteWorld {
   setTopology(id: string, topology: AnonymousTopology, name: string, slot: number): void {
     this.removeMap(id);
     const n = topology.nodes.length, ids = new Map<string, number>();
-    const pos = new Float32Array(n * 3), col = new Float32Array(n * 3), size = new Float32Array(n), alpha = new Float32Array(n).fill(1), emph = new Float32Array(n);
+    const pos = new Float32Array(n * 3), col = new Float32Array(n * 3), size = new Float32Array(n), alpha = new Float32Array(n).fill(0.85), emph = new Float32Array(n);
     topology.nodes.forEach((node, i) => {
       ids.set(node.id, i);
       const c = new THREE.Color(topology.groups[node.group]?.color ?? "#8b93a7");

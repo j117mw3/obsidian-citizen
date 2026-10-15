@@ -19,6 +19,7 @@ export interface PanelState {
   members: RoomMember[];
   link: ReadonlyMap<string, LinkState>;
   health: ReadonlyMap<string, { hp: number; flying: boolean }>;
+  score: ReadonlyMap<string, { kills: number; deaths: number }>;
   status: string;
   error: boolean;
 }
@@ -128,6 +129,8 @@ export class MultiplayerPanel {
       const h = s.health.get(m.id);
       const bar = li.createEl("progress", { cls: "cg-player-health", attr: { max: "100", value: String(h?.hp ?? 100), "aria-label": `${m.name} health` } });
       void bar;
+      const sc = s.score.get(m.id);
+      li.createSpan({ cls: "cg-player-score", text: `${sc?.kills ?? 0} / ${sc?.deaths ?? 0}`, attr: { title: "Kills / deaths", "aria-label": `${sc?.kills ?? 0} kills, ${sc?.deaths ?? 0} deaths` } });
       const link = m.id === s.selfId ? "here" : s.link.get(m.id) ?? "connecting";
       li.createSpan({ cls: "cg-player-state", text: link === "connected" ? (h && !h.flying ? "docked" : "flying") : link === "here" ? (h?.flying === false ? "docked" : "here") : link === "lost" ? "lost" : "connecting…" });
     }

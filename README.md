@@ -32,6 +32,10 @@
 | ![The Bulwark gunship in chase view](https://raw.githubusercontent.com/xjusvibin/obsidian-constellation-graph/main/images/ships-bulwark.png) | ![The Fly together panel with three pilots](https://raw.githubusercontent.com/xjusvibin/obsidian-constellation-graph/main/images/fly-together.png) |
 | **Three ships.** Striker, Dart and Bulwark: different looks and cockpits, the same flight and fight. | **Fly together.** Make a room, share the code, pick your ship. (Demo names.) |
 
+![Kill announcements and the scoreboard](https://raw.githubusercontent.com/xjusvibin/obsidian-constellation-graph/main/images/scoreboard.png)
+
+*Kill announcements at the top and the scoreboard (hold Tab) in a room. Demo names.*
+
 ## Install
 
 Search for **Constellation Graph** in Settings, Community plugins, Browse. Or copy `main.js`, `manifest.json` and `styles.css` from a [release](https://github.com/xjusvibin/obsidian-constellation-graph/releases) into `<vault>/.obsidian/plugins/constellation-graph/` and enable it. Desktop only, Obsidian 1.7.2 or newer.
@@ -107,6 +111,7 @@ Press **P** in the graph (or the plane button on the toolbar) and fly a small st
 | V | Switch between chase and cockpit view |
 | R | Switch blaster / cannon |
 | N | Watch other pilots (in a room) |
+| Tab | Scoreboard (hold, in a room) |
 | K | Show or hide the controls panel |
 | Esc | Free the mouse (a second Esc leaves) |
 | P | Leave Pilot mode |
@@ -115,12 +120,12 @@ Press **P** in the graph (or the plane button on the toolbar) and fly a small st
 
 The controls are also shown on screen as a small panel of key caps that light up as you press them, and fades after a few seconds.
 
-- **Mouse mode.** *Capture* hides the pointer and steers with its movement. *Cursor* keeps the pointer visible and steers by how far it is from the centre, with a dead zone and two faint rings to show it; over a panel or button it stops steering, so you can click the legend, toolbar and details panel while flying.
+- **Mouse mode.** *Capture* hides the pointer and aims directly: the nose turns exactly as far as the mouse moves and stops when it stops, so lining up a shot is easy. *Cursor* keeps the pointer visible and steers by how far it is from the centre, with a dead zone and two faint rings to show it; over a panel or button it stops steering, so you can click the legend, toolbar and details panel while flying.
 - **Scale.** Cruise speed is set from the size of your vault, so a bigger vault takes longer to cross: about 12 seconds across a 100-note vault at cruise speed, longer for larger ones. The *Flight speed* setting scales it. Warps take time in proportion to the distance.
 - **Folded groups.** Each group (a folder, or a tag) can be folded into one glowing point with its name and size. Shoot a folded group, or click it in the normal view, to open it and watch its notes fly back out. A vault of more than 400 notes starts folded the first time you fly (a setting). In the normal view, the toolbar button or **G** folds every group, or opens them all.
-- **Weapons.** The blaster is quick and runs hot: hold the trigger and it overheats, then goes cold for a moment. The cannon hits three times as hard but each life carries a limited number of rounds (they return when you respawn).
+- **Weapons.** The blaster is quick and runs hot: hold the trigger and it overheats, then goes cold for a moment. The cannon hits three times as hard but each life carries a limited number of rounds (they return when you respawn). Each gun has a best range (blaster 70 to 420, cannon 160 to 650): a hit inside it does a quarter more damage, and past it the damage fades to about half. The lead pip turns green when you are in range, and a hit flashes your crosshair.
 - **Ships.** Choose a Striker (four wings), Dart (delta wing) or Bulwark (heavy gunship) in the settings. They look different and fly and fight the same; other pilots see your choice.
-- **In a room.** Other ships are drawn larger the further away they are, with a nameplate (name, health, distance) and an edge arrow when off-screen. A lead pip shows where to aim at a moving pilot. **N** watches the other pilots; after 30 seconds without a key in a room you start watching automatically, and any flight key brings you back.
+- **In a room.** Other ships carry a nameplate (name, health, distance) and an edge arrow when off-screen. A lead pip shows where to aim at a moving pilot. Every ship is the same size wherever it is, with a ring that stays visible when a pilot is far away. When someone is destroyed an announcement appears at the top of the view, and holding **Tab** shows the scoreboard (kills and deaths, also listed in the Fly together panel). The note list and group list are put away while you are in a room, so your note and folder names are never on screen in a lobby. **N** watches the other pilots; after 30 seconds without a key in a room you start watching automatically, and any flight key brings you back.
 - **Speed you can see.** The view widens under afterburner, and dust streaks past as you go faster.
 - **Wireframes and sound.** The plane has a glowing wireframe outline, and target brackets, impact bursts and faint shells around each group are drawn in wireframe too (they can be turned off). Engine, blaster, impact and warp sounds are synthesised in the plugin with the Web Audio API, nothing is loaded from a file, and they can be turned off or turned down. Sound mutes when the window loses focus.
 - Pilot mode needs motion, so it stays off when your system asks for reduced motion (the search, note list and details panel still work). It is not available without WebGL.

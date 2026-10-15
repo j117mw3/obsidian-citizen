@@ -15,27 +15,30 @@ THREE.ColorManagement.enabled = false; // we feed sRGB values straight to the sc
 const VERT = /* glsl */ `
 attribute vec3 aColor; attribute float aSize; attribute float aAlpha; attribute float aEmph;
 uniform float uScale; uniform float uPulse;
-varying vec3 vColor; varying float vAlpha; varying float vEmph;
+varying vec3 vColor; varying float vAlpha; varying float vEmph; varying float vFade;
 void main() {
   vColor = aColor; vAlpha = aAlpha; vEmph = aEmph;
   vec4 mv = modelViewMatrix * vec4(position, 1.0);
-  gl_PointSize = clamp(aSize * uPulse * uScale / max(0.001, -mv.z), 7.0, 190.0);
+  float raw = aSize * uPulse * uScale / max(0.001, -mv.z);
+  gl_PointSize = clamp(raw, 5.0, 190.0);
+  vFade = clamp(raw / 16.0, 0.22, 1.0); // far away a star is only a speck: dim it, so thousands of them do not add up to a white wash
   gl_Position = projectionMatrix * mv;
 }`;
 
 const FRAG = /* glsl */ `
-varying vec3 vColor; varying float vAlpha; varying float vEmph;
+varying vec3 vColor; varying float vAlpha; varying float vEmph; varying float vFade;
 uniform float uGlow; uniform float uContrast; uniform float uNova;
 void main() {
   if (vAlpha < 0.004) discard;
   float d = length(gl_PointCoord - 0.5) * 2.0;
   if (d > 1.0) discard;
   float core = 1.0 - smoothstep(0.30, 0.37, d);
-  float halo = pow(1.0 - d, 2.5) * uGlow;
+  float halo = pow(1.0 - d, 2.5) * uGlow * vFade;
   float ring = smoothstep(0.76, 0.80, d) * (1.0 - smoothstep(0.88, 0.92, d)) * vEmph;
   vec3 col = vColor * (core * (1.05 + uContrast * 0.25) + halo * 0.85) + vec3(core * 0.10 + core * vEmph * 0.45) + vec3(ring);
   col += vec3(core * uNova * 0.55 + halo * uNova * 0.45); // white-hot during the supernova
-  float a = clamp((core + halo + ring) * vAlpha, 0.0, 1.0);
+  col = vec3(1.0) - exp(-col * 1.15); // soft shoulder: bright stars level off instead of clipping to white
+  float a = clamp((core * mix(0.7, 1.0, vFade) + halo + ring) * vAlpha, 0.0, 1.0);
   gl_FragColor = vec4(col, a);
 }`;
 
@@ -195,7 +198,7 @@ export class ConstellationRenderer implements GraphRenderer {
     this.controls.addEventListener("end", this.onControlEnd);
 
     this.renderPass = new RenderPass(this.scene, this.camera);
-    this.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.5, 0.6, 0.35);
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.5, 0.5, 0.55);
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(this.renderPass);
     this.composer.addPass(this.bloom);
@@ -227,6 +230,7 @@ export class ConstellationRenderer implements GraphRenderer {
       leave: () => this.setPilot(false),
       onNetworkPose: pose => this.cb.onNetworkPose?.(pose),
       onNetworkShot: shot => this.cb.onNetworkShot?.(shot),
+      showScores: on => this.cb.onScores?.(on),
       remoteTargets: () => this.remote.targets,
       watchable: () => this.remote.watchable,
       followState: (id, p, q, v) => this.remote.followState(id, p, q, v),
@@ -234,7 +238,7 @@ export class ConstellationRenderer implements GraphRenderer {
 
     this.remote = new RemoteWorld(this.scene, this.labelLayer, this.camera, () => this.nodeMaterial(), {
       hitTest: (a, b, kind, travelled) => this.pilot.hitTest(a, b, kind, travelled),
-      struck: (id, shotId, at) => this.cb.onNetworkHit?.(id, shotId, at),
+      struck: (id, shotId, at) => { this.cb.onNetworkHit?.(id, shotId, at); if (this.pilot.takeDeath()) this.cb.onNetworkKill?.(id); },
     });
 
     this.canvas.addEventListener("pointermove", this.onPointerMove);
