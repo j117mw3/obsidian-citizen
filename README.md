@@ -10,6 +10,8 @@ These views use a synthetic vault with four fictional notes; no personal vault n
 
 ![Obsidian Citizen graph in a synthetic vault](docs/screenshots/synthetic-graph.png)
 
+![Spacecraft Hangar and audio choices](docs/screenshots/synthetic-hangar.png)
+
 
 ## Use
 

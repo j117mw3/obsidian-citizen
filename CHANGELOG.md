@@ -25,4 +25,3 @@ These archives are retained byte-for-byte from the project's existing `dist/` di
 | 0.3.2 | `27e2f2473f015b81ffd0da0bfef4fef4a1575b93` | Protocol 2; not compatible with 0.5.0 rooms. |
 | 0.3.3 | `fc420731e02901f0beb7845b97ca11512018a7b8` | Protocol 3; not compatible with 0.5.0 rooms. |
 | 0.3.4 | `ce3eb7a2319ae3046b9888688917b13599ec971b` | Protocol 4; not compatible with 0.5.0 rooms. |
-
