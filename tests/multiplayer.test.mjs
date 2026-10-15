@@ -310,17 +310,24 @@ test("first-to-five scores only confirmed lethal hits and checkpoints victory pr
   assert.equal(transferred.roundSnapshot(now + 100).phaseRemainingMs, checkpoint.round.phaseRemainingMs - 1200);
   assert.equal(transferred.players.get("attacker").kills, 5);
 
-  transferred.step(1 / 60, now + 7000);
+  const waitingAt = now + 7000;
+  transferred.step(1 / 60, waitingAt);
   assert.equal(transferred.roundPhase, "waiting");
-  transferred.setInput("attacker", { ...emptyInput, active: false }, now + 7001);
-  transferred.startCountdown(now + 7001);
-  transferred.step(1 / 60, now + 10_002);
-  assert.equal(transferred.currentRoundId, 2);
-  assert.equal(transferred.roundPhase, "combat");
-  assert.equal(transferred.players.get("attacker").kills, 0);
-  assert.equal(transferred.players.get("attacker").health, 100);
-  assert.equal(transferred.players.get("attacker").energy, 1);
-  assert.equal(transferred.players.get("attacker").active, false, "spectators remain spectators after round reset");
+  const waitingCheckpoint = transferred.snapshot(waitingAt), waitingHost = new combat.CombatWorld(11);
+  assert.equal(waitingHost.restore(waitingCheckpoint, waitingAt + 100, 5000), true, "host transfer preserves the waiting phase");
+  assert.equal(waitingHost.roundSnapshot(waitingAt + 100).phaseRemainingMs, 10_000);
+  waitingHost.setInput("attacker", { ...emptyInput, active: false }, waitingAt + 101);
+  waitingHost.startCountdown(waitingAt + 101);
+  const countdownAt = waitingAt + 1101, countdownCheckpoint = waitingHost.snapshot(countdownAt), countdownHost = new combat.CombatWorld(12);
+  assert.equal(countdownHost.restore(countdownCheckpoint, countdownAt + 100, 500), true, "host transfer preserves the countdown phase");
+  assert.equal(countdownHost.roundSnapshot(countdownAt + 100).phaseRemainingMs, 1500);
+  countdownHost.step(1 / 60, countdownAt + 1601);
+  assert.equal(countdownHost.currentRoundId, 2);
+  assert.equal(countdownHost.roundPhase, "combat");
+  assert.equal(countdownHost.players.get("attacker").kills, 0);
+  assert.equal(countdownHost.players.get("attacker").health, 100);
+  assert.equal(countdownHost.players.get("attacker").energy, 1);
+  assert.equal(countdownHost.players.get("attacker").active, false, "spectators remain spectators after round reset");
 });
 
 test("boost drains at the shared rate and spectators resume after five seconds without refilling", () => {
