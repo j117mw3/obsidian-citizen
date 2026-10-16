@@ -2,7 +2,16 @@
 
 ## Publication history
 
-Versions **0.5.1 through 0.7.4** are published as individual [GitHub releases](https://github.com/j117mw3/obsidian-citizen/releases), each with its own version tag, plugin files, ZIP, checksums, and update notes. Recovered 0.5.1–0.7.1 packages retain the `constellation-graph` ID. Their tags preserve recovered release files because matching historical TypeScript source snapshots were not saved. Existing 0.3.x releases and the superseded 0.5.0 draft are retained. Version 0.7.2 begins the independent `citizen` plugin identity; manual settings migration is described in the README. The patrol-grounding fix was initially tested as a local 0.7.2.1 package; its public release is 0.7.3 to use Obsidian's required three-part version format.
+Versions **0.5.1 through 0.7.5** are published as individual [GitHub releases](https://github.com/j117mw3/obsidian-citizen/releases), each with its own version tag, plugin files, ZIP, checksums, and update notes. Recovered 0.5.1–0.7.1 packages retain the `constellation-graph` ID. Their tags preserve recovered release files because matching historical TypeScript source snapshots were not saved. Existing 0.3.x releases and the superseded 0.5.0 draft are retained. Version 0.7.2 begins the independent `citizen` plugin identity; manual settings migration is described in the README. The patrol-grounding fix was initially tested as a local 0.7.2.1 package; its public release is 0.7.3 to use Obsidian's required three-part version format.
+
+## 0.7.5 — directory review corrections
+
+- Publish the source corrections previously checked with directory branch previews.
+- Move the player-indicator arrow reset into CSS and preserve dynamic offscreen rotation with a CSS custom property.
+- Remove the redundant settings introduction heading and use Open graph for the command name.
+- Point the author URL at the maintainer's profile and enable repository issues for support.
+- Schedule Hangar animation frames on the panel's owning window.
+- Keep the citizen plugin ID, settings format, room protocol 14, and checkpoint format 14.
 
 ## 0.7.4 — OB Citizen name
 

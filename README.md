@@ -8,7 +8,7 @@ This project combines Hunter / JusVibin's original [Constellation Graph](https:/
 
 ## Download and install
 
-Download [OB Citizen 0.7.4](https://github.com/j117mw3/obsidian-citizen/releases/tag/0.7.4). Every published update from **0.5.1 through 0.7.4** has its own entry on the [Releases page](https://github.com/j117mw3/obsidian-citizen/releases), with individual plugin files, an install ZIP, checksums, and version-specific notes. Earlier 0.3.x releases remain available. Choose the same version on every multiplayer computer.
+Download [OB Citizen 0.7.5](https://github.com/j117mw3/obsidian-citizen/releases/tag/0.7.5). Every published update from **0.5.1 through 0.7.5** has its own entry on the [Releases page](https://github.com/j117mw3/obsidian-citizen/releases), with individual plugin files, an install ZIP, checksums, and version-specific notes. Earlier 0.3.x releases remain available. Choose the same version on every multiplayer computer.
 
 **Install the current release (0.7.2 and newer):** back up your settings, close Obsidian, and extract the ZIP's `main.js`, `manifest.json`, and `styles.css` directly into `<vault>/.obsidian/plugins/citizen/`. Requires desktop Obsidian 1.7.2 or newer.
 
@@ -18,7 +18,7 @@ Download [OB Citizen 0.7.4](https://github.com/j117mw3/obsidian-citizen/releases
 
 The independent [OB Citizen directory listing](https://community.obsidian.md/plugins/citizen) is live, with Hunter / JusVibin credited as a contributor. Automated review currently flags the abbreviated display name as containing part of “Obsidian”; directory installation is not yet approved. Use the GitHub release for manual installation while that review finding is resolved.
 
-## Current version: 0.7.4
+## Current version: 0.7.5
 
 - Fly eight spacecraft with cockpit instruments, boost, blasters, sound choices, and a pane-responsive Hangar.
 - Invite up to three friends to optional private rooms with host-authoritative combat, rounds, checkpoints, and host transfer.
@@ -28,7 +28,7 @@ The independent [OB Citizen directory listing](https://community.obsidian.md/plu
 - Rounds pause the fight for the supernova and preserve each pilot’s space position or docked planet position and facing into the next round.
 - Version 0.7.1 strengthened terrain relief and fixed linked-wall steering; **0.7.2** adds shared planet combat, bot health drops, clearer pickups, ten-kill rounds, and pose-preserving round changes. **0.7.3** keeps displayed bot feet on uneven terrain; **0.7.4** renames the plugin to OB Citizen. It uses the same **room protocol 14** and checkpoint format as 0.7.2.
 
-The [changelog](CHANGELOG.md) records the 0.5.x through 0.7.x development milestones. Each published version has its own GitHub entry with update notes and package files. The 0.5.1–0.7.1 tags preserve recovered plugin files because matching historical TypeScript source snapshots were not saved; 0.7.2 through 0.7.4 are built from their tagged source. Automated checks for 0.7.4 are recorded in [its verification notes](docs/verification-0.7.4.md); native rendering, audio, cross-computer gameplay, and large-arena performance acceptance remain separate. Large terrain layouts can take several seconds to prepare.
+The [changelog](CHANGELOG.md) records the 0.5.x through 0.7.x development milestones. Each published version has its own GitHub entry with update notes and package files. The 0.5.1–0.7.1 tags preserve recovered plugin files because matching historical TypeScript source snapshots were not saved; 0.7.2 through 0.7.5 are built from their tagged source. Automated checks for 0.7.5 are recorded in [its verification notes](docs/verification-0.7.5.md); native rendering, audio, cross-computer gameplay, and large-arena performance acceptance remain separate. Large terrain layouts can take several seconds to prepare.
 
 In **Pilot mode**, aim your ship at a main sphere, approach within **12 world units of its surface**, use **X** to brake below speed **10**, and **hold J for 1.5 seconds**. The flight HUD shows range, readiness and hold progress. Only main nodes accept docking. Wait three seconds after damage; the host also enforces arena capacity and safe spawn availability. On the surface, hold **F** for two seconds at either pole to return to your ship.
 
