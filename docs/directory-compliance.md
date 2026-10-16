@@ -1,5 +1,13 @@
 # Directory review follow-up
 
+## Current result: Citizen 0.7.6 passed
+
+The published 0.7.6 release at commit `5c82955851173e008088bca882db605fab5ab73c` completed directory review with **Health Excellent** and **Review Passed**. The trademark-name rejection, source/CSS warnings, and unsupported release-asset recommendation are resolved. Five scanner-incompatible Array.at calls were replaced with equivalent indexed access after the first preview. The directory verified provenance attestations, dependencies, network patterns, and a byte-for-byte reproducible build. Necessary vault-enumeration and user-triggered clipboard recommendations remain.
+
+See [0.7.6 verification](verification-0.7.6.md) for hashes, workflow evidence, screenshot, and native-runtime limits. The sections below preserve the earlier 0.7.4/0.7.5 investigation and naming comparison.
+
+## Earlier investigation
+
 The 0.7.4 release failed the completed automated directory review. The following source changes are candidates for branch review; they are not yet part of a new published release.
 
 - Move the player-indicator arrow's static reset to a CSS class. Dynamic offscreen rotation uses a CSS custom property; the onscreen class resets it with ordinary stylesheet precedence.

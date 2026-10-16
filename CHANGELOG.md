@@ -4,6 +4,8 @@
 
 Versions **0.5.1 through 0.7.5** are published as individual [GitHub releases](https://github.com/j117mw3/obsidian-citizen/releases), each with its own version tag, plugin files, ZIP, checksums, and update notes. Recovered 0.5.1–0.7.1 packages retain the `constellation-graph` ID. Their tags preserve recovered release files because matching historical TypeScript source snapshots were not saved. Existing 0.3.x releases and the superseded 0.5.0 draft are retained. Version 0.7.2 begins the independent `citizen` plugin identity; manual settings migration is described in the README. The patrol-grounding fix was initially tested as a local 0.7.2.1 package; its public release is 0.7.3 to use Obsidian's required three-part version format.
 
+Version **0.7.6** is published with the three supported plugin files and provenance attestations. Its install ZIP and checksums are retained as GitHub Actions workflow artifacts.
+
 ## 0.7.6 — Citizen review compliance
 
 - Adopt Citizen as the current display name; preserve the citizen ID, settings, room and checkpoint protocol 14.
