@@ -1,11 +1,19 @@
 name: Release
 
-# Pushing a version tag (for example 0.1.2) builds the plugin from the tagged source, records a signed
-# provenance attestation for the three release files, and prepares a draft for review.
+# Pushing a version tag builds the plugin from the tagged source, records provenance for the plugin
+# files, packages and hashes the install archive, and prepares a complete release draft for review.
 on:
   push:
     tags:
       - "[0-9]+.[0-9]+.[0-9]+"
+  workflow_dispatch:
+    inputs:
+      target_tag:
+        description: Existing release tag whose missing package assets should be added
+        required: true
+        type: choice
+        options:
+          - "0.7.6"
 
 permissions:
   contents: write      # create the release
@@ -15,10 +23,14 @@ permissions:
 jobs:
   release:
     # Historical releases and 0.6.0 stay gated until runtime acceptance is recorded.
-    if: ${{ !startsWith(github.ref_name, '0.1.') && !startsWith(github.ref_name, '0.2.') && !startsWith(github.ref_name, '0.3.') && !startsWith(github.ref_name, '0.4.') && github.ref_name != '0.5.0' && github.ref_name != '0.5.1' && github.ref_name != '0.5.2' && github.ref_name != '0.6.0' }}
+    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.target_tag == '0.7.6') || (github.event_name == 'push' && !startsWith(github.ref_name, '0.1.') && !startsWith(github.ref_name, '0.2.') && !startsWith(github.ref_name, '0.3.') && !startsWith(github.ref_name, '0.4.') && github.ref_name != '0.5.0' && github.ref_name != '0.5.1' && github.ref_name != '0.5.2' && github.ref_name != '0.6.0') }}
     runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.target_tag || github.ref_name }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.target_tag || github.ref }}
 
       - uses: actions/setup-node@v7
         with:
@@ -34,8 +46,8 @@ jobs:
       - name: Check that the tag matches manifest.json
         run: |
           version=$(node -p "require('./manifest.json').version")
-          if [ "$version" != "$GITHUB_REF_NAME" ]; then
-            echo "Tag $GITHUB_REF_NAME does not match manifest.json version $version" >&2
+          if [ "$version" != "$RELEASE_TAG" ]; then
+            echo "Tag $RELEASE_TAG does not match manifest.json version $version" >&2
             exit 1
           fi
 
@@ -50,13 +62,13 @@ jobs:
 
       - name: Package and hash
         run: |
-          zip "citizen-${GITHUB_REF_NAME}.zip" main.js manifest.json styles.css
-          sha256sum main.js manifest.json styles.css "citizen-${GITHUB_REF_NAME}.zip" > SHA256SUMS.txt
+          zip "citizen-${RELEASE_TAG}.zip" main.js manifest.json styles.css
+          sha256sum main.js manifest.json styles.css "citizen-${RELEASE_TAG}.zip" > SHA256SUMS.txt
 
       - name: Keep install archive and checksums
         uses: actions/upload-artifact@v7
         with:
-          name: citizen-${{ github.ref_name }}-verification
+          name: citizen-${{ env.RELEASE_TAG }}-verification
           path: |
             citizen-*.zip
             SHA256SUMS.txt
@@ -69,10 +81,19 @@ jobs:
             manifest.json
             styles.css
 
-      - name: Publish release
+      - name: Create release draft
+        if: ${{ github.event_name == 'push' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" main.js manifest.json styles.css \
-            --draft --verify-tag --title "Citizen $GITHUB_REF_NAME" \
+          gh release create "$RELEASE_TAG" main.js manifest.json styles.css \
+            "citizen-${RELEASE_TAG}.zip" SHA256SUMS.txt \
+            --draft --verify-tag --title "Citizen $RELEASE_TAG" \
             --notes-file .github/release-notes.md
+
+      - name: Add assets to the existing release
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "$RELEASE_TAG" "citizen-${RELEASE_TAG}.zip" SHA256SUMS.txt --clobber

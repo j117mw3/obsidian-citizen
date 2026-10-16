@@ -5,18 +5,18 @@ import { surfaceSphereOccludes } from "./surfaceVisuals";
 import { traceSurfaceSegment } from "./surfaceCombat";
 import { SURFACE_WORLD_SCALE, surfaceViewPose, surfaceToWorld, worldToSurface } from "./surfaceView";
 
-export interface SurfaceNameplateTarget { id: string; name: string; health: number; arenaKey: string; state: SurfacePlayerState }
+export interface SurfaceNameplateTarget { id: string; name: string; health: number; arenaKey: string; state: SurfacePlayerState; labelPoint?: [number,number,number] }
 /** Visibility is evaluated against displayed head poses and immutable physical cover, not a label above cover. */
 export function projectSurfaceNameplate(camera: THREE.PerspectiveCamera, target: SurfaceNameplateTarget, arena: SurfaceArenaView, center: [number,number,number]): THREE.Vector3 | null {
   if (target.health<=0 || target.arenaKey!==arena.key) return null;
-  const pose=surfaceViewPose(target.state), head=new THREE.Vector3(...surfaceToWorld(pose.eye,center));
+  const pose=surfaceViewPose(target.state), head=new THREE.Vector3(...surfaceToWorld(target.labelPoint??pose.eye,center));
   // Reject the far hemisphere before querying the static wall grid across a large planet.
   if (surfaceSphereOccludes(camera.position,head,center,((arena.arena.radius??27)-(arena.arena.terrain?.8:0))*SURFACE_WORLD_SCALE)) return null;
   const projectedHead=head.clone().project(camera);
   if (projectedHead.z < -1 || projectedHead.z > 1 || Math.abs(projectedHead.x)>1 || Math.abs(projectedHead.y)>1) return null;
   const eye=worldToSurface(camera.position.toArray(),center);
-  if (traceSurfaceSegment(eye,pose.eye,arena.arena.walls,[],"",arena.arena.radius??27)) return null;
-  return head.addScaledVector(new THREE.Vector3(...pose.up),.28*SURFACE_WORLD_SCALE).project(camera);
+  if (traceSurfaceSegment(eye,target.labelPoint??pose.eye,arena.arena.walls,[],"",arena.arena.radius??27)) return null;
+  return target.labelPoint ? head.project(camera) : head.addScaledVector(new THREE.Vector3(...pose.up),.28*SURFACE_WORLD_SCALE).project(camera);
 }
 
 export class SurfaceNameplates {

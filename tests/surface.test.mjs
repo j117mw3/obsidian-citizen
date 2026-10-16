@@ -636,13 +636,13 @@ test("authoritative docking checks hub, aim, range, speed, and the recent-damage
   world.markShipDamage(pilot, 2500);
   assert.equal(world.dock(pilot, arena.key, 4000), false, "cannot dock within three seconds of ship damage");
   assert.equal(world.dock(pilot, "owner/neighbor", 6000), false, "ordinary nodes never become arenas");
-  world.setShipPose(pilot, identityShip([0, 0, 40]));
-  assert.equal(world.dock(pilot, arena.key, 6000), false, "must be within twelve units of the surface");
+  world.setShipPose(pilot, identityShip([0, 0, 42]));
+  assert.equal(world.dock(pilot, arena.key, 6000), false, "must be within fourteen units of the surface");
   world.setShipPose(pilot, { ...identityShip([0, 0, 38]), velocity: [11, 0, 0] });
   assert.equal(world.dock(pilot, arena.key, 6000), false, "approach speed is bounded");
   world.setShipPose(pilot, { ...identityShip([0, 0, 38]), rotation: [0, 1, 0, 0] });
   assert.equal(world.dock(pilot, arena.key, 6000), false, "the ship must point at the hub");
-  world.setShipPose(pilot, identityShip([0, 0, 38]));
+  world.setShipPose(pilot, identityShip([0, 0, 41]));
   assert.equal(world.dock(pilot, arena.key, 6000), true);
   assert.equal(world.getPlayer(pilot).mode, "surface");
 });
@@ -1220,7 +1220,8 @@ test("solo bolts damage the shared patrol simulation and training armor remains 
     const moved = [1100, 20, -50]; world.setOwnerMap("solo", surfaceFixture(), new Float32Array([...moved, 1108, 20, -50]));
     renderer.updateSurfaceCombat(1 / 60, now + 17);
     const visual = renderer.surfaceBotVisuals.get(bot.id);
-    assert.ok(visual.group.position.distanceTo(new THREE.Vector3(...viewModule.surfaceToWorld(bot.patrol.state.position, moved))) < 1e-9);
+    assert.ok(visual.group.position.distanceTo(new THREE.Vector3(...viewModule.surfaceToWorld(visual.displayed.position, moved))) < 1e-9);
+    assert.deepEqual(bot.patrol.state.position, visual.target.position, "presentation grounding does not modify authoritative patrol state");
     renderer.resetTrainingDummy(150);
     assert.deepEqual(world.listBots().map(view => view.armor), [50, 50, 50, 50], "the legacy training selector explicitly adds armor to solo bots");
     renderer.clearSurfaceCombat();

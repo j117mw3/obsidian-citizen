@@ -32,8 +32,10 @@ import { spreadSurfaceDirection, surfaceSpreadDegrees, surfaceSeed, traceSurface
 import type { SurfaceCombatTarget } from "./surfaceCombat";
 import { SurfaceHistory, type SurfaceHistoryFrame } from "./surfaceHistory";
 import { interpolateSurfaceBotState, presentSurfacePlayers } from "./surfacePresentation";
+import { poseSurfaceOperativeOnTerrain } from "./surfaceBotPresentation";
 import type { SurfaceNetworkSnapshot, SurfacePlayerSnapshot, SurfaceProjectileSnapshot } from "./surfaceAuthority";
 import { DEFAULT_SURFACE_LASER_COLOR, normalizeSurfaceLaserColor } from "./surfaceColor";
+import { PILOT_DOCK_RANGE_WORLD_UNITS } from "./docking";
 import { stepSurfacePlayer } from "./surfacePhysics";
 import { SurfacePrediction } from "./surfaceInput";
 import { SURFACE_WORLD_SCALE, surfaceToWorld, surfaceViewPose, worldToSurface } from "./surfaceView";
@@ -100,7 +102,7 @@ interface RemoteShip { ship: Ship; target: Pose | null; samples: RemotePoseSampl
 interface RemoteBolt { line: THREE.Line; ownerId: string; origin: THREE.Vector3; target: THREE.Vector3; current: THREE.Vector3; direction: THREE.Vector3; speed: number; targetAt: number }
 interface NetworkImpact { mesh: THREE.Mesh; expires: number }
 interface SurfaceBoltVisual { kind?: SurfaceShotKind; graphic: SurfaceBoltGraphic; arenaKey: string; ownerId: string; position: THREE.Vector3; direction: THREE.Vector3; travelled: number; startedAt: number; simulatedAt: number; stoppedAt: number }
-interface SurfaceBotVisual { bot: SurfaceBotView; group: THREE.Group; model: SurfaceOperative; baseColor: string; from: SurfacePlayerState; target: SurfacePlayerState; receivedAt: number; duration: number; lastSequence: number }
+interface SurfaceBotVisual { bot: SurfaceBotView; group: THREE.Group; model: SurfaceOperative; baseColor: string; from: SurfacePlayerState; target: SurfacePlayerState; displayed: SurfacePlayerState; receivedAt: number; duration: number; lastSequence: number }
 interface SurfaceBotShotVisual { graphic: SurfaceBoltGraphic; shot: SurfaceBotShotView; }
 interface SurfaceBotDropVisual { group: THREE.Group; drop: SurfaceBotDropView; }
 interface RemoteSurfaceAvatar { group: THREE.Group; model: SurfaceOperative; color: string; lastAt: number; state?: SurfacePlayerState; arenaKey?: string }
@@ -728,6 +730,16 @@ export class ConstellationRenderer implements GraphRenderer {
 
   private surfaceDisplayCenter(arena: SurfaceArenaView): [number, number, number] {
     return this.surfaceDisplayCenters?.get(arena.key) ?? arena.center;
+  }
+
+  private surfacePlanetMesh(arena: SurfaceArenaView): THREE.Mesh | null {
+    let group: THREE.Group | undefined;
+    if (arena.ownerId === "solo" || arena.ownerId === this.localPlayerId) {
+      const index = arena.ownerId === "solo" ? this.idIndex?.get(arena.hubId) : this.localTopology?.nodes.findIndex(node => node.id === arena.hubId);
+      const nodeId = index === undefined || index < 0 ? undefined : this.sim?.nodes[index]?.id;
+      group = nodeId ? this.localSurfaceGroups?.get(nodeId)?.group : undefined;
+    } else group = this.remoteMaps?.get(arena.ownerId)?.surfaceGroups.get(arena.hubId);
+    return group?.getObjectByName("surface-planet") as THREE.Mesh | null ?? null;
   }
 
   /** One presentation frame for the camera and every object belonging to an arena. */
@@ -1492,7 +1504,7 @@ export class ConstellationRenderer implements GraphRenderer {
     this.surfaceWorld.addPlayer("solo", ship);
     if (!this.surfaceWorld.dock("solo", `solo/${node.id}`, Date.now(), 1 / SURFACE_WORLD_SCALE)) {
       const preparation=this.surfaceWorld.getPreparationError(`solo/${node.id}`);if(preparation){this.pilot.showDockMessage(preparation);this.cb.onPilot?.(true,preparation);return;}
-      this.pilot.showDockMessage("Dock rejected · wait 3s after damage, stay within 12u and below speed 10, then release and hold J again.");
+      this.pilot.showDockMessage(`Dock rejected · wait 3s after damage, stay within ${PILOT_DOCK_RANGE_WORLD_UNITS}u and below speed 10, then release and hold F again.`);
       this.cb.onPilot?.(true, "Docking needs a clear approach, low speed, and three seconds without damage.");
       return;
     }
@@ -1512,7 +1524,7 @@ export class ConstellationRenderer implements GraphRenderer {
 
   setSurfaceDockResult(accepted: boolean, reason?: "preparation"): void {
     if(reason==="preparation"){this.pilot.showDockMessage("Planet preparation failed: no accessible combat layout. Try a different main node.");return;}
-    if (!accepted) this.pilot.showDockMessage("Dock rejected · wait 3s after damage, stay within 12u and below speed 10; the arena may be full. Release J to retry.");
+    if (!accepted) this.pilot.showDockMessage(`Dock rejected · wait 3s after damage, stay within ${PILOT_DOCK_RANGE_WORLD_UNITS}u and below speed 10; the arena may be full. Release F to retry.`);
   }
 
   private createParkedSurfaceShip(): void {
@@ -1599,8 +1611,9 @@ export class ConstellationRenderer implements GraphRenderer {
         if (id!==local.id && player && player.health>0 && avatar.state && avatar.arenaKey===arena.key && avatar.group.visible) targets.push({id,name:this.surfacePlayerNames.get(id)??"Pilot",health:player.health,arenaKey:arena.key,state:avatar.state});
       }}
       for (const bot of this.surfaceBotVisuals.values()) if (bot.group.visible && bot.bot.arenaKey === arena.key) {
+        const labelPoint = worldToSurface(bot.model.upper.localToWorld(new THREE.Vector3(0, .9, 0)).toArray(), this.surfaceDisplayCenter(arena));
         targets.push({ id: bot.bot.id, name: ["North patrol", "South patrol", "East patrol", "West patrol"][bot.bot.index] ?? "Planetary bot",
-          health: bot.bot.health, arenaKey: arena.key, state: bot.target });
+          health: bot.bot.health, arenaKey: arena.key, state: bot.displayed, labelPoint });
       }
     }
     this.surfaceNameplates.update(this.camera,this.canvas.clientWidth,this.canvas.clientHeight,targets.length && arena ? arena : null,arena ? this.surfaceDisplayCenter(arena) : null,targets);
@@ -1628,7 +1641,7 @@ export class ConstellationRenderer implements GraphRenderer {
         const group = new THREE.Group(); group.name = `surface-bot:${bot.id}`; group.scale.setScalar(SURFACE_WORLD_SCALE);
         const model = new SurfaceOperative(baseColor); group.add(model.group); this.scene.add(group);
         const state = this.cloneSurfaceBotState(bot.state);
-        visual = { bot, group, model, baseColor, from: state, target: state, receivedAt, duration: 0, lastSequence: -1 };
+        visual = { bot, group, model, baseColor, from: state, target: state, displayed: state, receivedAt, duration: 0, lastSequence: -1 };
         this.surfaceBotVisuals.set(bot.id, visual);
       }
       if (!this.multiplayer) {
@@ -1665,11 +1678,8 @@ export class ConstellationRenderer implements GraphRenderer {
       if (!arena) continue;
       const t = this.multiplayer ? Math.max(0, Math.min(1, (performance.now() - visual.receivedAt) / Math.max(1, visual.duration))) : 1;
       const state = interpolateSurfaceBotState(visual.from, visual.target, t, arena.arena);
-      const up = new THREE.Vector3(...state.position).normalize(), forward = new THREE.Vector3(...state.forward).projectOnPlane(up).normalize();
-      const right = new THREE.Vector3().crossVectors(forward, up).normalize();
-      visual.group.position.set(...surfaceToWorld(state.position, this.surfaceDisplayCenter(arena)));
-      visual.group.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(right, up, forward.negate()));
-      visual.model.pose(state, dt);
+      visual.displayed = poseSurfaceOperativeOnTerrain(visual.group, visual.model, state, arena.arena, this.surfaceDisplayCenter(arena), dt,
+        this.surfacePlanetMesh(arena)?.geometry);
     }
     this.updateSurfaceBotShots(now);
     this.updateSurfaceBotDrops();

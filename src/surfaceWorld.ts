@@ -1,3 +1,4 @@
+import { PILOT_DOCK_RANGE_WORLD_UNITS } from "./docking";
 import { bindSurfaceTerrain, validTerrainDefinition, terrainHeight } from "./surfaceTerrain";
 import { SurfaceCoverMotion } from "./surfaceCover";
 import { generateDirectedSurfaceArena, surfaceRadiusForConnections } from "./surfaceGeometry";
@@ -660,7 +661,7 @@ export class SurfaceWorld {
       || !Number.isFinite(surfaceUnitsPerWorldUnit) || surfaceUnitsPerWorldUnit < 0.1 || surfaceUnitsPerWorldUnit > 100) return false;
     const offset: Vec3 = [arena.center[0] - player.ship.position[0], arena.center[1] - player.ship.position[1], arena.center[2] - player.ship.position[2]];
     const centerDistance = length(offset), speed = length(player.ship.velocity);
-    if (centerDistance < (arena.arena.radius ?? SURFACE.radius) || centerDistance > (arena.arena.radius ?? SURFACE.radius) + 12 * surfaceUnitsPerWorldUnit || speed > 10 * surfaceUnitsPerWorldUnit) return false;
+    if (centerDistance < (arena.arena.radius ?? SURFACE.radius) || centerDistance > (arena.arena.radius ?? SURFACE.radius) + PILOT_DOCK_RANGE_WORLD_UNITS * surfaceUnitsPerWorldUnit || speed > 10 * surfaceUnitsPerWorldUnit) return false;
     const forward = this.rotateForward(player.ship.rotation), along = dot(offset, forward);
     if (along <= 0 || length([offset[0] - forward[0] * along, offset[1] - forward[1] * along, offset[2] - forward[2] * along]) > (arena.arena.radius ?? SURFACE.radius)) return false;
     if (!arena.occupants.size) {

@@ -16,21 +16,21 @@ test("docking requires a continuous 1.5-second ready hold and sends only one req
   for (const multiplayer of [false, true]) {
     const pilot = Object.create(flight.PilotController.prototype), requests = [];
     let target = { key: "owner/main", distance: 4 };
-    Object.assign(pilot, { active: true, opts: { multiplayer }, keys: new Set(["KeyJ"]), health: 100,
+    Object.assign(pilot, { active: true, opts: { multiplayer }, keys: new Set(["KeyF"]), health: 100,
       vel: new flight.THREE.Vector3(), clock: 0, dockHeld: 0, dockTargetKey: "", dockSent: false, dockMessageUntil: 0,
       dockingPrompt: {}, host: { dockingTarget: () => target, onDockRequest: () => requests.push(target.key) } });
     for (let tick = 0; tick < 14; tick++) pilot.updateDocking(0.1, true);
     assert.equal(requests.length, 0); assert.match(pilot.dockingPrompt.textContent, /93%/);
     pilot.updateDocking(0.1, true); assert.deepEqual(requests, ["owner/main"]);
     for (let tick = 0; tick < 30; tick++) pilot.updateDocking(0.1, true);
-    assert.equal(requests.length, 1, "holding J does not spam host requests");
-    pilot.keys.clear(); pilot.updateDocking(0.1, true); pilot.keys.add("KeyJ");
+    assert.equal(requests.length, 1, "holding F does not spam host requests");
+    pilot.keys.clear(); pilot.updateDocking(0.1, true); pilot.keys.add("KeyF");
     for (let tick = 0; tick < 10; tick++) pilot.updateDocking(0.1, true);
     target = { key: "other/main", distance: 4 }; pilot.updateDocking(0.1, true);
     assert.ok(pilot.dockHeld < 0.2, "switching main resets the hold");
     pilot.updateDocking(0.1, false); assert.equal(pilot.dockHeld, 0);
     target = null; pilot.updateDocking(0.1, true); assert.match(pilot.dockingPrompt.textContent, /Aim/);
-    target = { key: "owner/main", distance: 13 }; pilot.updateDocking(0.1, true); assert.match(pilot.dockingPrompt.textContent, /within 12u/);
+    target = { key: "owner/main", distance: 15 }; pilot.updateDocking(0.1, true); assert.match(pilot.dockingPrompt.textContent, /within 14u/);
     target.distance = -1; pilot.updateDocking(0.1, true); assert.match(pilot.dockingPrompt.textContent, /outside/);
     target.distance = 4; pilot.vel.z = 11; pilot.updateDocking(0.1, true); assert.match(pilot.dockingPrompt.textContent, /Hold X/);
     assert.equal(requests.length, 1);

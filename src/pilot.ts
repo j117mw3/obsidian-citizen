@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { PILOT_DOCK_RANGE_WORLD_UNITS } from "./docking";
 import type { SimNode } from "./types";
 import { PilotAudio } from "./sfx";
 import { buildShip, type Ship } from "./ship";
@@ -127,7 +128,7 @@ const Y_AXIS = new THREE.Vector3(0, 1, 0);
 
 /** Keys the pilot owns. Anything else (Enter, /, ?, L, ...) is left to the normal keyboard handling. */
 const OWNED = new Set([
-  "KeyW", "KeyA", "KeyS", "KeyD", "Space", "KeyC", "KeyQ", "KeyE", "KeyJ", "ShiftLeft", "ShiftRight",
+  "KeyW", "KeyA", "KeyS", "KeyD", "Space", "KeyC", "KeyQ", "KeyE", "ShiftLeft", "ShiftRight",
   "KeyX", "KeyF", "KeyT", "KeyG", "KeyH", "KeyV", "KeyK", "KeyB", "KeyN", "KeyR", "Tab",
 ]);
 
@@ -143,11 +144,11 @@ const KEY_GROUPS: { title: string; rows: KeyRow[] }[] = [
   ] },
   { title: "Aim", rows: [
     { caps: ["Mouse"], label: p => p.cursorMode ? "Steer: move away from centre" : "Steer", codes: [null] },
-    { caps: ["Click", "F"], label: "Fire", codes: [null, "KeyF"] },
+    { caps: ["Click"], label: "Fire", codes: [null] },
     { caps: ["R"], label: "Switch blaster / cannon", codes: ["KeyR"] },
     { caps: ["T"], label: "Lock target", codes: ["KeyT"] },
     { caps: ["G"], label: p => p.multiplayer ? "Travel to navigation target" : "Warp to target", codes: ["KeyG"] },
-    { caps: ["J"], label: "Hold 1.5s to dock on the aimed main node", codes: ["KeyJ"] },
+    { caps: ["F"], label: "Hold 1.5s to dock on the aimed main node", codes: ["KeyF"] },
     { caps: ["H"], label: p => p.multiplayer ? "Warp disabled in multiplayer" : "Back to the hub", codes: ["KeyH"] },
     { caps: ["B"], label: p => p.multiplayer ? "Cluster filters (solo only)" : "Toggle aimed cluster (Shift: all)", codes: ["KeyB"] },
   ] },
@@ -787,7 +788,7 @@ export class PilotController {
     this.container.focus({ preventScroll: true });
     this.requestLock();
     this.audio.start();
-    this.host.onState(true, "Pilot mode on. W A S D to fly, mouse to steer, click or F to fire, Shift for afterburner, P to leave.");
+    this.host.onState(true, "Pilot mode on. W A S D to fly, mouse to steer, click to fire, hold F to dock, Shift for afterburner, P to leave.");
   }
 
   shipSnapshot(): { position: [number, number, number]; rotation: [number, number, number, number]; velocity: [number, number, number] } {
@@ -928,22 +929,22 @@ export class PilotController {
   }
 
   private updateDocking(dt: number, controlsEnabled: boolean): void {
-    const held = controlsEnabled && this.health > 0 && this.keys.has("KeyJ");
+    const held = controlsEnabled && this.health > 0 && this.keys.has("KeyF");
     if (!held) { this.dockHeld = 0; this.dockTargetKey = ""; this.dockSent = false; }
     if (this.clock < this.dockMessageUntil) { this.dockingPrompt.textContent = this.dockMessage; return; }
     if (held && this.dockSent) { this.dockingPrompt.textContent = "Docking requested · release the docking key before retrying"; return; }
     const target = this.host.dockingTarget?.(), speed = this.vel.length();
     let message = "Dock · Aim the ship at a main sphere";
-    const ready = !!target && target.distance >= 0 && target.distance <= 12 && speed <= 10;
+    const ready = !!target && target.distance >= 0 && target.distance <= PILOT_DOCK_RANGE_WORLD_UNITS && speed <= 10;
     if (target) message = target.distance < 0 ? "Dock · Move outside the main sphere"
-      : target.distance > 12 ? `Dock · ${target.distance.toFixed(1)}u from surface · approach within 12u`
+      : target.distance > PILOT_DOCK_RANGE_WORLD_UNITS ? `Dock · ${target.distance.toFixed(1)}u from surface · approach within ${PILOT_DOCK_RANGE_WORLD_UNITS}u`
       : speed > 10 ? `Dock · Hold X to brake · speed ${speed.toFixed(1)} (maximum 10)`
-      : `Dock · ${target.distance.toFixed(1)}u from surface · Hold J for 1.5s`;
+      : `Dock · ${target.distance.toFixed(1)}u from surface · Hold F for 1.5s`;
     if (!ready || !held) { this.dockHeld = 0; this.dockTargetKey = ""; }
     else {
       if (this.dockTargetKey !== target.key) { this.dockHeld = 0; this.dockTargetKey = target.key; }
       this.dockHeld = Math.min(1.5, this.dockHeld + Math.max(0, Math.min(0.1, dt)));
-      message = `Docking · ${Math.round(this.dockHeld / 1.5 * 100)}% · keep holding J`;
+      message = `Docking · ${Math.round(this.dockHeld / 1.5 * 100)}% · keep holding F`;
       if (this.dockHeld >= 1.5 - 1e-6) {
         this.dockSent = true;
         this.host.onDockRequest?.(this.aimDestination, this.aim);
@@ -979,7 +980,7 @@ export class PilotController {
         break;
       }
       case "KeyH": this.returnToHub(); break;
-      case "KeyJ": break; // Continuous hold and progress are handled by updateDocking.
+      case "KeyF": break; // Continuous hold and progress are handled by updateDocking.
       case "KeyB": if (!this.opts.multiplayer) { const node = this.host.pickAt(this.aimX, this.aimY, AIM_SLACK); this.host.onFoldGroup?.(node >= 0 ? this.host.nodes()[node]?.gi ?? -1 : -1, e.shiftKey); } break;
       case "KeyN": if (this.opts.multiplayer) this.cycleWatch(); break;
       case "Tab": this.host.showScores(true); break;
@@ -988,7 +989,7 @@ export class PilotController {
     }
   };
 
-  private onKeyUp = (e: KeyboardEvent) => { this.keys.delete(e.code); if (e.code === "KeyJ") { this.dockHeld = 0; this.dockTargetKey = ""; this.dockSent = false; } this.lightKey(e.code, false); if (e.code === "Tab") this.host.showScores(false); };
+  private onKeyUp = (e: KeyboardEvent) => { this.keys.delete(e.code); if (e.code === "KeyF") { this.dockHeld = 0; this.dockTargetKey = ""; this.dockSent = false; } this.lightKey(e.code, false); if (e.code === "Tab") this.host.showScores(false); };
   private onBlur = () => { this.keys.clear(); this.firing = false; this.host.showScores(false); if (this.active && this.opts.multiplayer) this.sendNetworkInput(); for (const list of this.keyCaps.values()) for (const el of list) el.classList.remove("cg-down"); };
 
   private toggleLock(): void {
@@ -1101,7 +1102,7 @@ export class PilotController {
     this.updateAimPoint();
     this.cooldown = Math.max(0, this.cooldown - dt);
     if (this.firePending) { this.firePending = false; if (controlsEnabled && this.health > 0) this.fire(this.firePendingCtrl); }
-    if (controlsEnabled && this.health > 0 && (this.firing || k.has("KeyF")) && this.cooldown <= 0 && (this.locked || k.has("KeyF") || this.opts.mouse === "cursor")) this.fire(false);
+    if (controlsEnabled && this.health > 0 && this.firing && this.cooldown <= 0 && (this.locked || this.opts.mouse === "cursor")) this.fire(false);
 
     this.updateDocking(dt, controlsEnabled);
     if (!this.active) return; // Solo docking switches controllers synchronously.
@@ -1126,7 +1127,7 @@ export class PilotController {
       lift: (this.keys.has("Space") ? 1 : 0) - (this.keys.has("KeyC") ? 1 : 0),
       roll: (this.keys.has("KeyQ") ? 1 : 0) - (this.keys.has("KeyE") ? 1 : 0),
       pitch: this.stick.y, yaw: this.stick.x,
-      boost: this.keys.has("ShiftLeft") || this.keys.has("ShiftRight"), brake: this.keys.has("KeyX"), fire: this.firing || this.keys.has("KeyF"),
+      boost: this.keys.has("ShiftLeft") || this.keys.has("ShiftRight"), brake: this.keys.has("KeyX"), fire: this.firing,
       active: this.active && this.roomVisible && !this.watchingId && !document.hidden && document.hasFocus(),
       mouseMode: this.opts.mouse, mouseSamples: [], sensitivity: this.opts.sensitivity, agility: this.opts.agility, invertY: this.opts.invertY, ticks: [],
     };

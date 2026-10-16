@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {build} from 'esbuild';
-const bundle=await build({stdin:{contents:`export * as terrain from './src/surfaceTerrain';export * as physics from './src/surfacePhysics';export * as combat from './src/surfaceCombat';export * as layout from './src/surfaceTerrainLayout';export * as geometry from './src/surfaceGeometry';export * as mesh from './src/surfaceTerrainMesh';export * as world from './src/surfaceWorld';export * as wire from './src/surfaceGeometryWire';export * as cover from './src/surfaceCover';export * as coverWire from './src/surfaceCoverWire';export * as collision from './src/surfaceCollision';export * as authority from './src/surfaceAuthority';export * as snapshotWire from './src/surfaceSnapshotWire';export * as visuals from './src/surfaceVisuals';export * as patrol from './src/surfacePatrol';export * as presentation from './src/surfacePresentation';`,resolveDir:process.cwd()},bundle:true,platform:'node',format:'esm',write:false});
-const {terrain:t,physics:p,layout,geometry,mesh,world,wire,cover,coverWire,combat,collision,authority,snapshotWire,visuals,patrol,presentation}=await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString('base64')}`);
+const bundle=await build({stdin:{contents:`import * as THREE from 'three';export {THREE};export * as terrain from './src/surfaceTerrain';export * as physics from './src/surfacePhysics';export * as combat from './src/surfaceCombat';export * as layout from './src/surfaceTerrainLayout';export * as geometry from './src/surfaceGeometry';export * as mesh from './src/surfaceTerrainMesh';export * as world from './src/surfaceWorld';export * as wire from './src/surfaceGeometryWire';export * as cover from './src/surfaceCover';export * as coverWire from './src/surfaceCoverWire';export * as collision from './src/surfaceCollision';export * as authority from './src/surfaceAuthority';export * as snapshotWire from './src/surfaceSnapshotWire';export * as visuals from './src/surfaceVisuals';export * as patrol from './src/surfacePatrol';export * as presentation from './src/surfacePresentation';export * as operative from './src/surfaceOperative';export * as botPresentation from './src/surfaceBotPresentation';export * as view from './src/surfaceView';export * as nameplates from './src/surfaceNameplates';`,resolveDir:process.cwd()},bundle:true,platform:'node',format:'esm',write:false});
+const {THREE,terrain:t,physics:p,layout,geometry,mesh,world,wire,cover,coverWire,combat,collision,authority,snapshotWire,visuals,patrol,presentation,operative,botPresentation,view,nameplates}=await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString('base64')}`);
 const idle={moveX:0,moveY:0,sprint:false,jump:false,crouch:false,yawDelta:0,pitchDelta:0,lean:0};
 const normalize=v=>{const r=Math.hypot(...v);return v.map(x=>x/r)};
 test('terrain format hashes reject altered content and accept reordered fields',()=>{
@@ -167,6 +167,56 @@ test('East Patrol display interpolation follows terrain elevation from the pole 
  for(const amount of [0,.1,.25,.5,.75,.9,1]){
   const displayed=presentation.interpolateSurfaceBotState(from,to,amount,arena);
   assert.ok(Math.abs(q.signedDistance(displayed.position))<1e-6,`interpolated bot sank at ${amount}`);
+ }
+});
+
+test('rendered patrol boot soles contact the terrain mesh across heights and camera LODs',()=>{
+ const definition=t.createTerrainDefinition(908,27),radius=definition.radius,center=[19,-7,31],scale=view.SURFACE_WORLD_SCALE;
+ const cameraOffsets=[0,.16,.3];
+ const candidates=[];for(const latitude of [-.65,-.3,-.12,0,.12,.3,.65])for(let longitude=0;longitude<Math.PI*2;longitude+=.15){const normal=[Math.cos(latitude)*Math.cos(longitude),Math.sin(latitude),Math.cos(latitude)*Math.sin(longitude)];candidates.push({normal,latitude,height:t.terrainHeight(definition,normal)});}
+ const lowest=candidates.reduce((a,b)=>a.height<b.height?a:b),highest=candidates.reduce((a,b)=>a.height>b.height?a:b);
+ const botNormals=[lowest.normal,highest.normal,candidates.find(candidate=>Math.abs(candidate.latitude-.12)<1e-6).normal,candidates.find(candidate=>Math.abs(candidate.latitude+.3)<1e-6).normal];
+ const heights=botNormals.map(normal=>t.terrainHeight(definition,normal));assert.ok(Math.max(...heights)-Math.min(...heights)>.4,'fixture spans distinct terrain elevations');
+ for(const normal of botNormals){
+  const radial=new THREE.Vector3(...normal),tangent=new THREE.Vector3(-normal[2],0,normal[0]).projectOnPlane(radial).normalize();
+  for(const offset of cameraOffsets){
+   const observer=radial.clone().applyAxisAngle(tangent,offset).multiplyScalar(radius+1.65).toArray();
+   const scene=new THREE.Scene(),planetRoot=new THREE.Group();planetRoot.position.set(...center);planetRoot.scale.setScalar(scale);
+   const planet=new THREE.Mesh(mesh.buildTerrainMesh(definition,observer),new THREE.MeshBasicMaterial({side:THREE.DoubleSide}));planetRoot.add(planet);scene.add(planetRoot);
+   scene.updateMatrixWorld(true);
+   for(const axis of [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]]){
+    const sample=mesh.sampleTerrainMeshSurface(planet.geometry,axis),origin=new THREE.Vector3(...center).addScaledVector(new THREE.Vector3(...axis),(radius+5)*scale),hit=new THREE.Raycaster(origin,new THREE.Vector3(...axis).negate(),0,3).intersectObject(planet,true)[0];
+    assert.ok(sample&&hit,'mesh sampling covers all six cube-sphere faces');
+    const hitLocal=view.worldToSurface(hit.point.toArray(),center);assert.ok(Math.abs(sample.radius-Math.hypot(...hitLocal))<1e-4,'mesh sample matches the rendered triangle');
+   }
+   const forward=new THREE.Vector3(-normal[2],0,normal[0]).projectOnPlane(new THREE.Vector3(...normal)).normalize().toArray();
+   const start=p.createSurfacePlayerState(normal,forward,radius,definition),nextNormal=new THREE.Vector3(...normal).multiplyScalar(Math.cos(.06)).addScaledVector(new THREE.Vector3(...forward),Math.sin(.06)).normalize().toArray();
+   const next=p.createSurfacePlayerState(nextNormal,forward,radius,definition),state=presentation.interpolateSurfaceBotState(start,next,.5,{radius,terrain:definition});state.velocity=forward.map(v=>v*4.5);
+   const root=new THREE.Group(),model=new operative.SurfaceOperative('#ffffff');root.add(model.group);scene.add(root);
+   for(let frame=0;frame<4;frame++){
+    const displayed=botPresentation.poseSurfaceOperativeOnTerrain(root,model,state,{radius,terrain:definition},center,.11,planet.geometry);
+    scene.updateMatrixWorld(true);
+    const contactGaps=[],analyticGaps=[];
+    const boots=[];model.group.traverse(object=>{if(object instanceof THREE.Mesh&&object.name==='boot')boots.push(object);});
+    for(const boot of boots){boot.geometry.computeBoundingBox();const box=boot.geometry.boundingBox;
+     for(const x of [box.min.x,box.max.x])for(const z of [box.min.z,box.max.z]){
+      const foot=new THREE.Vector3(x,box.min.y,z).applyMatrix4(boot.matrixWorld),radial=view.worldToSurface(foot.toArray(),center),up=new THREE.Vector3(...radial).normalize();
+      analyticGaps.push(t.terrainQuery(definition).signedDistance(radial));
+      const clearance=2,origin=foot.clone().addScaledVector(up,clearance),ray=new THREE.Raycaster(origin,up.clone().negate(),0,5),hit=ray.intersectObject(planet,true)[0];
+      if(hit)contactGaps.push((hit.distance-clearance)/scale);
+     }
+    }
+    assert.ok(contactGaps.length>0,`boot soles must intersect the visible terrain mesh; observer=${observer}; bot=${normal}; root=${root.position.toArray()}`);
+    assert.ok(Math.min(...contactGaps.map(Math.abs))<.04&&Math.min(...contactGaps)>-.08,`rendered sole contact gaps ${contactGaps.join(',')} analytic=${analyticGaps.join(',')}`);
+    const displayedRoot=view.worldToSurface(root.position.toArray(),center);assert.deepEqual(displayed.position,displayedRoot,'the nameplate uses the corrected rendered root pose');
+    const labelWorld=model.upper.localToWorld(new THREE.Vector3(0,.9,0)),labelPoint=view.worldToSurface(labelWorld.toArray(),center),camera=new THREE.PerspectiveCamera(55,1,.02,2000);
+    camera.position.set(...view.surfaceToWorld(observer,center));camera.lookAt(labelWorld);camera.updateMatrixWorld();
+    const projected=nameplates.projectSurfaceNameplate(camera,{id:'patrol',name:'West patrol',health:100,arenaKey:'test',state:displayed,labelPoint},{key:'test',center,arena:{radius,terrain:definition,walls:[]}},center);
+    assert.ok(projected);assert.ok(projected.distanceTo(labelWorld.clone().project(camera))<1e-8,'the label anchor matches the rendered helmet pose');
+   }
+   root.traverse(object=>{if(object instanceof THREE.Mesh){object.geometry.dispose();if(Array.isArray(object.material))object.material.forEach(material=>material.dispose());else object.material.dispose();}});
+   root.removeFromParent();planet.geometry.dispose();planet.material.dispose();
+  }
  }
 });
 

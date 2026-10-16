@@ -25,7 +25,7 @@ const HELP = [
   "Space: pause or resume motion",
   "A: animate, watching notes appear in the order they were created",
   "N: supernova, collapse everything, explode it and let it re-settle",
-  "P: Pilot mode. W A S D fly, mouse looks, Shift boosts, X brakes, click or F fires. J docks on the aimed main node. On a surface, W A S D move, Space jumps, Shift sprints, Left Control crouches, Q/E lean, click fires, and hold F at a pole to return to the ship. T locks a note target, G warps to it and H returns to the hub.",
+  "P: Pilot mode. W A S D fly, mouse looks, Shift boosts, X brakes, click fires, and hold F to dock on the aimed main node. On a surface, W A S D move, Space jumps, Shift sprints, Left Control crouches, Q/E lean, click fires, and hold F at a pole to return to the ship. T locks a note target, G warps to it and H returns to the hub.",
   "R: reset the view · L: note list · /: search · Esc: clear. During multiplayer, click a star to set a travel target; notes cannot be selected or opened.",
   "Mouse: drag to orbit, scroll to zoom, click to select outside a room or set a travel target inside one, double-click or Ctrl+click to open outside a room, right-click to clear",
 ];

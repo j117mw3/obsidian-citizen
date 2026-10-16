@@ -2,9 +2,16 @@
 
 ## Publication history
 
-Versions **0.5.1 through 0.7.5** are published as individual [GitHub releases](https://github.com/j117mw3/obsidian-citizen/releases), each with its own version tag, plugin files, ZIP, checksums, and update notes. Recovered 0.5.1–0.7.1 packages retain the `constellation-graph` ID. Their tags preserve recovered release files because matching historical TypeScript source snapshots were not saved. Existing 0.3.x releases and the superseded 0.5.0 draft are retained. Version 0.7.2 begins the independent `citizen` plugin identity; manual settings migration is described in the README. The patrol-grounding fix was initially tested as a local 0.7.2.1 package; its public release is 0.7.3 to use Obsidian's required three-part version format.
+Versions **0.5.1 through 0.7.7** are published as individual [GitHub releases](https://github.com/j117mw3/obsidian-citizen/releases), each with its own version tag, plugin files, ZIP, checksums, and update notes. Recovered 0.5.1–0.7.1 packages retain the `constellation-graph` ID. Their tags preserve recovered release files because matching historical TypeScript source snapshots were not saved. Existing 0.3.x releases and the superseded 0.5.0 draft are retained. Version 0.7.2 begins the independent `citizen` plugin identity; manual settings migration is described in the README. The patrol-grounding fix was initially tested as a local 0.7.2.1 package; its public release is 0.7.3 to use Obsidian's required three-part version format.
 
-Version **0.7.6** is published with the three supported plugin files and provenance attestations. Its install ZIP and checksums are retained as GitHub Actions workflow artifacts.
+Version **0.7.6** was initially published with the three supported plugin files and provenance attestations; its install ZIP and checksums were later regenerated from the tag and added by the release workflow.
+
+## 0.7.7 — terrain-grounded patrols and flight controls
+
+- Keep the displayed patrol operative, animated boots, and nameplate attached to the rendered terrain surface, including interpolated motion and terrain level-of-detail changes. Authoritative patrol state and multiplayer protocol 14 remain unchanged.
+- Use left-click to fire in flight and hold F for 1.5 seconds to dock. Keep surface-mode F for returning to the ship; remove J as a docking input.
+- Extend the shared HUD and host docking limit from 12 to 14 world units. Release, target changes, and lost readiness reset docking progress.
+- Keep the install archive and SHA-256 checksums attached to the GitHub release alongside the three supported plugin files and provenance attestations.
 
 ## 0.7.6 — Citizen review compliance
 
