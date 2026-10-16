@@ -1,13 +1,14 @@
-# Obsidian Citizen 0.6.3
+# Obsidian Citizen 0.6.4
 
-- Make graph nodes, links, navigation markers and other world overlays respect scene depth during the surface world draw, including bloom rendering. Opaque planets and cover hide geometry behind them while unobstructed exterior space stays visible.
-- Restore original material depth settings after each world draw, preserving orbit/flight appearance and the separate first-person viewmodel overlay.
-- Hide graph-node labels and ship indicators whose camera ray intersects an arena sphere, using the current displayed center and radius.
-- Keep gameplay, weapon balance, physics, settings and room/checkpoint protocol 9 unchanged. Native pixel verification remains user-observed after restart.
+- Remove the wall diagnostics checkbox, overlay, counters and callback.
+- Add cosmetic opaque panel/circuit surface paint and cyan/amber pole routes without changing movement, cover, geometry identity or collision.
+- Show public pilot names above red HP bars for visible same-arena opponents and the training dummy. Test displayed head line of sight against physical walls and planet curvature before revealing either label.
+- Add actual-damage feedback for solo dummy hits and make confirmed multiplayer hit feedback clearer: a centered white marker with up to 450 ms visibility. Walls, floor, misses and predicted shots never trigger character-hit feedback.
+- Reuse existing authoritative health and hit confirmations; room/checkpoint protocol 9, weapon balance and saved settings remain unchanged.
 
 ## Install
 
-Download `main.js`, `manifest.json`, and `styles.css`, or extract `Obsidian-Citizen-0.6.3.zip` into `<vault>/.obsidian/plugins/constellation-graph/` with Obsidian closed. Back up your existing plugin and settings first. These original files retain the historical `constellation-graph` ID. All multiplayer participants need the same version. Requires desktop Obsidian 1.7.2 or newer.
+Download `main.js`, `manifest.json`, and `styles.css`, or extract `Obsidian-Citizen-0.6.4.zip` into `<vault>/.obsidian/plugins/constellation-graph/` with Obsidian closed. Back up your existing plugin and settings first. These original files retain the historical `constellation-graph` ID. All multiplayer participants need the same version. Requires desktop Obsidian 1.7.2 or newer.
 
 ## Verification and provenance
 
