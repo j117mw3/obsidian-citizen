@@ -2,7 +2,13 @@
 
 ## Publication history
 
-Versions **0.5.1 through 0.7.1** are published as individual [GitHub releases](https://github.com/j117mw3/obsidian-citizen/releases), each with its own version tag, original plugin files, ZIP, checksums, and update notes. Those packages retain the `constellation-graph` ID. Their tags preserve recovered release files because matching historical TypeScript source snapshots were not saved. Existing 0.3.x releases and the superseded 0.5.0 draft are retained. Version 0.7.2 begins the independent `citizen` plugin identity; manual settings migration is described in the README.
+Versions **0.5.1 through 0.7.3** are published as individual [GitHub releases](https://github.com/j117mw3/obsidian-citizen/releases), each with its own version tag, plugin files, ZIP, checksums, and update notes. Those earlier packages retain the `constellation-graph` ID. Their tags preserve recovered release files because matching historical TypeScript source snapshots were not saved. Existing 0.3.x releases and the superseded 0.5.0 draft are retained. Version 0.7.2 begins the independent `citizen` plugin identity; manual settings migration is described in the README. The patrol-grounding fix was initially tested as a local 0.7.2.1 package; its public release is 0.7.3 to use Obsidian's required three-part version format.
+
+## 0.7.3 — patrol terrain-grounding hotfix
+
+- Keep interpolated patrol bot positions on the terrain surface instead of flattening them to the planet's base radius. This prevents bots sinking into raised terrain and appearing too high over depressions as they move across latitude.
+- Preserve room protocol 14 and checkpoint format 14; authoritative bot and player state is unchanged.
+- Add an East Patrol regression across an equatorward terrain-height change. Typecheck, production build, automated tests, network harness, and package integrity are recorded in [0.7.3 verification](docs/verification-0.7.3.md).
 
 
 ## 0.7.2 — shared planet combat and ten-kill rounds

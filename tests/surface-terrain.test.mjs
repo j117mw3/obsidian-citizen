@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {build} from 'esbuild';
-const bundle=await build({stdin:{contents:`export * as terrain from './src/surfaceTerrain';export * as physics from './src/surfacePhysics';export * as combat from './src/surfaceCombat';export * as layout from './src/surfaceTerrainLayout';export * as geometry from './src/surfaceGeometry';export * as mesh from './src/surfaceTerrainMesh';export * as world from './src/surfaceWorld';export * as wire from './src/surfaceGeometryWire';export * as cover from './src/surfaceCover';export * as coverWire from './src/surfaceCoverWire';export * as collision from './src/surfaceCollision';export * as authority from './src/surfaceAuthority';export * as snapshotWire from './src/surfaceSnapshotWire';export * as visuals from './src/surfaceVisuals';export * as patrol from './src/surfacePatrol';`,resolveDir:process.cwd()},bundle:true,platform:'node',format:'esm',write:false});
-const {terrain:t,physics:p,layout,geometry,mesh,world,wire,cover,coverWire,combat,collision,authority,snapshotWire,visuals,patrol}=await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString('base64')}`);
+const bundle=await build({stdin:{contents:`export * as terrain from './src/surfaceTerrain';export * as physics from './src/surfacePhysics';export * as combat from './src/surfaceCombat';export * as layout from './src/surfaceTerrainLayout';export * as geometry from './src/surfaceGeometry';export * as mesh from './src/surfaceTerrainMesh';export * as world from './src/surfaceWorld';export * as wire from './src/surfaceGeometryWire';export * as cover from './src/surfaceCover';export * as coverWire from './src/surfaceCoverWire';export * as collision from './src/surfaceCollision';export * as authority from './src/surfaceAuthority';export * as snapshotWire from './src/surfaceSnapshotWire';export * as visuals from './src/surfaceVisuals';export * as patrol from './src/surfacePatrol';export * as presentation from './src/surfacePresentation';`,resolveDir:process.cwd()},bundle:true,platform:'node',format:'esm',write:false});
+const {terrain:t,physics:p,layout,geometry,mesh,world,wire,cover,coverWire,combat,collision,authority,snapshotWire,visuals,patrol,presentation}=await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString('base64')}`);
 const idle={moveX:0,moveY:0,sprint:false,jump:false,crouch:false,yawDelta:0,pitchDelta:0,lean:0};
 const normalize=v=>{const r=Math.hypot(...v);return v.map(x=>x/r)};
 test('terrain format hashes reject altered content and accept reordered fields',()=>{
@@ -152,6 +152,21 @@ test('training patrols use terrain grounding and clear capsule paths around perm
   const actor=patrol.createSurfacePatrol(arena,index),initial=[...actor.state.position];let traveled=0;
   for(let frame=0;frame<1200;frame++){const before=actor.state.position;const state=patrol.stepSurfacePatrol(actor,arena,1/60);traveled+=Math.hypot(...state.position.map((v,k)=>v-before[k]));assert.ok(Math.abs(q.signedDistance(state.position))<1e-5);assert.ok(p.surfacePoseClear(state.position,1.8,arena.walls));}
   assert.ok(traveled>5,'patrol must find an open approach instead of staying blocked');
+ }
+});
+test('East Patrol display interpolation follows terrain elevation from the pole toward the equator',()=>{
+ const arena=geometry.generateDirectedSurfaceArena('east-patrol-grounding',[],new Map(),true),q=t.terrainQuery(arena.terrain),r=arena.radius;
+ let fromNormal,toNormal;
+ for(let longitude=0;longitude<Math.PI*2&&!fromNormal;longitude+=.01){
+  const atLatitude=latitude=>[Math.cos(latitude)*Math.cos(longitude),Math.sin(latitude),Math.cos(latitude)*Math.sin(longitude)];
+  const from=atLatitude(.62),to=atLatitude(.12);
+  if(Math.abs(q.height(to)-q.height(from))>.15){fromNormal=from;toNormal=to;}
+ }
+ assert.ok(fromNormal&&toNormal,'fixture must contain a visible equatorward elevation change');
+ const from=p.createSurfacePlayerState(fromNormal,[0,0,-1],r,arena.terrain),to=p.createSurfacePlayerState(toNormal,[0,0,-1],r,arena.terrain);
+ for(const amount of [0,.1,.25,.5,.75,.9,1]){
+  const displayed=presentation.interpolateSurfaceBotState(from,to,amount,arena);
+  assert.ok(Math.abs(q.signedDistance(displayed.position))<1e-6,`interpolated bot sank at ${amount}`);
  }
 });
 

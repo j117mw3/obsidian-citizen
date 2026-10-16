@@ -30,7 +30,7 @@ import { createSurfacePlayerState, type SurfaceInput } from "./surfacePhysics";
 import { spreadSurfaceDirection, surfaceSpreadDegrees, surfaceSeed, traceSurfaceSegment } from "./surfaceCombat";
 import type { SurfaceCombatTarget } from "./surfaceCombat";
 import { SurfaceHistory, type SurfaceHistoryFrame } from "./surfaceHistory";
-import { presentSurfacePlayers } from "./surfacePresentation";
+import { interpolateSurfaceBotState, presentSurfacePlayers } from "./surfacePresentation";
 import type { SurfaceNetworkSnapshot, SurfacePlayerSnapshot, SurfaceProjectileSnapshot } from "./surfaceAuthority";
 import { DEFAULT_SURFACE_LASER_COLOR, normalizeSurfaceLaserColor } from "./surfaceColor";
 import { stepSurfacePlayer } from "./surfacePhysics";
@@ -1663,7 +1663,7 @@ export class ConstellationRenderer implements GraphRenderer {
       const arena = this.multiplayer ? this.roomSurfaceArenas.get(visual.bot.arenaKey) : this.surfaceWorld.getArena(visual.bot.arenaKey);
       if (!arena) continue;
       const t = this.multiplayer ? Math.max(0, Math.min(1, (performance.now() - visual.receivedAt) / Math.max(1, visual.duration))) : 1;
-      const state = this.interpolateSurfaceBotState(visual.from, visual.target, t);
+      const state = interpolateSurfaceBotState(visual.from, visual.target, t, arena.arena);
       const up = new THREE.Vector3(...state.position).normalize(), forward = new THREE.Vector3(...state.forward).projectOnPlane(up).normalize();
       const right = new THREE.Vector3().crossVectors(forward, up).normalize();
       visual.group.position.set(...surfaceToWorld(state.position, this.surfaceDisplayCenter(arena)));
@@ -1672,13 +1672,6 @@ export class ConstellationRenderer implements GraphRenderer {
     }
     this.updateSurfaceBotShots(now);
     this.updateSurfaceBotDrops();
-  }
-
-  private interpolateSurfaceBotState(from: SurfacePlayerState, to: SurfacePlayerState, amount: number): SurfacePlayerState {
-    const lerp = (a: readonly number[], b: readonly number[]) => a.map((value, index) => value + (b[index] - value) * amount);
-    const position = new THREE.Vector3(...lerp(from.position, to.position)).normalize().multiplyScalar(to.radius ?? SURFACE.radius);
-    const forward = new THREE.Vector3(...lerp(from.forward, to.forward)).projectOnPlane(position.clone().normalize()).normalize();
-    return { ...to, position: position.toArray() as [number, number, number], forward: forward.toArray() as [number, number, number], velocity: lerp(from.velocity, to.velocity) as [number, number, number] };
   }
 
   private updateSurfaceBotShots(now: number): void {
