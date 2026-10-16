@@ -1,0 +1,9 @@
+{
+  "id": "constellation-graph",
+  "name": "Obsidian Citizen",
+  "version": "0.5.1",
+  "minAppVersion": "1.7.2",
+  "description": "A 3D constellation of your notes with a flyable multiplayer space sandbox.",
+  "author": "JusVibin",
+  "isDesktopOnly": true
+}
