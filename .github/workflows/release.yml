@@ -28,6 +28,9 @@ jobs:
       - name: Install
         run: npm ci
 
+      - name: Install signaling test dependency
+        run: npm ci --prefix server --omit=dev
+
       - name: Check that the tag matches manifest.json
         run: |
           version=$(node -p "require('./manifest.json').version")
