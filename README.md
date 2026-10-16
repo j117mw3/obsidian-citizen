@@ -4,7 +4,7 @@ Citizen turns your notes into a 3D constellation you can explore, fly through, a
 
 ## A fork taking a different direction
 
-This project combines Hunter / JusVibin's original [Constellation Graph](https://github.com/xjusvibin/obsidian-constellation-graph) foundation with J117W3's multiplayer, cockpit, docking, and planetary arena work. Hunter's graph, flight, spacecraft, and audio work remains credited, and the original MIT copyright notice is retained. Citizen is an independently maintained fork: its direction is a playable space and surface sandbox built around a private note constellation. It is a community project and is not affiliated with Obsidian.
+This project combines JusVibin's original [Constellation Graph](https://github.com/xjusvibin/obsidian-constellation-graph) foundation with J117W3's multiplayer, cockpit, docking, and planetary arena work. Hunter's graph, flight, spacecraft, and audio work remains credited, and the original MIT copyright notice is retained. Citizen is an independently maintained fork: its direction is a playable space and surface sandbox built around a private note constellation. It is a community project and is not affiliated with Obsidian.
 
 ## Download and install
 
