@@ -1,13 +1,14 @@
 import * as THREE from "three";
-import type { AnonymousPlayer, FlightInput, ImpactSnapshot, Pose, ShotSnapshot } from "./multiplayer";
+import type { AnonymousPlayer, FlightInput, FlightTick, ImpactSnapshot, Pose, ShotSnapshot } from "./multiplayer";
 import { MULTIPLAYER_SHIP_SCALE, shipMuzzles } from "./ship";
-import { FLIGHT, stepFlightRotation, stepFlightVelocity } from "./flight";
+import { FLIGHT, StarCollisionGrid, stepBoostResources, stepFlightRotation, stepFlightVelocity } from "./flight";
 import { DEFAULT_PILOT_PROFILE, LASER_SOUND_IDS, stepPresentation, type PilotProfile } from "./pilotProfile";
-import type { EliminationEvent, LayoutRequirement, RoundPhase, RoundSnapshot } from "./rounds";
+import { PLAYER_KILLS_TO_WIN, type EliminationEvent, type LayoutRequirement, type RoundPhase, type RoundSnapshot } from "./rounds";
 import { BOLT_REACH, HULL_MAX, SHIELD_DELAY, SHIELD_MAX, SHIELD_REGEN, SHIP_HIT_RADIUS, damageAt, weaponStats } from "./weapons";
 
 const SLOTS: [number, number, number][] = [[0, 0, 0], [2300, 0, 0], [-1150, 0, 1992], [-1150, 0, -1992]];
-const FULL: FlightInput = { thrust: 0, strafe: 0, lift: 0, roll: 0, pitch: 0, yaw: 0, boost: false, brake: false, fire: false, active: false, weapon: 0 };
+const FULL: FlightInput = { sequence: 0, thrust: 0, strafe: 0, lift: 0, roll: 0, pitch: 0, yaw: 0, boost: false, brake: false, fire: false, active: false,
+  mouseMode: "capture", mouseSamples: [], sensitivity: 1, agility: 1, invertY: false };
 const clamp = (x: number, a: number, b: number) => Math.max(a, Math.min(b, x));
 
 interface Fighter {
@@ -15,19 +16,23 @@ interface Fighter {
   input: FlightInput; health: number; shields: number; shieldDelay: number; damagePause: number;
   weapon: 0 | 1; heat: number; overheated: boolean; ammunition: number; deaths: number;
   energy: number; boostLocked: boolean; regenDelay: number; emptyWait: number;
-  respawnAt: number; protectedUntil: number; resumeAt: number; fireAt: number; inputAt: number; active: boolean;
-  resumeAfterRespawn: boolean; lastFireSequence: number; travel: Travel | null; profile: PilotProfile; bank: number; tilt: number; kills: number;
+  respawnAt: number; protectedUntil: number; resumeAt: number; fireAt: number; inputAt: number; active: boolean; docked: boolean;
+  weaponSequence: number; inputSequence: number; receivedInputSequence: number; inputTick: number; receivedInputTick: number; tickQueue: Map<number, FlightTick>; mouseX: number; mouseY: number;
+  mouseQueue: { sequence: number; dx: number; dy: number; last: boolean }[];
+  resumeAfterRespawn: boolean; lastFireSequence: number; fireCooldownDuration: number; travel: Travel | null; profile: PilotProfile; bank: number; tilt: number; kills: number;
 }
 interface Travel { from: [number, number, number]; to: [number, number, number]; rotationFrom: [number, number, number, number]; rotationTo: [number, number, number, number]; startedAt: number; duration: number }
-interface Projectile { id: string; ownerId: string; gun: number; weapon: 0 | 1; origin: [number, number, number]; pos: THREE.Vector3; direction: THREE.Vector3; velocity: THREE.Vector3; remaining: number; travelled: number; sound: typeof LASER_SOUND_IDS[number]; startedAt: number }
+interface Projectile { id: string; ownerId: string; gun: number; weapon: 0 | 1; origin: [number, number, number]; pos: THREE.Vector3; direction: THREE.Vector3; velocity: THREE.Vector3; speed: number; remaining: number; travelled: number; sound: typeof LASER_SOUND_IDS[number]; startedAt: number }
 interface Impact { id: string; position: [number, number, number]; kind: "star" | "ship"; at: number }
 
 /** Small fixed-step room simulation. Vault data is never accepted by this class. */
 export class CombatWorld {
   readonly players = new Map<string, Fighter>();
+  private obstacleRadii = new Map<string, Float32Array>();
   private obstacleSets = new Map<string, Float32Array>();
-  private obstacleGrid = new Map<string, { position: [number, number, number]; ownerId: string }[]>();
+  private obstacleGrid = new StarCollisionGrid();
   private obstaclesDirty = false;
+  private parkedShipPositions = new Map<string, THREE.Vector3>();
   private projectiles: Projectile[] = [];
   private impacts: Impact[] = [];
   private impactSequence = 0;
@@ -51,7 +56,8 @@ export class CombatWorld {
     this.players.set(member.id, {
       id: member.id, slot: member.slot, pos: new THREE.Vector3(origin[0], origin[1], origin[2] + 80), vel: new THREE.Vector3(), rot: new THREE.Quaternion(), spin: new THREE.Vector3(),
       input: { ...FULL }, health: HULL_MAX, shields: SHIELD_MAX, shieldDelay: 0, damagePause: 0, weapon: 0, heat: 0, overheated: false, ammunition: 36, deaths: 0,
-      energy: 1, boostLocked: false, regenDelay: 0, emptyWait: 0, respawnAt: 0, protectedUntil: 0, resumeAt: 0, fireAt: 0, inputAt: 0, active: false, resumeAfterRespawn: false, lastFireSequence: 0, travel: null,
+      energy: 1, boostLocked: false, regenDelay: 0, emptyWait: 0, respawnAt: 0, protectedUntil: 0, resumeAt: 0, fireAt: 0, inputAt: 0, active: false, docked: false,
+      weaponSequence: 0, inputSequence: 0, receivedInputSequence: 0, inputTick: 0, receivedInputTick: 0, tickQueue: new Map(), mouseX: 0, mouseY: 0, mouseQueue: [], resumeAfterRespawn: false, lastFireSequence: 0, fireCooldownDuration: 160, travel: null,
       profile: member.profile ?? DEFAULT_PILOT_PROFILE, bank: 0, tilt: 0, kills: this.scoreRecords.get(member.id)?.kills ?? 0,
     });
     if (!this.scoreRecords.has(member.id)) this.scoreRecords.set(member.id, { kills: 0, deaths: 0 });
@@ -81,27 +87,103 @@ export class CombatWorld {
     player.active = false; player.input = { ...FULL }; player.resumeAt = now + 5000; player.travel = null; player.vel.set(0, 0, 0); this.layoutBlocked.add(id);
   }
 
-  remove(id: string): void { this.players.delete(id); this.layoutBlocked.delete(id); this.layoutRequirements = this.layoutRequirements.filter(item => item.playerId !== id); this.removeObstacleSet(id); this.projectiles = this.projectiles.filter(s => s.ownerId !== id); }
+  remove(id: string): void { this.players.delete(id); this.parkedShipPositions.delete(id); this.layoutBlocked.delete(id); this.layoutRequirements = this.layoutRequirements.filter(item => item.playerId !== id); this.removeObstacleSet(id); this.projectiles = this.projectiles.filter(s => s.ownerId !== id); }
 
-  setObstacleSet(id: string, values: Float32Array): void {
+  setObstacleSet(id: string, values: Float32Array, radii?: Float32Array): void {
     if (values.length % 3 !== 0 || values.length > 60_000) return;
     for (const v of values) if (!Number.isFinite(v) || Math.abs(v) > 1_000_000) return;
+    if (radii && (radii.length !== values.length / 3 || !radii.every(r => Number.isFinite(r) && r > 0 && r <= 250))) return;
+    if (radii) this.obstacleRadii.set(id, radii); else this.obstacleRadii.delete(id);
     this.obstacleSets.set(id, values); this.obstaclesDirty = true;
   }
 
-  removeObstacleSet(id: string): void { this.obstacleSets.delete(id); this.obstaclesDirty = true; }
+  /** Parked hulls stop space bolts but stay outside the flight collision grid. */
+  setParkedShipPositions(ships: readonly { id: string; position: readonly [number, number, number] }[]): void {
+    const next = new Map<string, THREE.Vector3>();
+    for (const ship of ships.slice(0, 4)) {
+      if (typeof ship.id !== "string" || !ship.id || !ship.position.every(value => Number.isFinite(value) && Math.abs(value) <= 1_000_000)) continue;
+      next.set(ship.id, new THREE.Vector3(...ship.position));
+    }
+    this.parkedShipPositions = next;
+  }
+
+  removeObstacleSet(id: string): void { this.obstacleSets.delete(id); this.obstacleRadii.delete(id); this.obstaclesDirty = true; }
 
   setInput(id: string, input: FlightInput, now: number): void {
-    const p = this.players.get(id); if (!p || (input.active && now - p.inputAt < 35)) return;
-    if (this.phase !== "combat") {
-      // A player can still become a spectator during a paused round transition.
-      if (!input.active) { p.active = false; p.input = { ...FULL }; p.resumeAt = now + 5000; p.travel = null; p.vel.set(0, 0, 0); p.inputAt = now; }
-      return;
+    const p = this.players.get(id); if (!p || p.docked) return;
+    const sequence = Number.isSafeInteger(input.sequence) && input.sequence > 0 ? input.sequence : p.receivedInputSequence + 1;
+    if (sequence <= p.receivedInputSequence && !input.ticks?.length) return;
+    const normalized: FlightInput = { ...FULL, ...input, sequence,
+      mouseMode: input.mouseMode === "cursor" ? "cursor" : "capture", mouseSamples: Array.isArray(input.mouseSamples) ? input.mouseSamples.slice(0, 8) : [],
+      sensitivity: Number.isFinite(input.sensitivity) ? clamp(input.sensitivity, 0.2, 4) : 1, agility: Number.isFinite(input.agility) ? clamp(input.agility, 0.1, 4) : 1 };
+    p.receivedInputSequence = Math.max(p.receivedInputSequence, sequence); p.inputSequence = p.receivedInputSequence;
+    p.inputAt = now;
+    const ticks: FlightTick[] = input.ticks?.length ? input.ticks : [{
+      tick: sequence, thrust: normalized.thrust, strafe: normalized.strafe, lift: normalized.lift, roll: normalized.roll, pitch: normalized.pitch, yaw: normalized.yaw,
+      boost: normalized.boost, brake: normalized.brake, active: normalized.active, mouseMode: normalized.mouseMode,
+      mouseDelta: normalized.mouseSamples[0] ?? [0, 0], sensitivity: normalized.sensitivity, agility: normalized.agility, invertY: normalized.invertY,
+    }];
+    for (const tick of ticks) {
+      if (!this.validFlightTick(tick) || tick.tick <= p.inputTick || tick.tick > p.inputTick + 120 || p.tickQueue.has(tick.tick)) continue;
+      if (this.phase !== "combat" && tick.active) continue;
+      if (tick.active && this.layoutBlocked.has(id)) continue;
+      if (p.tickQueue.size >= 120) break;
+      p.tickQueue.set(tick.tick, { ...tick, mouseDelta: [...tick.mouseDelta] as [number, number] });
+      p.receivedInputTick = Math.max(p.receivedInputTick, tick.tick);
     }
-    if (input.active && this.layoutBlocked.has(id)) return;
-    if (p.health <= 0) { p.resumeAfterRespawn = input.active; p.input = { ...FULL }; p.inputAt = now; return; }
-    if (p.travel && (!input.active || input.thrust !== 0 || input.strafe !== 0 || input.lift !== 0 || input.roll !== 0 || input.pitch !== 0 || input.yaw !== 0 || input.boost || input.brake || input.fire)) p.travel = null;
-    p.input = { ...input }; p.weapon = input.weapon; p.inputAt = now;
+    if (p.travel && ticks.some(tick => tick.active && (tick.thrust !== 0 || tick.strafe !== 0 || tick.lift !== 0 || tick.roll !== 0 || tick.pitch !== 0 || tick.yaw !== 0 || tick.boost || tick.brake || input.fire))) p.travel = null;
+    const stop = [...ticks].filter(tick => this.validFlightTick(tick) && !tick.active).sort((a, b) => b.tick - a.tick)[0];
+    if (stop && stop.tick > p.inputTick) {
+      if (p.health <= 0) p.resumeAfterRespawn = false;
+      else if (p.active) p.resumeAt = now + 5000;
+      p.active = false; p.input = { ...FULL }; p.travel = null; p.vel.set(0, 0, 0);
+      p.tickQueue.clear(); p.inputTick = stop.tick; p.receivedInputTick = Math.max(p.receivedInputTick, stop.tick);
+    }
+  }
+
+  setWeapon(id: string, sequence: number, weapon: 0 | 1, now: number): void {
+    const p = this.players.get(id);
+    if (!p || this.phase !== "combat" || !p.active || p.health <= 0 || !Number.isSafeInteger(sequence) || sequence < 1 || sequence <= p.weaponSequence || (weapon !== 0 && weapon !== 1)) return;
+    p.weapon = weapon; p.weaponSequence = sequence; p.inputAt = Math.max(p.inputAt, now);
+  }
+
+  /** Park a ship while its pilot is in a node arena; it cannot fly or fire until explicitly returned. */
+  setSurfaceDocked(id: string, docked: boolean, ship?: { position: [number, number, number]; rotation: [number, number, number, number]; velocity: [number, number, number] }, now = Date.now()): boolean {
+    const player = this.players.get(id);
+    if (!player) return false;
+    if (docked) {
+      if (player.docked || !player.active || player.health <= 0 || this.phase !== "combat") return false;
+      player.docked = true; player.active = false; player.input = { ...FULL }; player.tickQueue.clear();
+      player.receivedInputTick = player.inputTick; player.vel.set(0, 0, 0); player.spin.set(0, 0, 0); player.travel = null;
+      player.mouseX = player.mouseY = 0; player.mouseQueue.length = 0; player.resumeAt = 0;
+      return true;
+    }
+    if (!player.docked || !ship || !ship.position.every(Number.isFinite) || !ship.rotation.every(Number.isFinite) || !ship.velocity.every(Number.isFinite)) return false;
+    player.docked = false; player.pos.fromArray(ship.position); player.rot.set(...ship.rotation).normalize(); player.vel.fromArray(ship.velocity); player.spin.set(0, 0, 0);
+    player.active = true; player.input = { ...FULL, active: true }; player.resumeAt = 0; player.protectedUntil = now + 3000;
+    return true;
+  }
+
+  isSurfaceDocked(id: string): boolean { return this.players.get(id)?.docked ?? false; }
+
+  recordSurfaceElimination(attackerId: string, victimId: string, shotId: string, now: number): EliminationEvent | null {
+    if (this.phase !== "combat" || this.winnerId || !shotId || !Number.isSafeInteger(now) || attackerId === victimId) return null;
+    const attacker = this.players.get(attackerId), victim = this.players.get(victimId);
+    if (!attacker || !victim) return null;
+    attacker.kills++; victim.deaths++;
+    const attackerScore = this.scoreRecords.get(attackerId) ?? { kills: attacker.kills - 1, deaths: attacker.deaths };
+    attackerScore.kills = attacker.kills; this.scoreRecords.set(attackerId, attackerScore);
+    const victimScore = this.scoreRecords.get(victimId) ?? { kills: victim.kills, deaths: victim.deaths - 1 };
+    victimScore.deaths = victim.deaths; this.scoreRecords.set(victimId, victimScore);
+    const event = { id: `${this.roundId}:surface:${shotId}`, roundId: this.roundId, attackerId, victimId, attackerScore: attacker.kills, at: now };
+    this.eliminationQueue.push(event); this.recentEliminations.push(event);
+    if (this.recentEliminations.length > 12) this.recentEliminations.shift();
+    if (attacker.kills >= PLAYER_KILLS_TO_WIN) {
+      this.winnerId = attackerId; this.phase = "supernova"; this.phaseUntil = now + 8000; this.layoutRequirements = [];
+      this.projectiles = []; this.impacts = [];
+      for (const player of this.players.values()) { player.travel = null; player.input = { ...FULL, active: player.active }; }
+    }
+    return event;
   }
 
   startTravel(id: string, destination: [number, number, number], radius: number, now: number): boolean {
@@ -122,7 +204,7 @@ export class CombatWorld {
 
   fireShot(id: string, sequence: number, gun: number, now: number, aimPoint?: [number, number, number], _weapon: 0 | 1 = 0): boolean {
     const p = this.players.get(id);
-    if (this.phase !== "combat" || !p || !p.active || p.health <= 0 || !Number.isSafeInteger(sequence) || sequence < 1 || sequence <= p.lastFireSequence || !Number.isInteger(gun) || gun < 0 || gun > 3 || now < p.fireAt) return false;
+    if (this.phase !== "combat" || !p || p.docked || !p.active || p.health <= 0 || !Number.isSafeInteger(sequence) || sequence < 1 || sequence <= p.lastFireSequence || !Number.isInteger(gun) || gun < 0 || gun > 3 || now < p.fireAt) return false;
     const weapon = p.weapon;
     if (_weapon !== weapon || (weapon === 0 && p.overheated) || (weapon === 1 && p.ammunition <= 0)) return false;
     if (aimPoint && !this.validVec(aimPoint, 1_000_000)) return false;
@@ -130,7 +212,7 @@ export class CombatWorld {
     if (weapon === 0) { p.heat = Math.min(1, p.heat + 0.1); if (p.heat >= 1) p.overheated = true; }
     else p.ammunition--;
     p.travel = null; p.protectedUntil = 0;
-    p.lastFireSequence = sequence; p.fireAt = now + (weapon === 0 ? 160 : 500);
+    p.lastFireSequence = sequence; p.fireCooldownDuration = weapon === 0 ? 160 : 500; p.fireAt = now + p.fireCooldownDuration;
     return true;
   }
 
@@ -142,6 +224,7 @@ export class CombatWorld {
       return;
     }
     for (const p of this.players.values()) {
+      if (p.docked) { p.vel.set(0, 0, 0); continue; }
       p.heat = Math.max(0, p.heat - 0.26 * dt);
       if (p.overheated && p.heat <= 0.4) p.overheated = false;
       if (p.shieldDelay > 0) p.shieldDelay = Math.max(0, p.shieldDelay - dt);
@@ -153,12 +236,30 @@ export class CombatWorld {
         continue;
       }
       const wasActive = p.active;
+      let mouseDX = 0, mouseDY = 0;
+      let nextTick = p.tickQueue.get(p.inputTick + 1);
+      if (!nextTick && p.tickQueue.size) {
+        const earliest = Math.min(...p.tickQueue.keys());
+        if (earliest - p.inputTick > 12) {
+          // The resend window no longer covers the missing tick. Advance from a neutral
+          // state so stale movement cannot be replayed when the input stream resumes.
+          p.inputTick = earliest - 1; p.inputSequence = p.receivedInputSequence;
+          p.input = { ...FULL, active: p.active };
+          nextTick = p.tickQueue.get(earliest);
+        }
+      }
+      if (nextTick) {
+        p.tickQueue.delete(nextTick.tick);
+        p.inputTick = nextTick.tick;
+        p.input = { ...FULL, ...nextTick, sequence: nextTick.tick, fire: false, mouseSamples: [], ticks: undefined };
+        mouseDX = nextTick.mouseDelta[0]; mouseDY = nextTick.mouseDelta[1];
+      }
       const wantsActive = p.input.active;
-      if (wasActive && !wantsActive) { p.active = false; p.resumeAt = now + 5000; p.vel.set(0, 0, 0); p.input = { ...FULL }; }
+      if (wasActive && !wantsActive) { p.active = false; p.resumeAt = now + 5000; p.vel.set(0, 0, 0); p.input = { ...FULL }; p.mouseQueue.length = 0; }
       else if (!wasActive && wantsActive) { if (!p.resumeAt || now >= p.resumeAt) { p.active = true; p.resumeAt = 0; } }
       if (!p.active) continue;
       const i = p.input;
-      [p.bank, p.tilt] = stepPresentation(p.bank, p.tilt, i, dt);
+      [p.bank, p.tilt] = stepPresentation(p.bank, p.tilt, i, dt, p.spin);
       if (p.travel) {
         const t = clamp((now - p.travel.startedAt) / p.travel.duration, 0, 1), e = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
         p.pos.fromArray(p.travel.from).lerp(new THREE.Vector3(...p.travel.to), e);
@@ -167,15 +268,15 @@ export class CombatWorld {
         if (t >= 1) p.travel = null;
         continue;
       }
-      const wantsBoost = i.boost && i.thrust > 0 && p.energy > 0 && p.emptyWait <= 0 && !p.boostLocked;
-      if (wantsBoost) { p.energy = Math.max(0, p.energy - 0.28 * dt); p.regenDelay = 1.5; if (p.energy === 0) { p.emptyWait = 3; p.boostLocked = true; } }
-      else {
-        p.emptyWait = Math.max(0, p.emptyWait - dt);
-        p.regenDelay = Math.max(0, p.regenDelay - dt);
-        if (p.emptyWait === 0 && p.regenDelay === 0 && p.damagePause === 0) p.energy = Math.min(1, p.energy + 0.08 * dt);
-        if (p.boostLocked && p.energy >= 0.3) p.boostLocked = false;
-      }
-      stepFlightRotation(p.rot, p.spin, i, dt);
+      const boost = stepBoostResources(p, i, dt);
+      p.energy = boost.energy; p.emptyWait = boost.emptyWait; p.regenDelay = boost.regenDelay; p.boostLocked = boost.boostLocked;
+      const wantsBoost = boost.boosting;
+      const speed01 = clamp(p.vel.length() / (FLIGHT.roomCruise * Math.sqrt(FLIGHT.boostAcceleration)), 0, 1);
+      const mouseState = { x: p.mouseX, y: p.mouseY };
+      stepFlightRotation(p.rot, p.spin, i, dt, i.agility * (1 - 0.3 * speed01) * (wantsBoost ? 0.8 : 1), {
+        mode: i.mouseMode, mouseDX, mouseDY, sensitivity: i.sensitivity, inputAgility: i.agility, invertY: i.invertY, mouseState,
+      });
+      p.mouseX = mouseState.x; p.mouseY = mouseState.y;
       stepFlightVelocity(p.vel, p.rot, p.spin, i, dt, FLIGHT.roomCruise, wantsBoost);
       p.pos.addScaledVector(p.vel, dt);
       this.collide(p);
@@ -183,28 +284,13 @@ export class CombatWorld {
     this.stepProjectiles(dt, now);
   }
 
-  private obstacleKey(x: number, y: number, z: number): string { return `${Math.floor(x / 80)},${Math.floor(y / 80)},${Math.floor(z / 80)}`; }
   private rebuildObstacleGrid(): void {
-    this.obstacleGrid.clear();
-    for (const [ownerId, values] of this.obstacleSets) for (let i = 0; i < values.length; i += 3) {
-      const x = values[i], y = values[i + 1], z = values[i + 2], key = this.obstacleKey(x, y, z);
-      const list = this.obstacleGrid.get(key) ?? []; list.push({ position: [x, y, z], ownerId }); this.obstacleGrid.set(key, list);
-    }
+    this.obstacleGrid.rebuild(this.obstacleSets.values(), [...this.obstacleSets.keys()].map(id => this.obstacleRadii.get(id) ?? []));
     this.obstaclesDirty = false;
   }
 
   private collide(p: Fighter): void {
-    const x = Math.floor(p.pos.x / 80), y = Math.floor(p.pos.y / 80), z = Math.floor(p.pos.z / 80), radius = 6;
-    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++) {
-      for (const point of this.obstacleGrid.get(`${x + dx},${y + dy},${z + dz}`) ?? []) {
-        const ox = p.pos.x - point.position[0], oy = p.pos.y - point.position[1], oz = p.pos.z - point.position[2];
-        const d2 = ox * ox + oy * oy + oz * oz; if (d2 >= radius * radius) continue;
-        const d = Math.sqrt(d2) || 1e-3, nx = ox / d, ny = oy / d, nz = oz / d;
-        p.pos.add(new THREE.Vector3(nx, ny, nz).multiplyScalar(radius - d));
-        const vn = p.vel.x * nx + p.vel.y * ny + p.vel.z * nz;
-        if (vn < 0) p.vel.add(new THREE.Vector3(nx, ny, nz).multiplyScalar(-1.35 * vn));
-      }
-    }
+    this.obstacleGrid.resolve(p.pos, p.vel);
   }
 
   private fire(shooter: Fighter, sequence: number, gun: number, now: number, aimPoint: [number, number, number] | undefined, weapon: 0 | 1): boolean {
@@ -220,7 +306,8 @@ export class CombatWorld {
     // A client may choose its aiming point, but cannot fire behind itself or at unbounded range.
     if (direction.dot(forward) < 0.25 || (aimPoint && range > 2_000)) return false;
     if (shooter.protectedUntil > now) shooter.protectedUntil = 0;
-    this.projectiles.push({ id: `${shooter.id}:${sequence}`, ownerId: shooter.id, gun, weapon, origin, pos, direction, velocity: direction.clone().multiplyScalar(weaponStats(weapon).speed), remaining: BOLT_REACH, travelled: 0, sound: shooter.profile.laser, startedAt: now });
+    const speed = weaponStats(weapon).speed + shooter.vel.length();
+    this.projectiles.push({ id: `${shooter.id}:${sequence}`, ownerId: shooter.id, gun, weapon, origin, pos, direction, velocity: direction.clone().multiplyScalar(speed), speed, remaining: BOLT_REACH, travelled: 0, sound: shooter.profile.laser, startedAt: now });
     return true;
   }
 
@@ -239,12 +326,20 @@ export class CombatWorld {
       const minY = Math.floor((Math.min(start.y, end.y) - 6) / 80), maxY = Math.floor((Math.max(start.y, end.y) + 6) / 80);
       const minZ = Math.floor((Math.min(start.z, end.z) - 6) / 80), maxZ = Math.floor((Math.max(start.z, end.z) + 6) / 80);
       for (let x = minX; x <= maxX; x++) for (let y = minY; y <= maxY; y++) for (let z = minZ; z <= maxZ; z++) {
-        for (const node of this.obstacleGrid.get(`${x},${y},${z}`) ?? []) {
-          const point = new THREE.Vector3(...node.position), relative = point.clone().sub(start), t = lengthSq ? clamp(relative.dot(segment) / lengthSq, 0, 1) : 0;
+        for (const node of this.obstacleGrid.getCell(x, y, z)) {
+          const point = new THREE.Vector3(...node), relative = point.clone().sub(start), t = lengthSq ? clamp(relative.dot(segment) / lengthSq, 0, 1) : 0;
           if (t >= firstT) continue;
           const nearest = start.clone().addScaledVector(segment, t);
-          if (nearest.distanceToSquared(point) <= 36) { firstT = t; hitPlayer = null; hitStar = true; }
+          if (nearest.distanceToSquared(point) <= (node.radius ?? 6) ** 2) { firstT = t; hitPlayer = null; hitStar = true; }
         }
+      }
+      // A parked ship is a small, projectile-only obstacle. It cannot take damage and never blocks another ship.
+      for (const [parkedId, point] of this.parkedShipPositions) {
+        if (parkedId === shot.ownerId) continue;
+        const relative = point.clone().sub(start), t = lengthSq ? clamp(relative.dot(segment) / lengthSq, 0, 1) : 0;
+        if (t >= firstT) continue;
+        const nearest = start.clone().addScaledVector(segment, t);
+        if (nearest.distanceToSquared(point) <= 2.25) { firstT = t; hitPlayer = null; hitStar = true; }
       }
       if (hitPlayer || hitStar) {
         const impactPos = start.clone().addScaledVector(segment, firstT);
@@ -270,7 +365,7 @@ export class CombatWorld {
               const event = { id: `${this.roundId}:${shot.id}`, roundId: this.roundId, attackerId: attacker.id, victimId: hitPlayer.id, attackerScore: attacker.kills, at: now };
               this.eliminationQueue.push(event); this.recentEliminations.push(event);
               if (this.recentEliminations.length > 12) this.recentEliminations.shift();
-              if (attacker.kills >= 5) {
+              if (attacker.kills >= PLAYER_KILLS_TO_WIN) {
                 this.winnerId = attacker.id; this.phase = "supernova"; this.phaseUntil = now + 8000; this.layoutRequirements = [];
                 this.projectiles = []; this.impacts = [];
                 for (const player of this.players.values()) { player.travel = null; player.input = { ...FULL, active: player.active }; }
@@ -294,12 +389,14 @@ export class CombatWorld {
     this.scoreRecords.clear();
     this.projectiles = []; this.impacts = []; this.eliminationQueue = []; this.recentEliminations = [];
     for (const player of this.players.values()) {
+      const resumesFlying = player.health <= 0 ? player.resumeAfterRespawn : player.active;
       player.kills = 0; player.deaths = 0; this.scoreRecords.set(player.id, { kills: 0, deaths: 0 });
       player.health = HULL_MAX; player.shields = SHIELD_MAX; player.shieldDelay = 0; player.damagePause = 0; player.weapon = 0; player.heat = 0; player.overheated = false; player.ammunition = 36;
       player.energy = 1; player.boostLocked = false; player.regenDelay = 0; player.emptyWait = 0;
-      player.respawnAt = 0; player.protectedUntil = player.active ? now + 3000 : 0; player.vel.set(0, 0, 0); player.spin.set(0, 0, 0); player.rot.identity(); player.bank = 0; player.tilt = 0; player.travel = null;
-      player.fireAt = 0; player.input = { ...FULL, active: player.active };
-      const origin = SLOTS[clamp(Math.floor(player.slot), 0, 3)]; player.pos.set(origin[0], origin[1], origin[2] + 80);
+      player.respawnAt = 0; player.protectedUntil = now + 3000; player.vel.set(0, 0, 0); player.spin.set(0, 0, 0); player.bank = 0; player.tilt = 0; player.travel = null;
+      player.active = player.docked ? false : resumesFlying; player.resumeAfterRespawn = false;
+      player.fireAt = 0; player.fireCooldownDuration = 160; player.input = { ...FULL, active: player.active }; player.mouseX = player.mouseY = 0; player.mouseQueue.length = 0;
+      player.tickQueue.clear(); player.receivedInputTick = player.inputTick;
     }
   }
 
@@ -307,25 +404,28 @@ export class CombatWorld {
     const origin = SLOTS[clamp(Math.floor(p.slot), 0, 3)];
     p.pos.set(origin[0], origin[1], origin[2] + 80); p.vel.set(0, 0, 0); p.spin.set(0, 0, 0); p.rot.identity(); p.bank = 0; p.tilt = 0; p.health = HULL_MAX; p.shields = SHIELD_MAX; p.shieldDelay = 0; p.damagePause = 0;
     p.weapon = 0; p.heat = 0; p.overheated = false; p.ammunition = 36; p.energy = 1; p.boostLocked = false; p.emptyWait = 0; p.regenDelay = 0;
-    p.respawnAt = 0; p.protectedUntil = now + 3000; p.resumeAt = 0; p.travel = null; p.active = p.resumeAfterRespawn;
-    p.input = { ...FULL, active: p.resumeAfterRespawn }; p.resumeAfterRespawn = false;
+    p.respawnAt = 0; p.protectedUntil = now + 3000; p.resumeAt = 0; p.travel = null; p.active = p.resumeAfterRespawn; p.fireAt = now; p.fireCooldownDuration = 160;
+    p.input = { ...FULL, active: p.resumeAfterRespawn }; p.mouseX = p.mouseY = 0; p.mouseQueue.length = 0; p.tickQueue.clear(); p.resumeAfterRespawn = false;
   }
 
   snapshot(now: number): RoomCheckpoint {
-    return { version: 5, epoch: this.epoch, at: now, round: { roundId: this.roundId, phase: this.phase, phaseRemainingMs: Math.max(0, this.phaseUntil - now), winnerId: this.winnerId,
+    return { version: 14, epoch: this.epoch, at: now, round: { roundId: this.roundId, phase: this.phase, phaseRemainingMs: Math.max(0, this.phaseUntil - now), winnerId: this.winnerId,
       scores: [...this.scoreRecords].map(([playerId, score]) => ({ playerId, ...score })), layoutRequirements: this.layoutRequirements.map(item => ({ ...item })), layoutBlocked: [...this.layoutBlocked], recentEliminations: this.recentEliminations.slice(-12) }, players: [...this.players.values()].map(p => ({
       id: p.id, slot: p.slot, position: p.pos.toArray(), rotation: [p.rot.x, p.rot.y, p.rot.z, p.rot.w], velocity: p.vel.toArray(), spin: p.spin.toArray(), input: { ...p.input },
       health: p.health, shields: p.shields, shieldDelay: p.shieldDelay, damagePause: p.damagePause, weapon: p.weapon, heat: p.heat, overheated: p.overheated, ammunition: p.ammunition, deaths: p.deaths,
       energy: p.energy, boostLocked: p.boostLocked, regenDelay: p.regenDelay, emptyWait: p.emptyWait, respawnAt: Math.max(0, p.respawnAt - now),
-      protectedUntil: Math.max(0, p.protectedUntil - now), resumeAt: Math.max(0, p.resumeAt - now), fireAt: Math.max(0, p.fireAt - now), active: p.active, resumeAfterRespawn: p.resumeAfterRespawn,
-      lastFireSequence: p.lastFireSequence, bank: p.bank, tilt: p.tilt, travel: p.travel ? { from: p.travel.from, to: p.travel.to, rotationFrom: p.travel.rotationFrom, rotationTo: p.travel.rotationTo, elapsed: Math.max(0, Math.min(p.travel.duration, now - p.travel.startedAt)), duration: p.travel.duration } : null,
-    })), shots: this.projectiles.map(s => ({ id: s.id, ownerId: s.ownerId, gun: s.gun, weapon: s.weapon, origin: s.origin, position: s.pos.toArray() as [number, number, number], direction: s.direction.toArray() as [number, number, number], remaining: s.remaining, travelled: s.travelled, sound: s.sound, startedAt: s.startedAt })) };
+      protectedUntil: Math.max(0, p.protectedUntil - now), resumeAt: Math.max(0, p.resumeAt - now), fireAt: Math.max(0, p.fireAt - now), active: p.active, docked: p.docked, resumeAfterRespawn: p.resumeAfterRespawn,
+       lastFireSequence: p.lastFireSequence, weaponSequence: p.weaponSequence, inputSequence: p.inputSequence, receivedInputSequence: p.receivedInputSequence,
+       inputTick: p.inputTick, receivedInputTick: p.receivedInputTick, tickQueue: [...p.tickQueue.values()].map(item => ({ ...item, mouseDelta: [...item.mouseDelta] as [number, number] })), fireCooldownDuration: p.fireCooldownDuration,
+       mouseX: p.mouseX, mouseY: p.mouseY, mouseQueue: p.mouseQueue.map(item => ({ ...item })), bank: p.bank, tilt: p.tilt,
+      travel: p.travel ? { from: p.travel.from, to: p.travel.to, rotationFrom: p.travel.rotationFrom, rotationTo: p.travel.rotationTo, elapsed: Math.max(0, Math.min(p.travel.duration, now - p.travel.startedAt)), duration: p.travel.duration } : null,
+    })), shots: this.projectiles.map(s => ({ id: s.id, ownerId: s.ownerId, gun: s.gun, weapon: s.weapon, origin: s.origin, position: s.pos.toArray() as [number, number, number], direction: s.direction.toArray() as [number, number, number], speed: s.speed, remaining: s.remaining, travelled: s.travelled, sound: s.sound, startedAt: s.startedAt })) };
   }
 
   restore(value: unknown, now: number, ageMs = 0): boolean {
     if (!value || typeof value !== "object") return false;
     const state = value as RoomCheckpoint;
-    if (state.version !== 5 || !Array.isArray(state.players) || state.players.length > 4 || !Number.isSafeInteger(state.epoch)
+    if (state.version !== 14 || !Array.isArray(state.players) || state.players.length > 4 || !Number.isSafeInteger(state.epoch)
       || !Number.isSafeInteger(state.at) || !Number.isFinite(ageMs) || ageMs < 0 || ageMs > 15_000 || !Array.isArray(state.shots) || state.shots.length > 128) return false;
     const next = new Map<string, Fighter>();
     for (const item of state.players) {
@@ -333,12 +433,18 @@ export class CombatWorld {
         || !Array.isArray(item.rotation) || item.rotation.length !== 4 || !item.rotation.every(Number.isFinite) || item.rotation.every(v => v === 0)
         || !Number.isFinite(item.health) || item.health < 0 || item.health > HULL_MAX || !Number.isFinite(item.shields) || item.shields < 0 || item.shields > SHIELD_MAX
         || !Number.isFinite(item.energy) || item.energy < 0 || item.energy > 1 || typeof item.boostLocked !== "boolean" || !this.validInput(item.input)
-        || ![item.shieldDelay, item.damagePause, item.heat, item.ammunition, item.deaths, item.regenDelay, item.emptyWait, item.respawnAt, item.protectedUntil, item.resumeAt, item.fireAt, item.lastFireSequence, item.bank, item.tilt].every(Number.isFinite)
+         || ![item.shieldDelay, item.damagePause, item.heat, item.ammunition, item.deaths, item.regenDelay, item.emptyWait, item.respawnAt, item.protectedUntil, item.resumeAt, item.fireAt, item.lastFireSequence, item.weaponSequence, item.inputSequence, item.receivedInputSequence, item.inputTick, item.receivedInputTick, item.fireCooldownDuration, item.mouseX, item.mouseY, item.bank, item.tilt].every(Number.isFinite)
         || item.shieldDelay < 0 || item.shieldDelay > SHIELD_DELAY || item.damagePause < 0 || item.damagePause > 2 || item.heat < 0 || item.heat > 1 || typeof item.overheated !== "boolean"
         || (item.weapon !== 0 && item.weapon !== 1) || !Number.isInteger(item.ammunition) || item.ammunition < 0 || item.ammunition > 36 || !Number.isInteger(item.deaths) || item.deaths < 0
         || Math.abs(item.bank) > 0.56 || Math.abs(item.tilt) > 0.41
-        || item.lastFireSequence < 0 || !Number.isSafeInteger(item.lastFireSequence)
-        || typeof item.active !== "boolean" || typeof item.resumeAfterRespawn !== "boolean" || next.has(item.id)
+        || item.lastFireSequence < 0 || !Number.isSafeInteger(item.lastFireSequence) || !Number.isSafeInteger(item.weaponSequence) || item.weaponSequence < 0
+         || !Number.isSafeInteger(item.inputSequence) || item.inputSequence < 0 || !Number.isSafeInteger(item.receivedInputSequence) || item.receivedInputSequence < item.inputSequence
+         || !Number.isSafeInteger(item.inputTick) || item.inputTick < 0 || !Number.isSafeInteger(item.receivedInputTick) || item.receivedInputTick < item.inputTick || item.receivedInputTick - item.inputTick > 120
+         || (item.fireCooldownDuration !== 160 && item.fireCooldownDuration !== 500)
+         || !Array.isArray(item.tickQueue) || item.tickQueue.length > 120 || item.tickQueue.some(tick => !this.validFlightTick(tick) || tick.tick <= item.inputTick || tick.tick > item.inputTick + 120)
+        || Math.abs(item.mouseX) > 500 || Math.abs(item.mouseY) > 500 || !Array.isArray(item.mouseQueue) || item.mouseQueue.length > 48
+        || item.mouseQueue.some(sample => !sample || !Number.isSafeInteger(sample.sequence) || sample.sequence < 1 || !Number.isFinite(sample.dx) || Math.abs(sample.dx) > 500 || !Number.isFinite(sample.dy) || Math.abs(sample.dy) > 500 || typeof sample.last !== "boolean")
+        || typeof item.active !== "boolean" || (item.docked !== undefined && typeof item.docked !== "boolean") || typeof item.resumeAfterRespawn !== "boolean" || next.has(item.id)
         || (item.travel !== null && (!item.travel || !this.validVec(item.travel.from, 1_000_000) || !this.validVec(item.travel.to, 1_000_000)
           || !Array.isArray(item.travel.rotationFrom) || item.travel.rotationFrom.length !== 4 || !item.travel.rotationFrom.every(Number.isFinite)
           || !Array.isArray(item.travel.rotationTo) || item.travel.rotationTo.length !== 4 || !item.travel.rotationTo.every(Number.isFinite)
@@ -347,7 +453,10 @@ export class CombatWorld {
       const p = { id: item.id, slot: item.slot, pos: new THREE.Vector3(...item.position), vel: new THREE.Vector3(...item.velocity), rot: new THREE.Quaternion(...item.rotation).normalize(), spin: new THREE.Vector3(...item.spin), input: { ...item.input },
         health: item.health, shields: item.shields, shieldDelay: clamp(item.shieldDelay, 0, SHIELD_DELAY), damagePause: clamp(item.damagePause, 0, 2), weapon: item.weapon, heat: item.heat, overheated: item.overheated, ammunition: item.ammunition, deaths: item.deaths,
         energy: item.energy, boostLocked: item.boostLocked, regenDelay: clamp(item.regenDelay, 0, 1.5), emptyWait: clamp(item.emptyWait, 0, 3), respawnAt: now + Math.max(0, item.respawnAt - ageMs), protectedUntil: now + Math.max(0, item.protectedUntil - ageMs),
-        resumeAt: now + Math.max(0, item.resumeAt - ageMs), fireAt: now + Math.max(0, item.fireAt - ageMs), inputAt: now, active: item.active, resumeAfterRespawn: item.resumeAfterRespawn,
+        resumeAt: now + Math.max(0, item.resumeAt - ageMs), fireAt: now + Math.max(0, item.fireAt - ageMs), inputAt: now, active: item.active, docked: item.docked ?? false, resumeAfterRespawn: item.resumeAfterRespawn,
+        weaponSequence: item.weaponSequence, inputSequence: item.inputSequence, receivedInputSequence: item.receivedInputSequence, inputTick: item.inputTick, receivedInputTick: item.receivedInputTick,
+        tickQueue: new Map(item.tickQueue.map(tick => [tick.tick, { ...tick, mouseDelta: [...tick.mouseDelta] as [number, number] }])), fireCooldownDuration: item.fireCooldownDuration,
+        mouseX: item.mouseX, mouseY: item.mouseY, mouseQueue: item.mouseQueue.map(sample => ({ ...sample })),
         lastFireSequence: item.lastFireSequence, bank: item.bank, tilt: item.tilt, kills: 0, profile: DEFAULT_PILOT_PROFILE, travel: item.travel ? { from: [...item.travel.from] as [number, number, number], to: [...item.travel.to] as [number, number, number],
           rotationFrom: [...item.travel.rotationFrom] as [number, number, number, number], rotationTo: [...item.travel.rotationTo] as [number, number, number, number],
           startedAt: now - item.travel.elapsed - ageMs, duration: item.travel.duration } : null } as Fighter;
@@ -358,11 +467,11 @@ export class CombatWorld {
       if (!item || typeof item !== "object" || typeof item.id !== "string" || item.id.length > 64 || typeof item.ownerId !== "string" || !next.has(item.ownerId)
         || !Number.isInteger(item.gun) || item.gun < 0 || item.gun > 3 || (item.weapon !== 0 && item.weapon !== 1) || !this.validVec(item.origin, 1_000_000)
         || !this.validVec(item.position, 1_000_000) || !this.validVec(item.direction, 1.01) || !Number.isFinite(item.remaining) || item.remaining < 0 || item.remaining > 900
-        || !Number.isFinite(item.travelled) || item.travelled < 0 || item.travelled > BOLT_REACH
+        || !Number.isFinite(item.speed) || item.speed < 1 || item.speed > 20_000 || !Number.isFinite(item.travelled) || item.travelled < 0 || item.travelled > BOLT_REACH
         || !LASER_SOUND_IDS.includes(item.sound) || !Number.isSafeInteger(item.startedAt)) return false;
       const direction = new THREE.Vector3(...item.direction).normalize();
       if (direction.lengthSq() < 0.9) return false;
-      shots.push({ id: item.id, ownerId: item.ownerId, gun: item.gun, weapon: item.weapon, origin: [...item.origin] as [number, number, number], pos: new THREE.Vector3(...item.position), direction, velocity: direction.clone().multiplyScalar(weaponStats(item.weapon).speed), remaining: item.remaining, travelled: item.travelled, sound: item.sound, startedAt: item.startedAt });
+      shots.push({ id: item.id, ownerId: item.ownerId, gun: item.gun, weapon: item.weapon, origin: [...item.origin] as [number, number, number], pos: new THREE.Vector3(...item.position), direction, velocity: direction.clone().multiplyScalar(item.speed), speed: item.speed, remaining: item.remaining, travelled: item.travelled, sound: item.sound, startedAt: item.startedAt });
     }
     const round = state.round;
     if (!round || !Number.isSafeInteger(round.roundId) || round.roundId < 1 || !["combat", "supernova", "waiting", "countdown"].includes(round.phase)
@@ -374,7 +483,7 @@ export class CombatWorld {
     if (round.phaseRemainingMs > phaseLimit) return false;
     const scoreIds = new Set<string>();
     for (const score of round.scores) {
-      if (!score || typeof score.playerId !== "string" || score.playerId.length > 64 || scoreIds.has(score.playerId) || !Number.isInteger(score.kills) || score.kills < 0 || score.kills > 5 || !Number.isInteger(score.deaths) || score.deaths < 0 || score.deaths > 999) return false;
+      if (!score || typeof score.playerId !== "string" || score.playerId.length > 64 || scoreIds.has(score.playerId) || !Number.isInteger(score.kills) || score.kills < 0 || score.kills > PLAYER_KILLS_TO_WIN || !Number.isInteger(score.deaths) || score.deaths < 0 || score.deaths > 999) return false;
       scoreIds.add(score.playerId);
     }
     // Validate retained elimination events against the checkpoint's scores,
@@ -388,11 +497,11 @@ export class CombatWorld {
     }
     const blockedIds = new Set<string>();
     for (const id of round.layoutBlocked) { if (typeof id !== "string" || !next.has(id) || blockedIds.has(id)) return false; blockedIds.add(id); }
-    if (round.phase === "combat" ? round.winnerId !== "" : !round.winnerId || !round.scores.some(score => score.playerId === round.winnerId && score.kills === 5)) return false;
+    if (round.phase === "combat" ? round.winnerId !== "" : !round.winnerId || !round.scores.some(score => score.playerId === round.winnerId && score.kills === PLAYER_KILLS_TO_WIN)) return false;
     const eventIds = new Set<string>();
     for (const event of round.recentEliminations) {
       if (!event || typeof event.id !== "string" || event.id.length > 120 || eventIds.has(event.id) || event.roundId !== round.roundId || !nextScores.has(event.attackerId) || !nextScores.has(event.victimId) || event.attackerId === event.victimId
-        || !Number.isInteger(event.attackerScore) || event.attackerScore < 1 || event.attackerScore > 5 || (nextScores.get(event.attackerId)?.kills ?? 0) < event.attackerScore || !Number.isSafeInteger(event.at)) return false;
+        || !Number.isInteger(event.attackerScore) || event.attackerScore < 1 || event.attackerScore > PLAYER_KILLS_TO_WIN || (nextScores.get(event.attackerId)?.kills ?? 0) < event.attackerScore || !Number.isSafeInteger(event.at)) return false;
       eventIds.add(event.id);
     }
     this.roundId = round.roundId; this.phase = round.phase; this.phaseUntil = now + Math.max(0, round.phaseRemainingMs - ageMs); this.winnerId = round.winnerId;
@@ -406,7 +515,7 @@ export class CombatWorld {
   }
 
   shotSnapshots(): ShotSnapshot[] {
-    return this.projectiles.map(s => ({ id: s.id, ownerId: s.ownerId, gun: s.gun, weapon: s.weapon, origin: s.origin, position: s.pos.toArray() as [number, number, number], direction: s.direction.toArray() as [number, number, number], sound: s.sound, startedAt: s.startedAt }));
+    return this.projectiles.map(s => ({ id: s.id, ownerId: s.ownerId, gun: s.gun, weapon: s.weapon, origin: s.origin, position: s.pos.toArray() as [number, number, number], direction: s.direction.toArray() as [number, number, number], speed: s.speed, sound: s.sound, startedAt: s.startedAt }));
   }
 
   impactSnapshots(now: number): ImpactSnapshot[] {
@@ -416,9 +525,11 @@ export class CombatWorld {
   poses(now: number): { id: string; pose: Pose }[] {
     return [...this.players.values()].map(p => ({ id: p.id, pose: {
       position: p.pos.toArray() as Pose["position"], rotation: [p.rot.x, p.rot.y, p.rot.z, p.rot.w], velocity: p.vel.toArray() as Pose["velocity"],
+      spin: p.spin.toArray() as Pose["spin"], mouseSmoothing: [p.mouseX, p.mouseY],
       health: p.health, shields: p.shields, energy: p.energy, boostLocked: p.boostLocked, boostHold: p.emptyWait, regenDelay: p.regenDelay,
-      damagePause: p.damagePause, weapon: p.weapon, heat: p.heat, overheated: p.overheated, ammunition: p.ammunition, weaponCooldown: Math.max(0, p.fireAt - now), deaths: p.deaths,
-      active: p.active && this.phase === "combat", respawnAt: Math.max(0, p.respawnAt - now), protectedUntil: Math.max(0, p.protectedUntil - now),
+      damagePause: p.damagePause, weapon: p.weapon, weaponSequence: p.weaponSequence, inputSequence: p.inputSequence, inputTick: p.inputTick, heat: p.heat, overheated: p.overheated, ammunition: p.ammunition,
+      weaponCooldown: Math.max(0, p.fireAt - now), weaponCooldownDuration: p.fireCooldownDuration, deaths: p.deaths,
+      active: p.active && this.phase === "combat", traveling: !!p.travel, respawnAt: Math.max(0, p.respawnAt - now), protectedUntil: Math.max(0, p.protectedUntil - now),
       thrust: p.active && p.health > 0 && !p.travel ? Math.abs(p.input.thrust) + Math.abs(p.input.strafe) + Math.abs(p.input.lift) : 0,
       boosting: p.active && p.health > 0 && !p.travel && p.input.boost && p.input.thrust > 0 && p.energy > 0 && !p.boostLocked,
       bank: p.bank, tilt: p.tilt,
@@ -430,15 +541,28 @@ export class CombatWorld {
     if (!value || typeof value !== "object") return false;
     const i = value as FlightInput;
     return [i.thrust, i.strafe, i.lift, i.roll, i.pitch, i.yaw].every(v => Number.isFinite(v) && Math.abs(v) <= 1)
-      && [i.boost, i.brake, i.fire, i.active].every(v => typeof v === "boolean") && (i.weapon === 0 || i.weapon === 1);
+      && [i.boost, i.brake, i.fire, i.active, i.invertY].every(v => typeof v === "boolean")
+      && (i.mouseMode === "capture" || i.mouseMode === "cursor") && Array.isArray(i.mouseSamples) && i.mouseSamples.length <= 8
+      && i.mouseSamples.every(sample => Array.isArray(sample) && sample.length === 2 && sample.every(v => Number.isFinite(v) && Math.abs(v) <= 500))
+      && Number.isFinite(i.sensitivity) && i.sensitivity >= 0.2 && i.sensitivity <= 4 && Number.isFinite(i.agility) && i.agility >= 0.1 && i.agility <= 4
+      && (i.ticks === undefined || (Array.isArray(i.ticks) && i.ticks.length <= 12 && i.ticks.every(tick => this.validFlightTick(tick))));
+  }
+  private validFlightTick(value: unknown): value is FlightTick {
+    if (!value || typeof value !== "object") return false;
+    const tick = value as FlightTick;
+    return Number.isSafeInteger(tick.tick) && tick.tick > 0 && [tick.thrust, tick.strafe, tick.lift, tick.roll, tick.pitch, tick.yaw].every(v => Number.isFinite(v) && Math.abs(v) <= 1)
+      && [tick.boost, tick.brake, tick.active, tick.invertY].every(v => typeof v === "boolean")
+      && (tick.mouseMode === "capture" || tick.mouseMode === "cursor") && Array.isArray(tick.mouseDelta) && tick.mouseDelta.length === 2 && tick.mouseDelta.every(v => Number.isFinite(v) && Math.abs(v) <= 500)
+      && Number.isFinite(tick.sensitivity) && tick.sensitivity >= 0.2 && tick.sensitivity <= 4 && Number.isFinite(tick.agility) && tick.agility >= 0.1 && tick.agility <= 4;
   }
 }
 
 export interface RoomCheckpoint {
-  version: 5; epoch: number; at: number;
+  version: 14; epoch: number; at: number; surface?: unknown;
   round: { roundId: number; phase: RoundPhase; phaseRemainingMs: number; winnerId: string; scores: Array<{ playerId: string; kills: number; deaths: number }>; layoutRequirements: LayoutRequirement[]; layoutBlocked: string[]; recentEliminations: EliminationEvent[] };
   players: Array<{ id: string; slot: number; position: [number, number, number]; rotation: [number, number, number, number]; velocity: [number, number, number]; spin: [number, number, number]; input: FlightInput;
-    health: number; shields: number; shieldDelay: number; damagePause: number; weapon: 0 | 1; heat: number; overheated: boolean; ammunition: number; deaths: number; energy: number; boostLocked: boolean; regenDelay: number; emptyWait: number; respawnAt: number; protectedUntil: number; resumeAt: number; fireAt: number; active: boolean; resumeAfterRespawn: boolean;
-    lastFireSequence: number; bank: number; tilt: number; travel: { from: [number, number, number]; to: [number, number, number]; rotationFrom: [number, number, number, number]; rotationTo: [number, number, number, number]; elapsed: number; duration: number } | null }>;
-  shots: Array<{ id: string; ownerId: string; gun: number; weapon: 0 | 1; origin: [number, number, number]; position: [number, number, number]; direction: [number, number, number]; remaining: number; travelled: number; sound: typeof LASER_SOUND_IDS[number]; startedAt: number }>;
+    health: number; shields: number; shieldDelay: number; damagePause: number; weapon: 0 | 1; heat: number; overheated: boolean; ammunition: number; deaths: number; energy: number; boostLocked: boolean; regenDelay: number; emptyWait: number; respawnAt: number; protectedUntil: number; resumeAt: number; fireAt: number; active: boolean; docked?: boolean; resumeAfterRespawn: boolean;
+    lastFireSequence: number; weaponSequence: number; inputSequence: number; receivedInputSequence: number; inputTick: number; receivedInputTick: number; tickQueue: FlightTick[]; fireCooldownDuration: number; mouseX: number; mouseY: number; mouseQueue: { sequence: number; dx: number; dy: number; last: boolean }[];
+    bank: number; tilt: number; travel: { from: [number, number, number]; to: [number, number, number]; rotationFrom: [number, number, number, number]; rotationTo: [number, number, number, number]; elapsed: number; duration: number } | null }>;
+  shots: Array<{ id: string; ownerId: string; gun: number; weapon: 0 | 1; origin: [number, number, number]; position: [number, number, number]; direction: [number, number, number]; speed: number; remaining: number; travelled: number; sound: typeof LASER_SOUND_IDS[number]; startedAt: number }>;
 }

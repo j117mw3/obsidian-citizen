@@ -41,3 +41,37 @@ test("new hangar choices default to Classic and sanitize invalid saved ids", () 
   assert.deepEqual([old.pilotShip, old.pilotEngineSound, old.pilotAfterburnerSound, old.pilotLaserSound], ["classic", "classic", "classic", "pulse"]);
   assert.equal(old.pilotNearbyAudio, true);
 });
+
+test("surface controls persist a readable laser color and repair unsafe key bindings", () => {
+  const settings = settingsModule.sanitizeSettings({
+    surfaceLaserColor: "#000000", surfaceSensitivity: 5, surfaceFov: 120, surfaceCrouchMode: "toggle",
+    surfaceForwardKey: "KeyW", surfaceBackKey: "KeyW", surfaceInteractKey: "not-a-code",
+  });
+  assert.equal(settings.surfaceLaserColor, "#959595");
+  assert.equal(settings.surfaceSensitivity, 3);
+  assert.equal(settings.surfaceFov, 100);
+  assert.equal(settings.surfaceCrouchMode, "hold");
+  assert.equal(settings.surfaceInteractKey, "KeyF");
+  const codes = [settings.surfaceForwardKey, settings.surfaceBackKey, settings.surfaceLeftKey, settings.surfaceRightKey,
+    settings.surfaceJumpKey, settings.surfaceSprintKey, settings.surfaceCrouchKey, settings.surfaceLeanLeftKey,
+    settings.surfaceLeanRightKey, settings.surfaceInteractKey];
+  assert.equal(new Set(codes).size, codes.length);
+  assert.equal(settings.settingsSchemaVersion, 5);
+});
+
+
+test("crouch migrates once to Left Control and preserves custom and conflicting bindings", () => {
+ const migrate = settingsModule.sanitizeSettings;
+ assert.equal(migrate({settingsSchemaVersion:3,surfaceCrouchKey:"KeyC"}).surfaceCrouchKey,"ControlLeft");
+ assert.equal(migrate({settingsSchemaVersion:4,surfaceCrouchKey:"KeyC"}).surfaceCrouchKey,"KeyC");
+ assert.equal(migrate({settingsSchemaVersion:3,surfaceCrouchKey:"KeyV"}).surfaceCrouchKey,"KeyV");
+ const conflict=migrate({settingsSchemaVersion:3,surfaceCrouchKey:"KeyC",surfaceSprintKey:"ControlLeft"});
+ assert.equal(conflict.surfaceSprintKey,"ControlLeft"); assert.notEqual(conflict.surfaceCrouchKey,"ControlLeft");
+ assert.deepEqual(migrate(conflict),conflict);
+});
+
+test("schema five changes only crouch mode for an existing custom toggle profile",()=>{
+ const before=settingsModule.sanitizeSettings({settingsSchemaVersion:4,surfaceCrouchMode:"toggle",surfaceCrouchKey:"KeyV",surfaceInteractKey:"KeyG",surfaceFov:85,surfaceLaserColor:"#FF8800"});
+ assert.equal(before.settingsSchemaVersion,5);assert.equal(before.surfaceCrouchMode,"hold");assert.equal(before.surfaceCrouchKey,"KeyV");assert.equal(before.surfaceInteractKey,"KeyG");assert.equal(before.surfaceFov,85);assert.equal(before.surfaceLaserColor,"#FF8800");
+ assert.deepEqual(settingsModule.sanitizeSettings(before),before,"migration is idempotent");
+});

@@ -34,5 +34,7 @@ declare module "d3-force-3d" {
 
   export function forceSimulation<N>(nodes?: N[], numDimensions?: number): Simulation<N>;
   export function forceLink<N, L>(links?: L[]): ForceLink<N, L>;
+  export interface ForceCollide<N> extends Force<N> { radius(value: number | ((node: N) => number)): this; strength(value: number): this; iterations(value: number): this; }
+  export function forceCollide<N>(radius?: number | ((node: N) => number)): ForceCollide<N>;
   export function forceManyBody<N>(): ForceManyBody<N>;
 }

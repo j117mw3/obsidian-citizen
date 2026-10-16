@@ -14,4 +14,4 @@
 
 These are synthetic code and service checks, not an Obsidian gameplay session. The HUD and Hangar have not been visually inspected in Obsidian at narrow pane sizes or increased UI scale. The empty-room trace verifies authoritative tick output, but does not measure pixels rendered by an actual Obsidian window. Four simultaneous browser WebRTC clients, delayed/reordered/lost packets under 0–200 ms RTT and 50 ms jitter, forced TURN media, authority transfer during live flight, and testing across two computers and networks remain unverified.
 
-Keep 0.5.2 publication gated until those runtime checks pass. The existing 0.5.1 ZIP remains unchanged.
+These automated and hosted checks do not establish native gameplay or cross-computer acceptance. The published 0.5.2 package remains an independently downloadable update; use matching versions on every multiplayer computer.

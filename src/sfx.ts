@@ -45,6 +45,8 @@ export class PilotAudio {
   private afterburnerMuted = false;
   private nearbyAudio = true;
   private remoteAudioActive = false;
+  private remoteGainScale = 1;
+  private remoteOnly = false;
   private engineSound: EngineSoundId = "classic";
   private afterburnerSound: AfterburnerSoundId = "classic";
   private laserSound: LaserSoundId = "classic";
@@ -57,7 +59,7 @@ export class PilotAudio {
   setOptions(enabled: boolean, volume: number): void {
     this.enabled = enabled; this.volume = volume;
     if (this.master && this.ctx) this.master.gain.setTargetAtTime(enabled ? volume : 0, this.ctx.currentTime, 0.05);
-    if (!enabled) { this.stopEngine(); this.setRemoteAudioActive(false); } else if (this.ctx && !this.engine) this.startEngine();
+    if (!enabled) { this.stopEngine(); this.setRemoteAudioActive(false); } else if (this.ctx && !this.engine && !this.remoteOnly) this.startEngine();
   }
 
   setEngineMuted(muted: boolean): void {
@@ -78,14 +80,29 @@ export class PilotAudio {
     if (this.nearbyAudio === enabled) return;
     this.nearbyAudio = enabled;
     const t = this.ctx?.currentTime ?? 0;
-    for (const bus of [this.remoteEngineBus, this.remoteAfterburnerBus, this.remoteLaserBus]) bus?.gain.setTargetAtTime(enabled ? 1 : 0, t, 0.05);
+    for (const bus of [this.remoteEngineBus, this.remoteAfterburnerBus, this.remoteLaserBus]) bus?.gain.setTargetAtTime(enabled ? this.remoteGainScale : 0, t, 0.05);
     if (!enabled) this.clearRemoteVoices();
+  }
+
+  setRemoteGainScale(value: number): void {
+    this.remoteGainScale = Math.max(0, Math.min(1, Number.isFinite(value) ? value : 1));
+    const t = this.ctx?.currentTime ?? 0;
+    for (const bus of [this.remoteEngineBus, this.remoteAfterburnerBus, this.remoteLaserBus]) bus?.gain.setTargetAtTime(this.nearbyAudio ? this.remoteGainScale : 0, t, 0.05);
+  }
+
+  /** Initialize only the shared remote buses from a surface-mode user gesture, without starting a local ship engine. */
+  prepareRemoteAudio(): void {
+    if (!this.enabled || !this.initialize()) return;
+    this.remoteOnly = true;
+    void this.ctx?.resume().catch(() => undefined);
+    this.setRemoteAudioActive(true);
   }
 
   /** Call from a user gesture (entering Pilot mode). */
   start(): void {
     if (!this.enabled) return;
     try {
+      this.remoteOnly = false;
       if (!this.initialize()) return;
       void this.ctx!.resume();
       this.startEngine();
@@ -102,9 +119,9 @@ export class PilotAudio {
       this.engineBus = this.ctx.createGain(); this.engineBus.gain.value = this.engineMuted ? 0 : 1; this.engineBus.connect(this.master);
       this.afterburnerBus = this.ctx.createGain(); this.afterburnerBus.gain.value = this.afterburnerMuted ? 0 : 1; this.afterburnerBus.connect(this.master);
       this.laserBus = this.ctx.createGain(); this.laserBus.gain.value = 1; this.laserBus.connect(this.master);
-      this.remoteEngineBus = this.ctx.createGain(); this.remoteEngineBus.gain.value = this.nearbyAudio ? 1 : 0; this.remoteEngineBus.connect(this.engineBus);
-      this.remoteAfterburnerBus = this.ctx.createGain(); this.remoteAfterburnerBus.gain.value = this.nearbyAudio ? 1 : 0; this.remoteAfterburnerBus.connect(this.afterburnerBus);
-      this.remoteLaserBus = this.ctx.createGain(); this.remoteLaserBus.gain.value = this.nearbyAudio ? 1 : 0; this.remoteLaserBus.connect(this.laserBus);
+      this.remoteEngineBus = this.ctx.createGain(); this.remoteEngineBus.gain.value = this.nearbyAudio ? this.remoteGainScale : 0; this.remoteEngineBus.connect(this.engineBus);
+      this.remoteAfterburnerBus = this.ctx.createGain(); this.remoteAfterburnerBus.gain.value = this.nearbyAudio ? this.remoteGainScale : 0; this.remoteAfterburnerBus.connect(this.afterburnerBus);
+      this.remoteLaserBus = this.ctx.createGain(); this.remoteLaserBus.gain.value = this.nearbyAudio ? this.remoteGainScale : 0; this.remoteLaserBus.connect(this.laserBus);
       const len = this.ctx.sampleRate, buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate), d = buf.getChannelData(0);
       for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
       this.noise = buf; return true;

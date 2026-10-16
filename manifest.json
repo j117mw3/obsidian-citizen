@@ -1,9 +1,10 @@
 {
-  "id": "constellation-graph",
+  "id": "citizen",
   "name": "Obsidian Citizen",
-  "version": "0.5.0",
+  "version": "0.7.2",
   "minAppVersion": "1.7.2",
-  "description": "A 3D constellation of your notes with a flyable multiplayer space sandbox.",
-  "author": "JusVibin",
+  "description": "Explore your notes as a 3D constellation, fly a spaceship, and dock on procedural planets. Includes optional private multiplayer, first-person arenas, and solo training patrols.",
+  "author": "J117W3",
+  "authorUrl": "https://github.com/j117mw3/obsidian-citizen",
   "isDesktopOnly": true
 }

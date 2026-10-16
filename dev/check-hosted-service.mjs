@@ -1,4 +1,4 @@
-// Synthetic health and TURN-token check for the current protocol-5 deployment.
+// Synthetic health and TURN-token check for the current protocol-6 client deployment.
 // It does not create a room or open a WebRTC connection, and never prints tokens or ICE credentials.
 import assert from "node:assert/strict";
 

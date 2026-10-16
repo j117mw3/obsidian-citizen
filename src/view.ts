@@ -3,7 +3,7 @@ import { ConstellationApp } from "./app";
 import { buildGraphData, signature } from "./data";
 import type ConstellationPlugin from "./main";
 
-export const VIEW_TYPE = "constellation-graph-view";
+export const VIEW_TYPE = "citizen-view";
 
 export class ConstellationView extends ItemView {
   private ca: ConstellationApp | null = null;

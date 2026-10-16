@@ -4,7 +4,7 @@ import { basename } from "node:path";
 import { build } from "esbuild";
 
 const built = await build({
-  entryPoints: ["src/multiplayer.ts", "src/combat.ts", "src/sim.ts"],
+  entryPoints: ["src/multiplayer.ts", "src/combat.ts", "src/sim.ts", "src/interpolation.ts", "src/surfaceAuthority.ts", "src/networkJson.ts"],
   bundle: true,
   platform: "node",
   format: "esm",
@@ -21,6 +21,10 @@ async function loadBundle(name) {
 const network = await loadBundle("multiplayer");
 const combat = await loadBundle("combat");
 const sim = await loadBundle("sim");
+const interpolation = await loadBundle("interpolation");
+const surfaceAuthority = await loadBundle("surfaceAuthority");
+const wire = await loadBundle("networkJson");
+const jsonPacket = packet => packet instanceof ArrayBuffer && wire.compressedNetworkJson(packet) ? wire.decodeNetworkJson(packet) : packet;
 
 const privateMarkers = ["PRIVATE_TITLE_CobaltVault", "PRIVATE_PATH_Secrets/Bluebird.md", "PRIVATE_TAG_Clinical", "PRIVATE_BODY_needle" ];
 function fixture() {
@@ -43,10 +47,173 @@ function peerStub(topology = undefined) {
   return {
     pc: {}, signalChain: Promise.resolve(), pendingCandidates: [], topology, positionSequence: 0, lastPositionSequence: 0, topologySend: null, topologyReceive: null,
     positionReceive: new Map(),
-    control: { readyState: "open", bufferedAmount: 0, sent: [], send(message) { this.sent.push(message); } },
-    live: { readyState: "open", bufferedAmount: 0, sent: [], send(message) { this.sent.push(message); } },
+    control: { readyState: "open", bufferedAmount: 0, sent: [], raw: [], send(message) { this.raw.push(message); this.sent.push(jsonPacket(message)); } },
+    live: { readyState: "open", bufferedAmount: 0, sent: [], raw: [], send(message) { this.raw.push(message); this.sent.push(jsonPacket(message)); } },
   };
 }
+
+test("congested live state coalesces latest streams while fire dispositions bypass the pending snapshots", () => {
+  const session = new network.MultiplayerSession(callbacks(), () => ({ data: fixture(), nodes: [] }));
+  const peer = peerStub(); session.peers.set("guest", peer);
+  peer.live.bufferedAmount = 4096;
+  for (let sequence = 1; sequence <= 100; sequence++) {
+    session.sendTo("guest", { type: "ship", epoch: 1, playerId: "pilot", sequence, pose: { newest: sequence } });
+    session.sendTo("guest", { type: "surface-state", epoch: 1, state: { sequence, arenas: [] } });
+    session.sendTo("guest", { type: "surface-input", epoch: 1, frames: [{ sequence }] });
+  }
+  assert.equal(peer.live.sent.length, 0, "replaceable frames stay out of the occupied SCTP queue");
+  assert.equal(session.liveLatest.get("guest").size, 3, "bounded by streams, not elapsed congested ticks");
+  session.sendTo("guest", { type: "surface-fire-result", epoch: 1, sequence: 7, accepted: true });
+  assert.equal(JSON.parse(peer.live.sent[0]).type, "surface-fire-result");
+  peer.live.bufferedAmount = 0;
+  peer.live.send = function(message) { this.sent.push(message); this.bufferedAmount += 4096; };
+  session.flushLiveState("guest");
+  assert.equal(peer.live.sent.length, 2, "only one batch enters an undrained channel");
+  assert.equal(JSON.parse(peer.live.sent[1]).sequence, 100);
+  peer.live.bufferedAmount = 0; session.flushLiveState("guest");
+  assert.equal(JSON.parse(peer.live.sent[2]).state.sequence, 100, "the next stream gets a turn with its newest state");
+  peer.live.bufferedAmount = 0; session.flushLiveState("guest");
+  assert.equal(JSON.parse(peer.live.sent[3]).frames[0].sequence, 100);
+  assert.equal(session.liveLatest.get("guest").size, 0);
+  peer.live.bufferedAmount = 4096; session.sendTo("guest", { type: "surface-state", epoch: 1, state: { sequence: 101, arenas: [] } });
+  session.resetSurfaceTransport(); assert.equal(session.liveLatest.size, 0, "an authority reset cannot flush stale-epoch state");
+});
+
+test("compact state cannot accumulate below the former four-KB batch threshold", () => {
+  const session = new network.MultiplayerSession(callbacks(), () => ({ data: fixture(), nodes: [] }));
+  const peer = peerStub(); session.peers.set("guest", peer);
+  peer.live.send = function(message) { this.sent.push(jsonPacket(message)); this.bufferedAmount += 100; };
+  for (let sequence = 1; sequence <= 100; sequence++) session.sendTo("guest", { type: "surface-input", epoch: 1, frames: [{ sequence }] });
+  assert.equal(peer.live.sent.length, 1, "one small unsent message blocks further replaceable state");
+  assert.equal(JSON.parse(peer.live.sent[0]).frames[0].sequence, 1);
+  assert.equal(session.liveLatest.get("guest").size, 1);
+  peer.live.bufferedAmount = 0; session.flushLiveState("guest");
+  assert.equal(peer.live.sent.length, 2);
+  assert.equal(JSON.parse(peer.live.sent[1]).frames[0].sequence, 100, "only the newest pending controls enter SCTP");
+  session.sendTo("guest", { type: "surface-fire-result", epoch: 1, sequence: 101, accepted: true });
+  assert.equal(JSON.parse(peer.live.sent[2]).type, "surface-fire-result", "authoritative dispositions still bypass pending state");
+});
+
+test("checkpoint publication skips a busy reliable queue instead of accumulating stale copies", () => {
+  const session = new network.MultiplayerSession(callbacks(), () => ({ data: fixture(), nodes: [] }));
+  const peer = peerStub(); session.peers.set("guest", peer);
+  peer.control.bufferedAmount = 1;
+  session.sendReliableAll({ type: "checkpoint", epoch: 1, sentAt: 100, state: {} });
+  assert.equal(peer.control.sent.length, 0);
+  session.sendReliableAll({ type: "round-state", epoch: 1, state: {} });
+  assert.equal(peer.control.sent.length, 1, "round events retain their existing reliable delivery path");
+  peer.control.bufferedAmount = 0;
+  session.sendReliableAll({ type: "checkpoint", epoch: 1, sentAt: 200, state: {} });
+  assert.equal(JSON.parse(peer.control.sent[1]).sentAt, 200);
+});
+
+test("real session lanes acknowledge validated geometry and reconstruct later compact snapshots", () => {
+  const owner = "11111111-1111-4111-8111-111111111111", guestId = "22222222-2222-4222-8222-222222222222", hub = "n-33333333-3333-4333-8333-333333333333";
+  const authority = new surfaceAuthority.SurfaceAuthority();
+  authority.setOwnerMap(owner, { revision: 1, nodes: [{ id: hub, group: 0, degree: 0, dockable: true }], links: [] }, new Float32Array([0, 0, 0]));
+  authority.addPlayer(guestId, { position: [0, 0, 38 * 6 / 27], rotation: [0, 0, 0, 1], velocity: [0, 0, 0], lastDamageAt: 0 });
+  assert.equal(authority.dock(guestId, owner, hub, 4000), true);
+  const views = [], host = new network.MultiplayerSession(callbacks(), () => ({ data: fixture(), nodes: [] }));
+  const client = new network.MultiplayerSession(callbacks({ surfaceState: snapshot => views.push(snapshot) }), () => ({ data: fixture(), nodes: [] }));
+  Object.assign(host, { selfId: owner, hostId: owner, epoch: 1 }); Object.assign(client, { selfId: guestId, hostId: owner, epoch: 1 });
+  const hostPeer = peerStub(), clientPeer = peerStub(); host.peers.set(guestId, hostPeer); client.peers.set(owner, clientPeer);
+  host.sendTo(guestId, { type: "surface-state", epoch: 1, state: authority.snapshot(1, 1, 5000) });
+  for (const packet of hostPeer.control.raw) client.onPeerMessage(owner, packet, "control");
+  client.onPeerMessage(owner, hostPeer.live.raw[0], "live");
+  assert.equal(views.length, 1); assert.equal(JSON.parse(clientPeer.control.sent[0]).type, "surface-geometry-ready");
+  host.onPeerMessage(guestId, clientPeer.control.raw[0], "control");
+  host.sendTo(guestId, { type: "surface-state", epoch: 1, state: authority.snapshot(1, 2, 5050) });
+  assert.equal(typeof JSON.parse(hostPeer.live.sent[1]).state.arenas[0].arena, "number");
+  client.onPeerMessage(owner, hostPeer.live.raw[1], "live");
+  assert.equal(views.length, 2); assert.deepEqual(views[1].arenas[0].arena, views[0].arenas[0].arena);
+  client.resetSurfaceTransport();
+  client.onPeerMessage(owner, hostPeer.live.raw[1], "live");
+  assert.equal(views.length, 2, "a reference with no cached geometry never reaches presentation");
+  const repair = clientPeer.control.raw.at(-1); assert.equal(JSON.parse(jsonPacket(repair)).type, "surface-geometry-needed");
+  host.onPeerMessage(guestId, repair, "control");
+  host.sendTo(guestId, { type: "surface-state", epoch: 1, state: authority.snapshot(1, 3, 5100) });
+  for (const packet of hostPeer.control.raw) client.onPeerMessage(owner, packet, "control");
+  client.onPeerMessage(owner, hostPeer.live.raw[2], "live"); assert.equal(views.length, 3);
+});
+
+test("large surface checkpoints arrive atomically in bounded reliable chunks", () => {
+  const owner = "11111111-1111-4111-8111-111111111111", now = Date.now();
+  const authority = new surfaceAuthority.SurfaceAuthority();
+  const nodes = Array.from({ length: 128 }, (_, index) => ({ id: `n-00000000-0000-4000-8000-${String(index).padStart(12, "0")}`, group: index, degree: 0, dockable: true }));
+  authority.setOwnerMap(owner, { revision: 1, nodes, links: [] }, new Float32Array(nodes.length * 3));
+  for (const arena of authority.world.arenas.values()) Object.assign(arena.pickups[0], { available: false, respawnAt: now + 15000 });
+  const state = { ...new combat.CombatWorld(1).snapshot(now), surface: authority.checkpoint(now) };
+  assert.ok(JSON.stringify(state).length > 128000, "exercise the former receive limit");
+  const host = new network.MultiplayerSession(callbacks(), () => ({ data: fixture(), nodes: [] }));
+  const client = new network.MultiplayerSession(callbacks(), () => ({ data: fixture(), nodes: [] }));
+  Object.assign(host, { selfId: owner, hostId: owner, epoch: 1 }); Object.assign(client, { selfId: "guest", hostId: owner, epoch: 1 });
+  const outgoing = peerStub(); host.peers.set("guest", outgoing); client.peers.set(owner, peerStub());
+  host.sendReliableAll({ type: "checkpoint", epoch: 1, sentAt: now, state });
+  assert.ok(outgoing.control.sent.length > 1);
+  for (const packet of outgoing.control.sent) { assert.ok(packet.length < 64000); assert.equal(JSON.parse(packet).type, "checkpoint-chunk"); }
+  assert.ok(outgoing.control.raw.some(packet => packet instanceof ArrayBuffer), "large checkpoint parts use bounded compressed wire frames");
+  const [first, ...rest] = outgoing.control.raw;
+  client.onPeerMessage(owner, first, "control"); client.onPeerMessage(owner, first, "control");
+  assert.equal(client.lastCheckpoint, null, "partial and duplicate parts cannot commit state");
+  for (const packet of rest.reverse()) client.onPeerMessage(owner, packet, "control");
+  assert.equal(client.lastCheckpoint.sentAt, now);
+  assert.equal(client.lastCheckpoint.state.surface.world.arenas.length, 128);
+  assert.equal(client.checkpointReceive, null);
+  const malformed = { ...JSON.parse(jsonPacket(first)), sentAt: now + 1, total: Math.ceil(32 * 1024 * 1024 / 16000) + 1 };
+  client.onPeerMessage(owner, JSON.stringify(malformed), "control"); assert.equal(client.checkpointReceive, null);
+  client.epoch = 2; client.onPeerMessage(owner, first, "control"); assert.equal(client.checkpointReceive, null);
+});
+
+test("surface fire retries recover lost requests and results without repeating authority or callbacks", () => {
+  const dispositions = [];
+  const client = new network.MultiplayerSession(callbacks({ surfaceFireResult: (...value) => dispositions.push(value) }), () => ({ data: fixture(), nodes: [] }));
+  const host = new network.MultiplayerSession(callbacks(), () => ({ data: fixture(), nodes: [] }));
+  Object.assign(client, { selfId: "guest", hostId: "host", authorityReady: true, epoch: 1 });
+  Object.assign(host, { selfId: "host", hostId: "host", authorityReady: true, epoch: 1, world: { roundPhase: "combat" } });
+  const hostPeer = peerStub(), guestPeer = peerStub(); client.peers.set("host", hostPeer); host.peers.set("guest", guestPeer);
+  let calls = 0; host.surfaceAuthority = { fire() { calls++; return { accepted: true }; } };
+  const originalNow = Date.now; let now = 10000; Date.now = () => now;
+  try {
+    client.fireSurface(1, now - 75, "arena", 1, [0, 0, -1]);
+    assert.equal(hostPeer.control.sent.length, 0); assert.equal(hostPeer.live.sent.length, 1);
+    now += 100; client.retrySurfaceFire(now); // First request lost.
+    host.onPeerMessage("guest", hostPeer.live.sent.at(-1), "live");
+    assert.equal(calls, 1);
+    now += 100; client.retrySurfaceFire(now); // First disposition lost.
+    host.onPeerMessage("guest", hostPeer.live.sent.at(-1), "live");
+    assert.equal(calls, 1, "a retry returns the cached accepted disposition without firing again");
+    client.onPeerMessage("host", guestPeer.live.sent.at(-1), "live");
+    client.onPeerMessage("host", guestPeer.live.sent.at(-1), "live");
+    assert.deepEqual(dispositions, [[1, true]]);
+    assert.equal(client.pendingSurfaceFire.size, 0);
+    client.fireSurface(2, now - 75, "arena", 1, [0, 0, -1]);
+    now += 1000; client.retrySurfaceFire(now);
+    assert.equal(client.pendingSurfaceFire.size, 0);
+    assert.deepEqual(dispositions, [[1, true]], "local expiry must not pretend to be an authoritative disposition");
+    client.fireSurface(3, now - 75, "arena", 1, [0, 0, -1]);
+    client.acknowledgeSurfaceInputs({ players: [{ id: "guest", mode: "surface", arenaKey: "arena", lifeId: 2, inputSequence: 0 }] });
+    assert.equal(client.pendingSurfaceFire.size, 0, "no old-life retries");
+    const before = calls;
+    host.onPeerMessage("guest", JSON.stringify({ type: "surface-fire", epoch: 0, sequence: 4, viewTime: now, arenaKey: "arena", lifeId: 1, direction: [0, 0, -1] }), "live");
+    assert.equal(calls, before);
+    host.resetSurfaceTransport(); assert.equal(host.surfaceFireResults.size, 0);
+  } finally { Date.now = originalNow; }
+});
+
+test("checkpoint age uses synchronized host time and retains a local recovery timestamp", () => {
+  const client = new network.MultiplayerSession(callbacks(), () => ({ data: fixture(), nodes: [] }));
+  Object.assign(client, { selfId: "guest", hostId: "host", epoch: 1 }); client.peers.set("host", peerStub());
+  assert.equal(client.surfaceClock.observePing(19800, 18850, 18850, 19900), true);
+  const surface = new surfaceAuthority.SurfaceAuthority(), state = { ...new combat.CombatWorld(1).snapshot(18950), surface: surface.checkpoint(18950) };
+  const originalNow = Date.now; Date.now = () => 20000;
+  try {
+    client.onPeerMessage("host", JSON.stringify({ type: "checkpoint", epoch: 1, sentAt: 18950, state }), "control");
+    assert.equal(client.lastCheckpoint.sentAt, 19950, "50 ms delivery age, independent of the 1-second clock offset");
+    assert.equal(client.lastCheckpointWireAt, 18950);
+    client.onPeerMessage("host", JSON.stringify({ type: "checkpoint", epoch: 1, sentAt: 18940, state }), "control");
+    assert.equal(client.lastCheckpoint.sentAt, 19950, "a stale host timestamp cannot replace the accepted checkpoint");
+  } finally { Date.now = originalNow; }
+});
 
 test("anonymous topology and all application packets omit local vault metadata", () => {
   const ids = new Map();
@@ -54,6 +221,8 @@ test("anonymous topology and all application packets omit local vault metadata",
   const text = JSON.stringify(topology);
   for (const marker of privateMarkers) assert.equal(text.includes(marker), false);
   assert.equal(topology.nodes.length, 2);
+  assert.equal(topology.nodes.filter(node => node.dockable).length, 1, "each populated group publishes one anonymous docking hub");
+  assert.equal(topology.nodes.find(node => node.dockable).id, topology.nodes[0].id, "degree ties choose the first local path without exposing it");
   assert.deepEqual(topology.links, [[topology.nodes[0].id, topology.nodes[1].id]]);
   assert.match(topology.nodes[0].id, /^n-[0-9a-f-]{36}$/i);
 
@@ -66,7 +235,7 @@ test("anonymous topology and all application packets omit local vault metadata",
   session.setLocalGraph(fixture());
   session.pumpTopologies();
   session.sendPositionsTo(peerId);
-  session.sendInput({ thrust: 1, strafe: 0, lift: 0, roll: 0, pitch: 0, yaw: 0, boost: false, brake: false, fire: false, active: true, weapon: 0 });
+  session.sendInput({ sequence: 1, thrust: 1, strafe: 0, lift: 0, roll: 0, pitch: 0, yaw: 0, boost: false, brake: false, fire: false, active: true, mouseMode: "capture", mouseSamples: [], sensitivity: 1, agility: 1, invertY: false });
   session.fire(1, 2, 0, [10, 20, 30]);
   session.requestFastTravel({ ownerId: session.selfId, starId: session.localTopology.nodes[0].id, revision: session.localTopology.revision });
 
@@ -102,19 +271,22 @@ test("topology revisions and position snapshots reject stale or malformed traffi
   const sendTopology = value => session.onPeerMessage("owner", JSON.stringify({ type: "topology-chunk", revision: value.revision, index: 0, total: 1, data: JSON.stringify(value) }), "control");
   sendTopology({ ...topology, revision: 2 });
   sendTopology(topology);
+  sendTopology({ ...topology, revision: 3, nodes: topology.nodes.map(node => ({ ...node, dockable: false })) });
+  sendTopology({ ...topology, revision: 4, nodes: topology.nodes.map((node, i) => ({ ...node, dockable: i === 0 })) });
+  sendTopology({ ...topology, revision: 5, nodes: topology.nodes.map((node, i) => ({ ...node, degree: i === 0 ? 0 : 2, dockable: i === 0 })) });
   session.onPeerMessage("owner", JSON.stringify({ type: "topology-chunk", revision: 3, index: 0, total: 1, data: "{broken" }), "control");
-  assert.deepEqual(accepted, [2]);
+  assert.deepEqual(accepted, [2, 4], "a topology needs exactly one dockable note in each populated group");
 
   const nodes = [{ x: 10, y: 20, z: 30 }, { x: -4, y: 5, z: 6 }];
-  const frames = network.encodePositionChunks(nodes, { ...topology, revision: 2 }, 8);
+  const frames = network.encodePositionChunks(nodes, { ...topology, revision: 4 }, 8);
   for (const frame of [...frames].reverse()) session.onPeerMessage("owner", frame, "live");
-  for (const frame of network.encodePositionChunks(nodes, { ...topology, revision: 2 }, 7)) session.onPeerMessage("owner", frame, "live");
+  for (const frame of network.encodePositionChunks(nodes, { ...topology, revision: 4 }, 7)) session.onPeerMessage("owner", frame, "live");
   const wrongRevision = network.encodePositionChunks(nodes, { ...topology, revision: 1 }, 9)[0];
   session.onPeerMessage("owner", wrongRevision, "live");
   assert.equal(positions.length, 1);
   assert.deepEqual(positions[0], [10, 20, 30, -4, 5, 6]);
   session.onPeerMessage("owner", JSON.stringify({ type: "open", path: privateMarkers[1] }), "live");
-  assert.deepEqual(accepted, [2]);
+  assert.deepEqual(accepted, [2, 4]);
 });
 
 test("host accepts only current-epoch anonymous navigation and bounded authoritative fire requests", () => {
@@ -149,6 +321,90 @@ test("host accepts only current-epoch anonymous navigation and bounded authorita
   assert.equal(session.world.shotSnapshots().length, 1, "remote note-opening requests are ignored");
 });
 
+test("sequenced weapon commands survive movement throttling, reject duplicates, and cannot bypass cooldown", () => {
+  const hostId = "11111111-1111-4111-8111-111111111111", guestId = "22222222-2222-4222-8222-222222222222";
+  const session = new network.MultiplayerSession(callbacks(), () => ({ data: fixture(), nodes: [] }));
+  session.selfId = session.hostId = hostId; session.epoch = 6;
+  session.roster = [{ id: hostId, name: "Host" }, { id: guestId, name: "Guest" }];
+  const peer = peerStub(); session.peers.set(guestId, peer);
+  session.world = new combat.CombatWorld(6);
+  session.world.add({ id: guestId, slot: 1, name: "Guest", joinedAt: 1 });
+  const pilot = session.world.players.get(guestId); pilot.active = true; pilot.input.active = true; pilot.vel.set(0, 0, -100);
+
+  const move = { sequence: 1, thrust: 0, strafe: 0, lift: 0, roll: 0, pitch: 0, yaw: 0, boost: false, brake: false, fire: false, active: true,
+    mouseMode: "capture", mouseSamples: [], sensitivity: 1, agility: 1, invertY: false };
+  const movementAt = Date.now();
+  session.onPeerMessage(guestId, JSON.stringify({ type: "input", epoch: 6, input: move }), "live");
+  assert.ok(pilot.inputAt >= movementAt, "the normal movement path records its throttle timestamp");
+
+  // Exercise the client's actual R -> fire sequence. The reliable channel must
+  // carry the weapon command before the shot, independently of input throttling.
+  const client = new network.MultiplayerSession(callbacks(), () => ({ data: fixture(), nodes: [] }));
+  client.selfId = guestId; client.hostId = hostId; client.epoch = 6;
+  const clientPeer = peerStub(); client.peers.set(hostId, clientPeer);
+  client.selectWeapon(1, 1);
+  client.fire(1, 0, 1, [2300, 0, -900]);
+  const outgoing = clientPeer.control.sent.map(JSON.parse);
+  assert.deepEqual(outgoing.map(message => message.type), ["weapon", "fire"], "R then fire are ordered on the reliable control channel");
+  for (const message of outgoing) session.onPeerMessage(guestId, JSON.stringify(message), "control");
+  session.onPeerMessage(guestId, JSON.stringify({ type: "weapon", epoch: 6, sequence: 1, weapon: 0 }), "control");
+  assert.equal(pilot.weapon, 1, "a duplicate old weapon command cannot overwrite the cannon choice");
+  assert.equal(session.world.poses(Date.now()).find(item => item.id === guestId).pose.weaponSequence, 1, "the authoritative pose acknowledges the reliable weapon sequence");
+
+  session.onPeerMessage(guestId, JSON.stringify({ type: "fire", epoch: 6, sequence: 1, gun: 0, weapon: 1, aimPoint: [2300, 0, -900] }), "control");
+  const first = session.world.shotSnapshots()[0];
+  assert.equal(first.weapon, 1); assert.equal(first.speed, 1000, "the launch speed includes the shooter velocity and is frozen");
+  pilot.vel.set(0, 0, 900);
+  assert.equal(session.world.shotSnapshots()[0].speed, 1000);
+  assert.equal(pilot.ammunition, 35);
+
+  session.world.setWeapon(guestId, 2, 0, Date.now());
+  assert.equal(pilot.weapon, 0);
+  assert.equal(session.world.fireShot(guestId, 2, 0, first.startedAt + 100, undefined, 0), false, "switching weapons does not clear the cannon cooldown");
+  assert.equal(session.world.fireShot(guestId, 2, 1, first.startedAt + 1000, undefined, 0), true);
+});
+
+test("host input acknowledges exact fixed ticks and retains tick progress in a checkpoint", () => {
+  const world = new combat.CombatWorld(6);
+  world.add({ id: "pilot", slot: 0, name: "Pilot", joinedAt: 1 });
+  const makeTick = (tick, mouseDelta) => ({ tick, thrust: 1, strafe: 0, lift: 0, roll: 0, pitch: 0, yaw: 0, boost: false, brake: false, active: true,
+    mouseMode: "capture", mouseDelta, sensitivity: 1, agility: 1, invertY: false });
+  const input = { ...emptyInput, sequence: 9, active: true, ticks: [makeTick(1, [10, 0]), makeTick(2, [0, 0])] };
+  world.setInput("pilot", input, 1000);
+  world.step(1 / 60, 1017);
+  let pose = world.poses(1017).find(item => item.id === "pilot").pose;
+  assert.equal(pose.inputTick, 1, "only the one simulated input tick is acknowledged");
+  world.step(1 / 60, 1034);
+  pose = world.poses(1034).find(item => item.id === "pilot").pose;
+  assert.equal(pose.inputTick, 2);
+  assert.ok(pose.spin[1] < 0);
+  assert.ok(pose.mouseSmoothing[0] > 0);
+  const checkpoint = world.snapshot(1034), restored = new combat.CombatWorld(7);
+  assert.equal(restored.restore(checkpoint, 1034), true);
+  assert.equal(restored.poses(1034).find(item => item.id === "pilot").pose.inputTick, 2);
+});
+
+test("checkpoints retain bounded outstanding input ticks and overlapping resend batches deduplicate", () => {
+  const world = new combat.CombatWorld(1);
+  world.add({ id: "pilot", slot: 0, name: "Pilot", joinedAt: 1 });
+  const tick = value => ({ tick: value, thrust: 1, strafe: 0, lift: 0, roll: 0, pitch: 0, yaw: 0, boost: false, brake: false, active: true,
+    mouseMode: "capture", mouseDelta: [0, 0], sensitivity: 1, agility: 1, invertY: false });
+  world.setInput("pilot", { ...emptyInput, sequence: 1, active: true, ticks: [tick(1), tick(2), tick(3)] }, 1000);
+  world.step(1 / 60, 1017);
+  const checkpoint = world.snapshot(1017);
+  assert.equal(checkpoint.players[0].tickQueue.length, 2);
+  const resumed = new combat.CombatWorld(2);
+  assert.equal(resumed.restore(checkpoint, 1017), true);
+  resumed.setInput("pilot", { ...emptyInput, sequence: 2, active: true, ticks: [tick(2), tick(3), tick(4)] }, 1034);
+  resumed.step(1 / 60, 1034);
+  assert.equal(resumed.poses(1034)[0].pose.inputTick, 2);
+  assert.equal(resumed.players.get("pilot").tickQueue.size, 2, "resent 2 and 3 are not duplicated; only tick 4 is new");
+  resumed.setInput("pilot", { ...emptyInput, sequence: 2, active: true, ticks: [tick(3), tick(4)] }, 1051);
+  resumed.step(1 / 60, 1051);
+  assert.equal(resumed.poses(1051)[0].pose.inputTick, 3);
+  assert.equal(resumed.players.get("pilot").tickQueue.size, 1);
+});
+
 test("shot results are accepted only from the current host and authority epoch", () => {
   const hostId = "11111111-1111-4111-8111-111111111111", clientId = "22222222-2222-4222-8222-222222222222", otherId = "33333333-3333-4333-8333-333333333333";
   const results = [];
@@ -172,7 +428,11 @@ test("round states and elimination announcements require the current host and de
   session.onPeerMessage(hostId, JSON.stringify({ type: "round-state", epoch: 7, state: { ...state, epoch: 7 } }), "control");
   session.onPeerMessage(hostId, JSON.stringify({ type: "round-state", epoch: 8, state }), "control");
   assert.equal(rounds.length, 1);
-  assert.equal(network.validRoundSnapshot({ ...state, phase: "supernova", winnerId: hostId }), false, "victory phases require a five-kill score");
+  assert.equal(network.validRoundSnapshot({ ...state, phase: "supernova", winnerId: hostId }), false, "victory phases require a ten-kill score");
+  const nine = { ...state, phase: "supernova", winnerId: hostId, scores: [{ ...state.scores[0], kills: 9 }, state.scores[1]] };
+  assert.equal(network.validRoundSnapshot(nine), false, "nine kills cannot declare a winner");
+  const ten = { ...nine, scores: [{ ...state.scores[0], kills: 10 }, state.scores[1]] };
+  assert.equal(network.validRoundSnapshot(ten), true, "ten confirmed player kills can declare a winner");
   const event = { id: "2:host-shot-1", roundId: 2, attackerId: hostId, victimId: selfId, attackerScore: 1, at: 2000 };
   session.onPeerMessage(otherId, JSON.stringify({ type: "elimination", epoch: 8, event }), "control");
   session.onPeerMessage(hostId, JSON.stringify({ type: "elimination", epoch: 7, event }), "control");
@@ -190,7 +450,7 @@ test("multiplayer map coordinates double around their stable region and restore 
   }
 });
 
-const emptyInput = { thrust: 0, strafe: 0, lift: 0, roll: 0, pitch: 0, yaw: 0, boost: false, brake: false, fire: false, active: false, weapon: 0 };
+const emptyInput = { sequence: 0, thrust: 0, strafe: 0, lift: 0, roll: 0, pitch: 0, yaw: 0, boost: false, brake: false, fire: false, active: false, mouseMode: "capture", mouseSamples: [], sensitivity: 1, agility: 1, invertY: false };
 function addPair(world) {
   world.add({ id: "attacker", slot: 0, name: "A", joinedAt: 1 });
   world.add({ id: "target", slot: 1, name: "B", joinedAt: 2 });
@@ -205,15 +465,19 @@ test("host projectiles sweep travel, apply the upstream weapon damage model, and
   const world = new combat.CombatWorld(4), { attacker, target } = addPair(world);
   target.shields = 0;
   assert.equal(world.fireShot("attacker", 1, 0, 10_000), true);
+  assert.equal(world.poses(10_000).find(item => item.id === "attacker").pose.weaponCooldownDuration, 160);
   world.step(1 / 60, 10_000);
   for (let i = 0; i < 5; i++) world.step(1 / 60, 10_017 + i * 17);
   assert.ok(target.health >= 87.5 && target.health < 90, "damage follows the weapon's distance curve after shield absorption");
   assert.equal(world.impactSnapshots(10_100).at(-1)?.kind, "ship");
 
-  assert.equal(world.fireShot("attacker", 2, 3, 10_200, undefined, 0), true);
+  world.setWeapon("attacker", 1, 1, 10_200);
+  assert.equal(world.fireShot("attacker", 2, 3, 10_200, undefined, 1), true);
+  assert.equal(world.poses(10_200).find(item => item.id === "attacker").pose.weaponCooldownDuration, 500);
   world.step(1 / 60, 10_200);
   const checkpoint = world.snapshot(10_200);
   assert.ok(checkpoint.shots.length > 0);
+  assert.equal(checkpoint.players.find(player => player.id === "attacker").fireCooldownDuration, 500);
   assert.equal(checkpoint.shots[0].gun, 3);
   assert.deepEqual(checkpoint.shots[0].origin, world.shotSnapshots()[0].origin);
   const resumed = new combat.CombatWorld(5);
@@ -266,6 +530,19 @@ test("projectile hits on stars are visuals only and spawn protection holds", () 
   assert.equal(world.impactSnapshots(20_100).at(-1)?.kind, "star");
 });
 
+test("space bolts stop on parked ships without damaging them or adding a flight obstacle", () => {
+  const world = new combat.CombatWorld(1), { attacker, target } = addPair(world);
+  world.setParkedShipPositions([{ id: "docked", position: [0, 0, -18] }]);
+  assert.equal(world.fireShot("attacker", 1, 0, 21_000, [0, 0, -100], 0), true);
+  world.step(1 / 60, 21_017);
+  assert.equal(target.health, 100);
+  assert.equal(world.impactSnapshots(21_017).at(-1)?.kind, "star");
+  assert.equal(world.shotSnapshots().length, 0, "the bolt terminates at the parked hull");
+  const position = attacker.pos.clone();
+  world.step(1 / 60, 21_034);
+  assert.deepEqual(attacker.pos.toArray(), position.toArray(), "parked hulls are not added to the flight collision grid");
+});
+
 test("lethal damage respawns at five seconds with full health, boost, and three-second protection", () => {
   const world = new combat.CombatWorld(1), { attacker, target } = addPair(world);
   target.shields = 0; target.health = 10;
@@ -285,10 +562,13 @@ test("lethal damage respawns at five seconds with full health, boost, and three-
   assert.equal(target.protectedUntil, respawnAt + 3000);
 });
 
-test("first-to-five scores only confirmed lethal hits and checkpoints victory progress", () => {
+test("first-to-ten scores only confirmed lethal hits and checkpoints victory progress", () => {
   const world = new combat.CombatWorld(9), { attacker, target } = addPair(world);
+  attacker.pos.set(123, 45, 80); attacker.rot.set(0, 0, Math.sin(0.325), Math.cos(0.325));
+  target.pos.set(123, 45, -20);
+  const retainedPosition = attacker.pos.toArray(), retainedRotation = [attacker.rot.x, attacker.rot.y, attacker.rot.z, attacker.rot.w];
   let now = 40_000;
-  for (let kill = 1; kill <= 5; kill++) {
+  for (let kill = 1; kill <= 10; kill++) {
     target.shields = 0; target.health = 10; target.active = true; target.protectedUntil = 0;
     attacker.active = true;
     assert.equal(world.fireShot("attacker", kill, 0, now), true);
@@ -296,22 +576,23 @@ test("first-to-five scores only confirmed lethal hits and checkpoints victory pr
     const events = world.drainEliminations();
     assert.equal(events.length, 1, "one elimination is emitted for each actual alive-to-destroyed transition");
     assert.equal(events[0].attackerScore, kill);
+    if (kill === 9) assert.equal(world.roundPhase, "combat", "nine kills do not end the round");
     assert.equal(world.fireShot("attacker", kill, 0, now + 200), false, "duplicate shot sequences cannot score twice");
     now += 250;
   }
-  assert.equal(attacker.kills, 5);
+  assert.equal(attacker.kills, 10);
   assert.equal(world.roundPhase, "supernova");
-  assert.equal(world.fireShot("attacker", 6, 0, now), false, "combat pauses immediately at the winning hit");
+  assert.equal(world.fireShot("attacker", 11, 0, now), false, "combat pauses immediately at the winning hit");
   assert.equal(world.startTravel("attacker", [0, 0, -500], 1, now), false);
 
   const checkpoint = world.snapshot(now), transferred = new combat.CombatWorld(10);
-  assert.equal(checkpoint.version, 5);
+  assert.equal(checkpoint.version, 14);
   assert.equal(transferred.restore(checkpoint, now + 100, 1200), true);
   assert.equal(transferred.currentRoundId, 1);
   assert.equal(transferred.roundSnapshot(now + 100).phaseRemainingMs, checkpoint.round.phaseRemainingMs - 1200);
-  assert.equal(transferred.players.get("attacker").kills, 5);
+  assert.equal(transferred.players.get("attacker").kills, 10);
 
-  const waitingAt = now + 7000;
+  const waitingAt = now + 8100;
   transferred.step(1 / 60, waitingAt);
   assert.equal(transferred.roundPhase, "waiting");
   const waitingCheckpoint = transferred.snapshot(waitingAt), waitingHost = new combat.CombatWorld(11);
@@ -329,6 +610,23 @@ test("first-to-five scores only confirmed lethal hits and checkpoints victory pr
   assert.equal(countdownHost.players.get("attacker").health, 100);
   assert.equal(countdownHost.players.get("attacker").energy, 1);
   assert.equal(countdownHost.players.get("attacker").active, false, "spectators remain spectators after round reset");
+  assert.deepEqual(countdownHost.players.get("attacker").pos.toArray(), retainedPosition, "a flying player remains at the same space position");
+  assert.deepEqual([countdownHost.players.get("attacker").rot.x, countdownHost.players.get("attacker").rot.y, countdownHost.players.get("attacker").rot.z, countdownHost.players.get("attacker").rot.w], retainedRotation, "a flying player keeps their facing across the round reset");
+});
+
+test("ship and surface eliminations share the ten-kill round threshold", () => {
+  const world = new combat.CombatWorld(18), { attacker, target } = addPair(world);
+  for (let kill = 1; kill <= 9; kill++) {
+    target.shields = 0; target.health = 10; target.active = true; attacker.active = true;
+    const at = 50_000 + kill * 250;
+    assert.equal(world.fireShot("attacker", kill, 0, at), true);
+    for (let frame = 1; frame <= 8 && target.health > 0; frame++) world.step(1 / 60, at + frame * 17);
+  }
+  assert.equal(attacker.kills, 9);
+  assert.equal(world.roundPhase, "combat");
+  const event = world.recordSurfaceElimination("attacker", "target", "surface-kill-10", 53_000);
+  assert.equal(event.attackerScore, 10);
+  assert.equal(world.roundPhase, "supernova", "a surface elimination can supply the tenth kill after ship combat");
 });
 
 test("boost drains at the shared rate and spectators resume after five seconds without refilling", () => {
@@ -402,14 +700,89 @@ test("replicated thrust audio follows effective propulsion and goes quiet during
   assert.equal(pose.thrust, 0); assert.equal(pose.boosting, false);
 });
 
-test("new room sessions advertise protocol 5 without opening a connection on construction", () => {
+test("new room sessions advertise protocol 14 without opening a connection on construction", () => {
   const session = new network.MultiplayerSession(callbacks(), () => ({ data: fixture(), nodes: [] }));
-  assert.equal(network.ROOM_PROTOCOL, 5);
+  assert.equal(network.ROOM_PROTOCOL, 14);
   assert.equal(session.active, false);
   assert.equal(session.room, "");
 });
 
-test("the host publishes authoritative flight state locally for every participant", () => {
+test("surface transport sends bounded overlapping controls, trims acknowledgements, and excludes extra private fields", () => {
+  const session = new network.MultiplayerSession(callbacks(), () => ({ data: fixture(), nodes: [] }));
+  session.selfId = "22222222-2222-4222-8222-222222222222"; session.hostId = "11111111-1111-4111-8111-111111111111";
+  session.epoch = 1; session.authorityReady = true;
+  const packets = [];
+  session.sendTo = (_id, packet) => packets.push(structuredClone(packet));
+  const controls = { moveX: 0, moveY: 1, sprint: false, jump: false, crouch: false, yawDelta: 0.01, pitchDelta: 0, lean: 0, interact: false, privateNote: privateMarkers[1] };
+  for (let sequence = 1; sequence <= 15; sequence++) assert.equal(session.sendSurfaceInput(controls, "anonymous-arena", 1), sequence);
+  assert.equal(packets.at(-1).frames.length, 12);
+  assert.deepEqual(packets.at(-1).frames.map(frame => frame.sequence), Array.from({ length: 12 }, (_, index) => index + 4));
+  assert.ok(privateMarkers.every(marker => !JSON.stringify(packets).includes(marker)));
+  controls.yawDelta = 2;
+  assert.equal(packets.at(-1).frames.at(-1).input.yawDelta, 0.01, "the resend buffer owns copies of controls");
+  session.acknowledgeSurfaceInputs({ players: [{ id: session.selfId, inputSequence: 14, arenaKey: "anonymous-arena", lifeId: 1 }] });
+  session.sendSurfaceInput(controls, "anonymous-arena", 1);
+  assert.deepEqual(packets.at(-1).frames.map(frame => frame.sequence), [15, 16]);
+  session.sendSurfaceInput(controls, "anonymous-arena", 2);
+  assert.deepEqual(packets.at(-1).frames.map(frame => frame.sequence), [17]);
+  session.resetSurfaceTransport();
+  assert.equal(session.surfaceInputFrames.length, 0, "authority transfer cancels old pending controls");
+});
+
+test("the host samples selected WebRTC transport RTT and discards statistics from a replaced authority", async () => {
+  const session = new network.MultiplayerSession(callbacks(), () => ({ data: fixture(), nodes: [] }));
+  session.selfId = session.hostId = "host"; session.epoch = 1;
+  const observed = [];
+  session.surfaceAuthority = { observeConnectionTiming: (...args) => observed.push(args) };
+  const report = new Map([
+    ["transport", { type: "transport", selectedCandidatePairId: "selected" }],
+    ["selected", { type: "candidate-pair", currentRoundTripTime: 0.1 }],
+    ["other", { type: "candidate-pair", nominated: true, state: "succeeded", currentRoundTripTime: 0.9 }],
+  ]);
+  session.peers.set("guest", { pc: { connectionState: "connected", getStats: async () => report } });
+  await session.sampleSurfacePeerTimings(1000);
+  assert.deepEqual(observed, [["guest", 100, 1000]]);
+  let deliver;
+  session.peers.get("guest").pc.getStats = () => new Promise(resolve => { deliver = resolve; });
+  const pending = session.sampleSurfacePeerTimings(1100);
+  session.epoch = 2;
+  deliver(report); await pending;
+  assert.equal(observed.length, 1);
+});
+
+test("host catch-up ticks use distinct simulation timestamps instead of duplicating the observation clock", () => {
+  const previousWindow = globalThis.window, previousNow = Date.now;
+  let now = 10000, tickLoop;
+  globalThis.window = { clearInterval() {}, setInterval(callback) { tickLoop = callback; return 1; } };
+  Date.now = () => now;
+  try {
+    const session = new network.MultiplayerSession(callbacks(), () => ({ data: fixture(), nodes: [] }));
+    session.selfId = session.hostId = "host"; session.epoch = 1; session.authorityReady = true;
+    session.world = new combat.CombatWorld(1);
+    const times = [];
+    session.stepSurfaceAuthority = (_dt, at) => times.push(at);
+    session.startGameLoop(); now += 100; tickLoop();
+    assert.equal(times.length, 6);
+    assert.equal(new Set(times).size, 6);
+    assert.ok(times.every((at, index) => index === 0 || at - times[index - 1] >= 16 && at - times[index - 1] <= 17));
+    assert.equal(times.at(-1), now);
+  } finally { Date.now = previousNow; if (previousWindow === undefined) delete globalThis.window; else globalThis.window = previousWindow; }
+});
+
+test("remote pose presentation interpolates at 100 ms and caps extrapolation at 100 ms", () => {
+  const poseAt = (x, active = true) => ({ position: [x, 0, 0], rotation: [0, 0, 0, 1], velocity: [100, 0, 0], spin: [0, 0, 0],
+    mouseSmoothing: [0, 0], health: 100, shields: 40, energy: 1, boostLocked: false, boostHold: 0, regenDelay: 0, damagePause: 0,
+    weapon: 0, weaponSequence: 0, inputSequence: 0, inputTick: 0, heat: 0, overheated: false, ammunition: 36, weaponCooldown: 0,
+    weaponCooldownDuration: 160, deaths: 0, active, traveling: false, respawnAt: 0, protectedUntil: 0, thrust: 1, boosting: false, bank: 0, tilt: 0 });
+  const samples = [{ pose: poseAt(0), at: 0 }, { pose: poseAt(10), at: 100 }];
+  assert.equal(interpolation.interpolateRemotePose(samples, 150).position[0], 5, "render time is 100 ms behind arrival time");
+  assert.equal(interpolation.interpolateRemotePose(samples, 300).position[0], 20, "100 ms of forward extrapolation is allowed");
+  assert.equal(interpolation.interpolateRemotePose(samples, 450).position[0], 20, "the estimate holds after the extrapolation cap");
+  samples.push({ pose: poseAt(12, false), at: 120 });
+  assert.equal(interpolation.interpolateRemotePose(samples, 150).active, false, "destruction and spectator state apply immediately");
+});
+
+test("20 Hz network snapshots skip local host pose reapplication while updating peers", () => {
   const states = [];
   const session = new network.MultiplayerSession(callbacks({ playerState: (id, pose) => states.push({ id, pose }) }), () => ({ data: fixture(), nodes: [] }), () => "wss://rooms.example.test");
   session.selfId = session.hostId = "host";
@@ -420,7 +793,78 @@ test("the host publishes authoritative flight state locally for every participan
   }
   session.world.step(1 / 60, 1000);
   session.publishWorldState(1000);
-  assert.deepEqual(states.map(({ id, pose }) => [id, pose.active]), [["host", true], ["guest", true]]);
+  assert.deepEqual(states.map(({ id, pose }) => [id, pose.active]), [["guest", true]]);
+});
+
+test("batched ship publications preserve every authoritative pose and validate atomically before callbacks", () => {
+  const session = new network.MultiplayerSession(callbacks(), () => ({ data: fixture(), nodes: [] }));
+  Object.assign(session, { selfId: "host", hostId: "host", epoch: 1, world: new combat.CombatWorld(1) });
+  for (const [slot, id] of ["host", "guest", "two", "three"].entries()) session.world.add({ id, slot, name: id, joinedAt: 1000 });
+  const peer = peerStub(); session.peers.set("guest", peer); session.publishWorldState(1000);
+  const batches = peer.live.sent.map(packet => typeof packet === "string" ? JSON.parse(packet) : null).filter(packet => packet?.type === "ships");
+  assert.equal(batches.length, 1); assert.deepEqual(batches[0].poses, session.world.poses(1000));
+  const received = [], client = new network.MultiplayerSession(callbacks({ playerState: (id, pose) => received.push({ id, pose }) }), () => ({ data: fixture(), nodes: [] }));
+  Object.assign(client, { selfId: "guest", hostId: "host", epoch: 1 }); client.peers.set("host", peerStub());
+  const bad = structuredClone(batches[0]); bad.poses[3].pose.health = -1;
+  client.onPeerMessage("host", JSON.stringify(bad), "live"); assert.equal(received.length, 0);
+  client.onPeerMessage("host", wire.encodeNetworkJson(JSON.stringify(batches[0])), "live");
+  assert.deepEqual(received, session.world.poses(1000));
+  client.onPeerMessage("host", JSON.stringify(batches[0]), "live"); assert.equal(received.length, 4, "duplicate batches cannot reapply old poses");
+});
+
+test("empty-room host straight-flight trace publishes one monotonic authoritative pose per 60 Hz tick", () => {
+  const previousWindow = globalThis.window, previousNow = Date.now;
+  let clock = 10_000, runGameLoop;
+  globalThis.window = { clearInterval() {}, setInterval(callback, interval) { assert.equal(interval, 8); runGameLoop = callback; return 1; } };
+  Date.now = () => clock;
+  try {
+    const samples = [];
+    const session = new network.MultiplayerSession(callbacks({ playerState: (id, pose) => { if (id === "host") samples.push({ tick: pose.inputTick, z: pose.position[2] }); } }), () => ({ data: fixture(), nodes: [] }));
+    session.selfId = session.hostId = "host"; session.epoch = 1; session.authorityReady = true;
+    session.world = new combat.CombatWorld(1); session.world.add({ id: "host", slot: 0, name: "Host", joinedAt: clock });
+    session.startGameLoop();
+    for (let tick = 1; tick <= 120; tick++) {
+      const flightTick = { tick, thrust: 1, strafe: 0, lift: 0, roll: 0, pitch: 0, yaw: 0, boost: false, brake: false, active: true,
+        mouseMode: "capture", mouseDelta: [0, 0], sensitivity: 1, agility: 1, invertY: false };
+      session.sendInput({ ...emptyInput, sequence: tick, active: true, thrust: 1, ticks: [flightTick] });
+      clock += [17, 17, 16][(tick - 1) % 3];
+      runGameLoop();
+    }
+    const unique = new Map(samples.map(sample => [sample.tick, sample.z]));
+    const trace = [...unique].filter(([tick]) => tick > 0).sort((a, b) => a[0] - b[0]);
+    assert.equal(trace.length, 120, "the host publishes each simulated input tick without waiting for the 20 Hz network cadence");
+    assert.equal(trace.at(-1)[0], 120);
+    const backwardsCorrections = trace.slice(1).filter(([, z], index) => z >= trace[index][1]).length;
+    assert.equal(backwardsCorrections, 0, "steady straight flight has no periodic position corrections");
+    assert.ok(trace.at(-1)[1] < -80, `host motion should advance continuously, received z=${trace.at(-1)[1]}`);
+  } finally {
+    Date.now = previousNow;
+    if (previousWindow === undefined) delete globalThis.window; else globalThis.window = previousWindow;
+  }
+});
+
+test("the eight-ms host poll preserves twenty publications per second and skips stalled slots", () => {
+  const previousWindow = globalThis.window, previousNow = Date.now;
+  let clock = 10000, runGameLoop;
+  globalThis.window = { clearInterval() {}, setInterval(callback, interval) { assert.equal(interval, 8); runGameLoop = callback; return 1; } };
+  Date.now = () => clock;
+  try {
+    const session = new network.MultiplayerSession(callbacks(), () => ({ data: fixture(), nodes: [] }));
+    Object.assign(session, { selfId: "host", hostId: "host", epoch: 1, authorityReady: true, world: new combat.CombatWorld(1) });
+    session.world.add({ id: "host", slot: 0, name: "Host", joinedAt: clock });
+    const publications = []; session.publishWorldState = now => publications.push(now);
+    session.startGameLoop();
+    for (let poll = 0; poll < 125; poll++) { clock += 8; runGameLoop(); }
+    assert.equal(publications.length, 20, "polling delay must not accumulate into an eighteen-Hz publisher");
+    assert.ok(publications.slice(1).every((at, index) => at - publications[index] >= 48 && at - publications[index] <= 56));
+    clock += 1000; runGameLoop();
+    assert.equal(publications.length, 21, "a stalled poll publishes one current snapshot, not twenty obsolete ones");
+    for (let poll = 0; poll < 125; poll++) { clock += 8; runGameLoop(); }
+    assert.equal(publications.length, 41, "normal twenty-Hz publication resumes without phase drift");
+  } finally {
+    Date.now = previousNow;
+    if (previousWindow === undefined) delete globalThis.window; else globalThis.window = previousWindow;
+  }
 });
 
 test("abrupt host failure is transferred only to the deterministic successor after verified majority votes", () => {
@@ -541,4 +985,19 @@ test("closing a removed peer's channels cannot overwrite a clean leave or depart
   session.removePeer("guest");
   assert.equal(session.peers.size, 0);
   assert.deepEqual(statuses, []);
+});
+
+test("charge start, charged release and cancellation use ordered reliable transport and deduplicate releases",()=>{
+ const client=new network.MultiplayerSession(callbacks(),()=>({data:fixture(),nodes:[]}));
+ const host=new network.MultiplayerSession(callbacks(),()=>({data:fixture(),nodes:[]}));
+ Object.assign(client,{selfId:"guest",hostId:"host",authorityReady:true,epoch:1});Object.assign(host,{selfId:"host",hostId:"host",authorityReady:true,epoch:1,world:{roundPhase:"combat"}});
+ const hostPeer=peerStub(),guestPeer=peerStub();client.peers.set("host",hostPeer);host.peers.set("guest",guestPeer);
+ const received=[];host.surfaceAuthority={world:{setCharge:(...args)=>received.push(["charge",...args])},fire:(...args)=>{received.push(["fire",...args]);return {accepted:true};}};
+ client.chargeSurface(true,"arena",2);client.fireSurface(1,10000,"arena",2,[0,0,-1],"charged");client.chargeSurface(false,"arena",2);
+ assert.equal(hostPeer.live.sent.length,0);assert.equal(hostPeer.control.sent.length,3);
+ for(const packet of hostPeer.control.sent)host.onPeerMessage("guest",packet,"control");
+ assert.deepEqual(received.map(row=>row[0]),["charge","fire","charge"]);assert.equal(received[0][2],true);assert.equal(received[1].at(-1),"charged");assert.equal(received[2][2],false);
+ host.onPeerMessage("guest",hostPeer.control.sent[1],"control");assert.equal(received.filter(row=>row[0]==="fire").length,1);
+ const packets=hostPeer.control.sent.join("");for(const marker of privateMarkers)assert.equal(packets.includes(marker),false);
+ host.onPeerMessage("guest",JSON.stringify({type:"surface-charge",epoch:0,active:true,arenaKey:"arena",lifeId:2}),"control");assert.equal(received.length,3);
 });

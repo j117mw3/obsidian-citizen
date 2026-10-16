@@ -5,7 +5,7 @@ import { ConstellationSettings, effectiveHighContrast, effectiveMotion, prefersR
 import { MultiplayerSession, type AnonymousPlayer, type GameMessage, type Pose } from "./multiplayer";
 import { formatRoomCode } from "./netcrypto";
 import { DEFAULT_RELAY } from "./relay";
-import type { EliminationEvent, RoundSnapshot } from "./rounds";
+import { PLAYER_KILLS_TO_WIN, type EliminationEvent, type RoundSnapshot } from "./rounds";
 import { version as CLIENT_VERSION } from "../manifest.json";
 import { PilotHangar } from "./hangar";
 import type { PilotProfile } from "./pilotProfile";
@@ -25,7 +25,7 @@ const HELP = [
   "Space: pause or resume motion",
   "A: animate, watching notes appear in the order they were created",
   "N: supernova, collapse everything, explode it and let it re-settle",
-  "P: Pilot mode. W A S D fly, mouse looks, Shift boosts, X brakes, click or F fires. T locks a note target, G warps to it and H returns to the hub. In a room, T marks an anonymous star and G travels there; firing and flight remain host-authoritative.",
+  "P: Pilot mode. W A S D fly, mouse looks, Shift boosts, X brakes, click or F fires. J docks on the aimed main node. On a surface, W A S D move, Space jumps, Shift sprints, Left Control crouches, Q/E lean, click fires, and hold F at a pole to return to the ship. T locks a note target, G warps to it and H returns to the hub.",
   "R: reset the view · L: note list · /: search · Esc: clear. During multiplayer, click a star to set a travel target; notes cannot be selected or opened.",
   "Mouse: drag to orbit, scroll to zoom, click to select outside a room or set a travel target inside one, double-click or Ctrl+click to open outside a room, right-click to clear",
 ];
@@ -52,9 +52,9 @@ export class ConstellationApp {
   private novaBtn: HTMLButtonElement;
   private pilotBtn: HTMLButtonElement;
   private hangarBtn: HTMLButtonElement;
-  private scoresBtn: HTMLButtonElement;
   private scoreBoard: HTMLElement;
   private scoresOpen = false;
+  private scoresHeld = false;
   private hangar!: PilotHangar;
   private multiplayerBtn: HTMLButtonElement;
   private multiplayerPanel: HTMLElement;
@@ -68,6 +68,7 @@ export class ConstellationApp {
   private remoteIds = new Set<string>();
   private playerRows = new Map<string, { row: HTMLLIElement; health: HTMLProgressElement; state: HTMLElement }>();
   private playerStates = new Map<string, Pose>();
+  private playerRowLastUpdate = new Map<string, number>();
   private statsText = "";
   private activityKind: "animate" | "supernova" | null = null;
   private motionNote: HTMLElement;
@@ -108,11 +109,19 @@ export class ConstellationApp {
       onPilot: (a, text) => this.onPilot(a, text),
       onHangar: () => this.openHangar(),
       onToggleGroups: () => this.toggleGroups(),
+      onFoldGroup: (index, all) => this.foldGroups(index, all),
       onAudioMute: (which, muted) => this.host.updateSettings?.(which === "engine" ? { pilotMuteEngine: muted } : { pilotMuteAfterburner: muted }),
       onNetworkFrame: input => this.network?.sendInput(input),
+      onWeaponSelect: (sequence, weapon) => this.network?.selectWeapon(sequence, weapon),
+      onShowScores: held => this.setScoresHeld(held),
       onNavigationTarget: target => { if (this.inRoom) this.multiplayerStatus.textContent = target ? `Star marked. ${this.renderer.pilotActive ? "Press G to travel there." : "Enter Pilot mode (P), then press G to travel."}` : "Navigation target cleared."; },
       onFastTravel: target => this.network?.requestFastTravel(target),
       onFire: (sequence, gun, weapon, aimPoint) => this.network?.fire(sequence, gun, weapon, aimPoint),
+      onSurfaceDock: target => this.network?.requestSurfaceDock(target),
+      onSurfaceInput: (input, arenaKey, lifeId) => this.network?.sendSurfaceInput(input, arenaKey, lifeId),
+      onSurfaceCharge: (active, arenaKey, lifeId) => this.network?.chargeSurface(active, arenaKey, lifeId),
+      onSurfaceFire: (sequence, viewTime, arenaKey, lifeId, direction, kind) => this.network?.fireSurface(sequence, viewTime, arenaKey, lifeId, direction, kind),
+      onSurfaceColorChoice: color => this.network?.setSurfaceColor(color),
     };
     let made: GraphRenderer | null = null;
     if (webglAvailable()) {
@@ -137,8 +146,6 @@ export class ConstellationApp {
     this.pilotBtn = this.button("cg-btn", "Pilot mode: fly through your notes (P)", "\u2708\uFE0E");
     this.pilotBtn.setAttribute("aria-pressed", "false");
     this.hangarBtn = this.button("cg-btn", "Spacecraft hangar", "\u2699");
-    this.scoresBtn = this.button("cg-btn", "Toggle multiplayer scoreboard (Tab)", "Scores");
-    this.scoresBtn.hidden = true;
     this.listBtn = this.button("cg-btn", "Show note list", "\u2630");
     this.listBtn.setAttribute("aria-expanded", "false");
     this.helpBtn = this.button("cg-btn", "Keyboard help", "?");
@@ -146,7 +153,10 @@ export class ConstellationApp {
     this.helpBtn.setAttribute("aria-controls", this.helpId);
     this.multiplayerBtn = this.button("cg-btn", "Multiplayer rooms", "\u2726");
     this.multiplayerBtn.setAttribute("aria-expanded", "false");
-    top.append(this.search, this.pauseBtn, resetBtn, this.animBtn, this.novaBtn, this.pilotBtn, this.hangarBtn, this.scoresBtn, this.multiplayerBtn, this.listBtn, this.helpBtn);
+    const searchRow = el("div", "cg-top-search-row"); searchRow.appendChild(this.search);
+    const actions = el("div", "cg-top-actions", { role: "group", "aria-label": "Graph actions" });
+    actions.append(this.pauseBtn, resetBtn, this.animBtn, this.novaBtn, this.pilotBtn, this.hangarBtn, this.multiplayerBtn, this.listBtn, this.helpBtn);
+    top.append(searchRow, actions);
     if (this.flat) { this.pauseBtn.hidden = true; resetBtn.hidden = true; this.animBtn.hidden = true; this.novaBtn.hidden = true; this.pilotBtn.hidden = true; }
     this.root.appendChild(top);
     this.multiplayerPanel = el("aside", "cg-multiplayer", { "aria-label": "Multiplayer room" });
@@ -182,6 +192,7 @@ export class ConstellationApp {
     this.killFeed = el("div", "cg-killfeed", { "aria-hidden": "true" }); this.killFeed.hidden = true;
     this.roundNotice = el("div", "cg-round-notice", { role: "status", "aria-live": "off" }); this.roundNotice.hidden = true;
     this.scoreBoard = el("aside", "cg-board", { role: "region", "aria-label": "Multiplayer scoreboard" }); this.scoreBoard.hidden = true;
+    this.scoreBoard.tabIndex = 0;
     this.root.append(this.killFeed, this.roundNotice, this.scoreBoard);
 
     this.legend = el("ul", "cg-legend", { "aria-label": "Groups. Toggle to show or hide." });
@@ -220,7 +231,6 @@ export class ConstellationApp {
     resetBtn.addEventListener("click", () => this.renderer.resetView());
     this.listBtn.addEventListener("click", () => this.toggleList());
     this.animBtn.addEventListener("click", () => this.renderer.animate());
-    this.scoresBtn.addEventListener("click", () => this.toggleScores(!this.scoresOpen));
     this.novaBtn.addEventListener("click", () => this.renderer.supernova());
     this.pilotBtn.addEventListener("click", () => this.togglePilot());
     this.hangarBtn.addEventListener("click", () => this.openHangar());
@@ -247,6 +257,7 @@ export class ConstellationApp {
     });
     this.stage.addEventListener("keydown", this.onKey);
     this.root.addEventListener("keydown", this.onRootKey);
+    this.root.addEventListener("keyup", this.onRootKeyUp);
     this.stage.addEventListener("pointermove", this.onTipMove);
     this.stage.addEventListener("pointerleave", () => { this.tip.hidden = true; });
 
@@ -266,14 +277,19 @@ export class ConstellationApp {
         const member = this.network?.members.find(player => player.id === id);
         if (id === this.network?.localPlayerId) this.renderer.setAuthoritativePose(pose); else this.renderer.setRemoteShip(id, pose, member?.name ?? "Pilot", member?.profile);
         this.playerStates.set(id, pose);
-        this.updatePlayerRow(id, pose);
+        const now = performance.now(), last = this.playerRowLastUpdate.get(id) ?? -Infinity;
+        if (now - last >= 100) { this.playerRowLastUpdate.set(id, now); this.updatePlayerRow(id, pose); }
       },
       shotState: (shots, impacts) => this.renderer.setRemoteShots(shots, impacts, this.network?.localPlayerId),
       shotResult: (sequence, accepted) => this.renderer.reconcileLocalShot(sequence, accepted),
+      surfaceState: (snapshot, estimatedHostTime, rttMs) => this.renderer.setSurfaceSnapshot?.(snapshot, estimatedHostTime, rttMs),
+      surfaceFireResult: (sequence, accepted) => this.renderer.reconcileSurfaceFire?.(sequence, accepted),
+      surfaceDockResult: (_sequence, accepted, reason) => { this.renderer.setSurfaceDockResult?.(accepted,reason); if (!accepted) this.multiplayerStatus.textContent = reason==="preparation"?"Planet preparation failed: no accessible combat layout. Try a different main node.":"The host rejected docking. Move closer to a main node and slow down."; },
+      surfaceColor: (_sequence, accepted, color) => { this.renderer.setSurfaceLaserColor?.(color); if (!accepted) this.multiplayerStatus.textContent = `Laser color rejected; keeping ${color}.`; },
       round: state => this.onRoundState(state),
       elimination: event => this.onElimination(event),
       removed: id => { if (id) { this.renderer.removeRemote(id); this.remoteIds.delete(id); } },
-      authority: (_hostId, _epoch, _checkpoint) => { this.multiplayerStatus.textContent = "Room authority transferred. Reconnecting the shared session…"; },
+      authority: (hostId, _epoch, _checkpoint) => { this.renderer.resetRemoteInterpolation?.(); this.renderer.setRoomAuthority?.(hostId === this.network?.localPlayerId); this.multiplayerStatus.textContent = "Room authority transferred. Reconnecting the shared session…"; },
     }, () => ({ data: this.data, nodes: this.renderer.nodes }), () => this.roomServiceUrl(), this.host.post, this.host.request);
     this.roundRefreshTimer = window.setInterval(() => this.refreshRoundDisplay(), 250);
   }
@@ -323,6 +339,7 @@ export class ConstellationApp {
     for (const timer of this.killFeedTimers) window.clearTimeout(timer);
     this.killFeedTimers.clear();
     this.network?.leave("Graph closed; you left the room.");
+    this.root.removeEventListener("keyup", this.onRootKeyUp);
     this.hangar.destroy();
     this.mqs.forEach(m => m.removeEventListener("change", this.onMq));
     this.renderer.destroy();
@@ -381,7 +398,7 @@ export class ConstellationApp {
   private onMembers(members: AnonymousPlayer[], selfId: string): void {
     this.multiplayerPlayers.replaceChildren();
     this.playerRows.clear();
-    for (const id of this.playerStates.keys()) if (!members.some(member => member.id === id)) this.playerStates.delete(id);
+    for (const id of this.playerStates.keys()) if (!members.some(member => member.id === id)) { this.playerStates.delete(id); this.playerRowLastUpdate.delete(id); }
     for (const member of members) {
       this.scoreNames.set(member.id, member.name);
       const label = member.id === selfId ? `${member.name} (you)` : member.name;
@@ -395,7 +412,6 @@ export class ConstellationApp {
       if (pose) this.updatePlayerRow(member.id, pose);
     }
     const joined = !!selfId;
-    this.scoresBtn.hidden = !joined;
     this.renderer.setPlayerNames(new Map(members.filter(member => member.id !== selfId).map(member => [member.id, member.name])));
     for (const member of members) if (member.id !== selfId) this.renderer.setPlayerProfile(member.id, member.profile);
     this.renderer.setLocalTopology(joined ? selfId : "", joined ? this.network.localTopology : null);
@@ -409,7 +425,8 @@ export class ConstellationApp {
       this.listBtn.setAttribute("aria-expanded", "false");
     }
     if (!joined) {
-      this.toggleScores(false);
+      this.scoresHeld = false;
+      this.updateScoresVisibility();
       this.legend.hidden = false;
       this.roundState = null; this.lastNovaRound = 0; this.killFeed.replaceChildren(); this.killFeed.hidden = true; this.roundNotice.hidden = true;
       this.scoreNames.clear(); this.scoreBoard.replaceChildren();
@@ -420,7 +437,7 @@ export class ConstellationApp {
       this.remoteIds.clear(); this.multiplayerConsent.checked = false;
     } else {
       const self = members.find(p => p.id === selfId);
-      this.renderer.setMultiplayer(true); this.renderer.setWorldOrigin(self?.slot ?? 0);
+      this.renderer.setMultiplayer(true); this.renderer.setWorldOrigin(self?.slot ?? 0); this.renderer.setRoomAuthority?.(this.network.isHost);
     }
   }
 
@@ -430,8 +447,8 @@ export class ConstellationApp {
     player.health.value = Math.max(0, Math.min(100, pose.health));
     player.health.setAttribute("aria-label", `${name}: ${Math.round(pose.health)} of 100 health`);
     const kills = this.roundState?.scores.find(score => score.playerId === id)?.kills ?? 0;
-    player.state.textContent = pose.health <= 0 ? `${Math.round(pose.health)} HP · respawn ${Math.ceil(pose.respawnAt / 1000)}s · ${kills}/5 kills`
-      : `${Math.round(pose.health)} HP · ${pose.active ? "flying" : "spectator"} · ${kills}/5 kills`;
+    player.state.textContent = pose.health <= 0 ? `${Math.round(pose.health)} HP · respawn ${Math.ceil(pose.respawnAt / 1000)}s · ${kills}/${PLAYER_KILLS_TO_WIN} kills`
+      : `${Math.round(pose.health)} HP · ${pose.active ? "flying" : "spectator"} · ${kills}/${PLAYER_KILLS_TO_WIN} kills`;
   }
 
   private onRoundState(state: RoundSnapshot): void {
@@ -446,7 +463,7 @@ export class ConstellationApp {
         this.lastNovaRound = state.roundId;
         this.renderer.regenerateRoomLayout(state.phaseRemainingMs);
         this.network?.republishLocalLayout();
-        this.announce(`${this.memberName(state.winnerId)} reached five kills. Supernova in progress.`);
+        this.announce(`${this.memberName(state.winnerId)} reached ${PLAYER_KILLS_TO_WIN} kills. Supernova in progress.`);
       } else this.renderer.syncRoomNova(state.phaseRemainingMs);
     } else if (state.phase === "countdown" && old?.phase !== "countdown") this.announce("The next round is starting.");
     else if (state.phase === "combat" && old?.roundId !== undefined && state.roundId > old.roundId) this.announce(`Round ${state.roundId} started.`);
@@ -466,10 +483,14 @@ export class ConstellationApp {
 
   private memberName(id: string): string { return this.network?.members.find(member => member.id === id)?.name ?? this.scoreNames.get(id) ?? "Departed pilot"; }
 
-  private toggleScores(open: boolean): void {
-    this.scoresOpen = open && this.inRoom;
+  private setScoresHeld(held: boolean): void {
+    this.scoresHeld = held && this.inRoom;
+    this.updateScoresVisibility();
+  }
+
+  private updateScoresVisibility(): void {
+    this.scoresOpen = this.inRoom && this.scoresHeld;
     this.scoreBoard.hidden = !this.scoresOpen;
-    this.scoresBtn.setAttribute("aria-expanded", String(this.scoresOpen));
     if (this.scoresOpen) this.renderScoreboard();
   }
 
@@ -488,7 +509,9 @@ export class ConstellationApp {
       const member = this.network?.members.find(value => value.id === score.playerId);
       const color = mine ? "#7fe8ff" : member ? `var(--cg-player-${member.slot}, #ff806f)` : "#8b93a7";
       const dot = el("span", "cg-dot"); dot.style.color = color; dot.style.background = color;
-      row.append(dot, el("span", "cg-board-name", {}, `${this.scoreNames.get(score.playerId) ?? member?.name ?? "Departed pilot"}${mine ? " (you)" : ""}`),
+      const name = (this.scoreNames.get(score.playerId) ?? member?.name ?? "Departed pilot") + (mine ? " (you)" : "");
+      const nameCell = el("span", "cg-board-name", { title: name, "aria-label": name }, name);
+      row.append(dot, nameCell,
         el("span", "", {}, String(score.kills)), el("span", "", {}, String(score.deaths)));
       this.scoreBoard.appendChild(row);
     }
@@ -503,7 +526,7 @@ export class ConstellationApp {
     if (state.phase === "supernova") this.roundNotice.textContent = `${winner} wins · Supernova ${Math.ceil(remaining / 1000)}s · ${scores}`;
     else if (state.phase === "waiting") this.roundNotice.textContent = `New constellations syncing · ${Math.ceil(remaining / 1000)}s · ${winner} won · ${scores}`;
     else if (state.phase === "countdown") this.roundNotice.textContent = `Next round in ${Math.ceil(remaining / 1000)} · ${winner} won · ${scores}`;
-    else this.roundNotice.textContent = `Round ${state.roundId} · first to 5 · ${scores}`;
+    else this.roundNotice.textContent = `Round ${state.roundId} · first to ${PLAYER_KILLS_TO_WIN} · ${scores}`;
     this.roundNotice.hidden = false;
     const own = state.scores.find(score => score.playerId === this.network.localPlayerId)?.kills ?? 0;
     const leader = Math.max(0, ...state.scores.map(score => score.kills));
@@ -731,7 +754,7 @@ export class ConstellationApp {
   private onKey = (e: KeyboardEvent) => {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     if (this.inRoom) {
-      if (e.key === "Tab") this.toggleScores(!this.scoresOpen);
+      if (e.key === "Tab") this.setScoresHeld(true);
       else if (e.key === "p" || e.key === "P") this.togglePilot();
       else if (e.key === "Escape") this.renderer.clearSelection();
       else if (e.key === "?") this.setHelp(this.help.hidden);
@@ -786,6 +809,21 @@ export class ConstellationApp {
     this.stage.focus();
     e.preventDefault();
   };
+
+  private onRootKeyUp = (e: KeyboardEvent) => {
+    if (e.key === "Tab") this.setScoresHeld(false);
+  };
+
+  private foldGroups(index: number, all: boolean): void {
+    if (this.inRoom) return;
+    if (all) {
+      const hide = this.data.groups.some((_, i) => !this.renderer.isHidden(i));
+      this.data.groups.forEach((_, i) => this.renderer.setHidden(i, hide));
+    } else if (index >= 0 && index < this.data.groups.length) {
+      this.renderer.setHidden(index, !this.renderer.isHidden(index));
+    }
+    this.buildLegend();
+  }
 
   private lastNeighbor = -1;
 

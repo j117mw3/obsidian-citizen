@@ -6,7 +6,7 @@ import path from "path";
 
 const vault = process.argv[2] || process.env.OBSIDIAN_VAULT;
 if (!vault) { console.error("Pass the path to a vault, or set OBSIDIAN_VAULT."); process.exit(1); }
-const dest = path.join(vault, ".obsidian", "plugins", "constellation-graph");
+const dest = path.join(vault, ".obsidian", "plugins", "citizen");
 execSync("node esbuild.config.mjs production", { stdio: "inherit" });
 fs.mkdirSync(dest, { recursive: true });
 for (const f of ["main.js", "manifest.json", "styles.css"]) fs.copyFileSync(f, path.join(dest, f));

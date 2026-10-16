@@ -3,6 +3,8 @@ import type { PilotProfile } from "./pilotProfile";
 import type { AnonymousTopology } from "./multiplayer";
 import type { FlightInput, ImpactSnapshot, Pose, ShotSnapshot } from "./multiplayer";
 import type { NavigationTarget } from "./multiplayer";
+import type { SurfaceInput } from "./surfacePhysics";
+import type { SurfaceNetworkSnapshot } from "./surfaceAuthority";
 
 export interface RawNode {
   id: string;
@@ -69,15 +71,24 @@ export interface RendererCallbacks {
   onAudioMute?(which: "engine" | "afterburner", muted: boolean): void;
   onHangar?(): void;
   onToggleGroups?(): void;
+  onFoldGroup?(index: number, all: boolean): void;
   onPilotChoice?(patch: Partial<Pick<ConstellationSettings, "pilotShip" | "pilotEngineSound" | "pilotAfterburnerSound" | "pilotLaserSound" | "pilotNearbyAudio">>): void;
   onNetworkFrame?(input: FlightInput): void;
+  onWeaponSelect?(sequence: number, weapon: 0 | 1): void;
+  onShowScores?(held: boolean): void;
   onNavigationTarget?(target: NavigationTarget | null): void;
   onFastTravel?(target: NavigationTarget): void;
   onFire?(sequence: number, gun: number, weapon: 0 | 1, aimPoint: [number, number, number]): void;
+  onSurfaceDock?(target: NavigationTarget): void;
+  onSurfaceInput?(input: SurfaceInput & { interact: boolean }, arenaKey: string, lifeId: number): number | undefined;
+  onSurfaceCharge?(active: boolean, arenaKey: string, lifeId: number): void;
+  onSurfaceFire?(sequence: number, viewTime: number, arenaKey: string, lifeId: number, direction: [number, number, number], kind?: "normal" | "charged"): void;
+  onSurfaceColorChoice?(color: string): void;
 }
 
 /** The 3D renderer and the list-only fallback expose the same surface, so the UI never has to care which it has. */
 export interface GraphRenderer {
+  setSurfaceDockResult?(accepted: boolean, reason?: "preparation"): void;
   readonly nodes: SimNode[];
   readonly inMultiplayer: boolean;
   readonly selectedIndex: number;
@@ -112,6 +123,8 @@ export interface GraphRenderer {
   setPilot(on: boolean): void;
   setWorldOrigin(slot: number): void;
   setMultiplayer(active: boolean): void;
+  setRoomAuthority?(localHost: boolean): void;
+  resetRemoteInterpolation?(): void;
   setRemoteTopology(playerId: string, topology: AnonymousTopology): void;
   setLocalTopology(playerId: string, topology: AnonymousTopology | null): void;
   setPlayerNames(names: Map<string, string>): void;
@@ -122,6 +135,9 @@ export interface GraphRenderer {
   previewSound(kind: "engine" | "afterburner" | "laser"): void;
   setRemoteShots(shots: ShotSnapshot[], impacts: ImpactSnapshot[], localPlayerId?: string): void;
   reconcileLocalShot(sequence: number, accepted: boolean): void;
+  setSurfaceSnapshot?(snapshot: SurfaceNetworkSnapshot, estimatedHostTime: number, rttMs: number): void;
+  reconcileSurfaceFire?(sequence: number, accepted: boolean): void;
+  setSurfaceLaserColor?(color: string): void;
   setAuthoritativePose(pose: Pose): void;
   clearSelection(): void;
   requestFastTravel(): void;

@@ -2,6 +2,7 @@ export type MotionLevel = "off" | "calm" | "lively";
 export type PaletteName = "vibrant" | "colorblind" | "theme";
 export type GroupBy = "folder" | "tag" | "none";
 import { AFTERBURNER_SOUND_IDS, DEFAULT_PILOT_PROFILE, ENGINE_SOUND_IDS, LASER_SOUND_IDS, SHIP_IDS, type AfterburnerSoundId, type EngineSoundId, type LaserSoundId, type ShipId } from "./pilotProfile";
+import { savedSurfaceLaserColor } from "./surfaceColor";
 
 export interface ConstellationSettings {
   motion: MotionLevel;
@@ -37,6 +38,22 @@ export interface ConstellationSettings {
   pilotAfterburnerSound: AfterburnerSoundId;
   pilotLaserSound: LaserSoundId;
   pilotNearbyAudio: boolean;
+  surfaceLaserColor: string;
+  surfaceSensitivity: number;
+  surfaceInvertY: boolean;
+  surfaceFov: number;
+  surfaceHeadBob: boolean;
+  surfaceCrouchMode: "hold";
+  surfaceForwardKey: string;
+  surfaceBackKey: string;
+  surfaceLeftKey: string;
+  surfaceRightKey: string;
+  surfaceJumpKey: string;
+  surfaceSprintKey: string;
+  surfaceCrouchKey: string;
+  surfaceLeanLeftKey: string;
+  surfaceLeanRightKey: string;
+  surfaceInteractKey: string;
   multiplayerName: string;
   multiplayerConnectionMode: "public" | "custom";
   multiplayerCustomServerUrl: string;
@@ -79,12 +96,28 @@ export const DEFAULT_SETTINGS: ConstellationSettings = {
   pilotAfterburnerSound: DEFAULT_PILOT_PROFILE.afterburner,
   pilotLaserSound: DEFAULT_PILOT_PROFILE.laser,
   pilotNearbyAudio: true,
+  surfaceLaserColor: "#8CECFF",
+  surfaceSensitivity: 1,
+  surfaceInvertY: false,
+  surfaceFov: 75,
+  surfaceHeadBob: false,
+  surfaceCrouchMode: "hold",
+  surfaceForwardKey: "KeyW",
+  surfaceBackKey: "KeyS",
+  surfaceLeftKey: "KeyA",
+  surfaceRightKey: "KeyD",
+  surfaceJumpKey: "Space",
+  surfaceSprintKey: "ShiftLeft",
+  surfaceCrouchKey: "ControlLeft",
+  surfaceLeanLeftKey: "KeyQ",
+  surfaceLeanRightKey: "KeyE",
+  surfaceInteractKey: "KeyF",
   multiplayerName: "Pilot",
   multiplayerConnectionMode: "public",
   multiplayerCustomServerUrl: "",
   multiplayerRelayUrl: "https://ntfy.sh",
   multiplayerLegacyServerUrl: "",
-  settingsSchemaVersion: 2,
+  settingsSchemaVersion: 5,
 };
 
 const clamp = (v: unknown, lo: number, hi: number, fallback: number): number =>
@@ -92,6 +125,25 @@ const clamp = (v: unknown, lo: number, hi: number, fallback: number): number =>
 const pick = <T extends string>(v: unknown, allowed: readonly T[], fallback: T): T =>
   allowed.includes(v as T) ? (v as T) : fallback;
 const bool = (v: unknown, fallback: boolean): boolean => (typeof v === "boolean" ? v : fallback);
+const validSurfaceKey = (value: unknown): value is string => typeof value === "string"
+  && /^(?:Key[A-Z]|Digit[0-9]|Numpad[0-9]|Space|Enter|Escape|ShiftLeft|ShiftRight|ControlLeft|ControlRight|AltLeft|AltRight|Arrow(?:Up|Down|Left|Right))$/.test(value);
+function sanitizeSurfaceKeys(raw: Record<string, unknown>): Record<string, string> {
+  const definitions: Array<[string, string, string[]]> = [
+    ["surfaceForwardKey", "KeyW", ["ArrowUp", "Numpad8", "KeyI"]], ["surfaceBackKey", "KeyS", ["ArrowDown", "Numpad2", "KeyK"]],
+    ["surfaceLeftKey", "KeyA", ["ArrowLeft", "Numpad4", "KeyJ"]], ["surfaceRightKey", "KeyD", ["ArrowRight", "Numpad6", "KeyL"]],
+    ["surfaceJumpKey", "Space", ["Numpad0", "Enter", "KeyV"]], ["surfaceSprintKey", "ShiftLeft", ["ShiftRight", "ControlLeft"]],
+    ["surfaceCrouchKey", "ControlLeft", ["Numpad5", "KeyX", "ControlRight"]], ["surfaceLeanLeftKey", "KeyQ", ["Numpad7", "KeyZ"]],
+    ["surfaceLeanRightKey", "KeyE", ["Numpad9", "KeyR"]], ["surfaceInteractKey", "KeyF", ["KeyG", "KeyT"]],
+  ];
+  const used = new Set<string>(), result: Record<string, string> = {};
+  for (const [key, fallback, alternatives] of definitions) {
+    const requested = validSurfaceKey(raw[key]) ? raw[key] : fallback;
+    const chosen = !used.has(requested) ? requested : [fallback, ...alternatives].find(candidate => !used.has(candidate)) ?? "Escape";
+    result[key] = chosen; used.add(chosen);
+  }
+  return result as Pick<ConstellationSettings, "surfaceForwardKey" | "surfaceBackKey" | "surfaceLeftKey" | "surfaceRightKey" | "surfaceJumpKey"
+    | "surfaceSprintKey" | "surfaceCrouchKey" | "surfaceLeanLeftKey" | "surfaceLeanRightKey" | "surfaceInteractKey">;
+}
 
 /** Merge saved data over the defaults, dropping anything the wrong type or out of range (hand-edited or older data.json). */
 export function sanitizeSettings(raw: unknown): ConstellationSettings {
@@ -111,6 +163,9 @@ export function sanitizeSettings(raw: unknown): ConstellationSettings {
     : [legacyServerUrl, oldCustomUrl].find(value => /^wss?:\/\//i.test(value)) ?? "";
   const migratedCustomUrl = oldCustomUrl && !/^wss?:\/\//i.test(oldCustomUrl) ? oldCustomUrl : "";
   const connectionMode = storedSchema < 2 ? d.multiplayerConnectionMode : pick(r.multiplayerConnectionMode, ["public", "custom"] as const, d.multiplayerConnectionMode);
+  const migratedKeys = storedSchema < 4 && (r.surfaceCrouchKey === "KeyC" || r.surfaceCrouchKey === undefined) ? { ...r, surfaceCrouchKey: "ControlLeft" } : r;
+  const surfaceKeys = sanitizeSurfaceKeys(migratedKeys) as Pick<ConstellationSettings, "surfaceForwardKey" | "surfaceBackKey" | "surfaceLeftKey" | "surfaceRightKey" | "surfaceJumpKey"
+    | "surfaceSprintKey" | "surfaceCrouchKey" | "surfaceLeanLeftKey" | "surfaceLeanRightKey" | "surfaceInteractKey">;
   return {
     motion: pick(r.motion, ["off", "calm", "lively"] as const, d.motion),
     autoRotate: bool(r.autoRotate, d.autoRotate),
@@ -145,12 +200,19 @@ export function sanitizeSettings(raw: unknown): ConstellationSettings {
     pilotAfterburnerSound: pick(r.pilotAfterburnerSound, AFTERBURNER_SOUND_IDS, d.pilotAfterburnerSound),
     pilotLaserSound: pick(r.pilotLaserSound, LASER_SOUND_IDS, d.pilotLaserSound),
     pilotNearbyAudio: bool(r.pilotNearbyAudio, d.pilotNearbyAudio),
+    surfaceLaserColor: savedSurfaceLaserColor(r.surfaceLaserColor),
+    surfaceSensitivity: clamp(r.surfaceSensitivity, 0.2, 3, d.surfaceSensitivity),
+    surfaceInvertY: bool(r.surfaceInvertY, d.surfaceInvertY),
+    surfaceFov: clamp(r.surfaceFov, 60, 100, d.surfaceFov),
+    surfaceHeadBob: bool(r.surfaceHeadBob, d.surfaceHeadBob),
+    surfaceCrouchMode: "hold",
+    ...surfaceKeys,
     multiplayerName: typeof r.multiplayerName === "string" ? r.multiplayerName.trim().slice(0, 24) || d.multiplayerName : d.multiplayerName,
     multiplayerConnectionMode: connectionMode,
     multiplayerCustomServerUrl: migratedCustomUrl,
     multiplayerRelayUrl: typeof r.multiplayerRelayUrl === "string" ? r.multiplayerRelayUrl.slice(0, 512) : d.multiplayerRelayUrl,
     multiplayerLegacyServerUrl: legacyUrl,
-    settingsSchemaVersion: 2,
+    settingsSchemaVersion: 5,
   };
 }
 

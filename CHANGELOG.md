@@ -2,7 +2,19 @@
 
 ## Publication history
 
-Versions **0.5.1 through 0.7.1** are published as individual [GitHub releases](https://github.com/j117mw3/obsidian-citizen/releases), each with its own version tag, original plugin files, ZIP, checksums, and update notes. The packages retain the `constellation-graph` ID. Tags preserve recovered release files because matching historical TypeScript source snapshots were not saved. Existing 0.3.x releases and the 0.5.0 draft are retained. The upcoming independent release uses the unique `citizen` ID; manual settings migration is described in the README.
+Versions **0.5.1 through 0.7.1** are published as individual [GitHub releases](https://github.com/j117mw3/obsidian-citizen/releases), each with its own version tag, original plugin files, ZIP, checksums, and update notes. Those packages retain the `constellation-graph` ID. Their tags preserve recovered release files because matching historical TypeScript source snapshots were not saved. Existing 0.3.x releases and the superseded 0.5.0 draft are retained. Version 0.7.2 begins the independent `citizen` plugin identity; manual settings migration is described in the README.
+
+
+## 0.7.2 — shared planet combat and ten-kill rounds
+
+- Add four slow, host-controlled bots per occupied planet in solo and multiplayer. Bots patrol, require line of sight and a one-second acquisition delay before firing inaccurate 10-damage shots, and obey surface terrain and moving cover.
+- Attacking a bot makes it pursue its attacker briefly, show red aggression accents, and return to patrol after losing interest. Bot kills never enter player scores or the elimination feed.
+- Each defeated bot drops one +30 health pickup. The pickup heals injured players up to 100, remains available to full-health players, and expires after 30 seconds; bots respawn after 15 seconds.
+- Show recognizable health-cross and shield pickup silhouettes. Health pickups display +25 and +50 amounts; bot drops display +30.
+- Use a shared ten-player-kill round limit across ship and surface combat. Bot eliminations do not count toward the limit.
+- Freeze movement, bots, and collection during round transitions. Reset transient combat and resources for the next round while keeping each pilot in space or at the same docked planet position and facing.
+- Include bot, projectile, aggression, and drop state in host snapshots and checkpoints. Bump multiplayer room protocol and combat checkpoint format to 14; older builds cannot join these rooms.
+- Verification: 237 automated tests, TypeScript check, production build, and network-harness build pass. Native visual/gameplay inspection and two-computer testing remain unverified.
 
 ## 0.7.1
 
@@ -19,7 +31,7 @@ Versions **0.5.1 through 0.7.1** are published as individual [GitHub releases](h
 - Shared terrain collision/visibility for movement, bolts, labels, patrols, resources, and terrain-aware paired moving walls.
 - Seeded terrain identity and bounded reliable transfer; room/checkpoint protocol 12 and terrain format 1.
 - Local terrain LOD, instanced ruins, three stone/technology palettes, and expanded seed/movement/network verification.
-- See `docs/verification-0.7.0.md` for measured preparation costs and pending native visual/performance acceptance.
+- Headless measurements recorded in the release notes are not native GPU or Obsidian performance claims; visual and performance acceptance remains separate.
 
 ## 0.6.8 — paired moving cover and mineral ground detail
 

@@ -1,5 +1,7 @@
 export type RoundPhase = "combat" | "supernova" | "waiting" | "countdown";
 
+export const PLAYER_KILLS_TO_WIN = 10;
+
 export interface RoundScore { playerId: string; kills: number; deaths: number }
 export interface LayoutRequirement { playerId: string; revision: number }
 export interface EliminationEvent {

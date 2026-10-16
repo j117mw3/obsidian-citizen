@@ -1,7 +1,7 @@
 name: Release
 
 # Pushing a version tag (for example 0.1.2) builds the plugin from the tagged source, records a signed
-# provenance attestation for the three release files, and publishes them as a GitHub release.
+# provenance attestation for the three release files, and prepares a draft for review.
 on:
   push:
     tags:
@@ -14,9 +14,8 @@ permissions:
 
 jobs:
   release:
-    # Historical 0.1–0.4 tags and the manually staged first 0.5.0 release must
-    # never auto-publish when the archive backfill creates their tags.
-    if: ${{ !startsWith(github.ref_name, '0.1.') && !startsWith(github.ref_name, '0.2.') && !startsWith(github.ref_name, '0.3.') && !startsWith(github.ref_name, '0.4.') && github.ref_name != '0.5.0' }}
+    # Historical releases and 0.6.0 stay gated until runtime acceptance is recorded.
+    if: ${{ !startsWith(github.ref_name, '0.1.') && !startsWith(github.ref_name, '0.2.') && !startsWith(github.ref_name, '0.3.') && !startsWith(github.ref_name, '0.4.') && github.ref_name != '0.5.0' && github.ref_name != '0.5.1' && github.ref_name != '0.5.2' && github.ref_name != '0.6.0' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -40,6 +39,14 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Test
+        run: npm test
+
+      - name: Package and hash
+        run: |
+          zip "citizen-${GITHUB_REF_NAME}.zip" main.js manifest.json styles.css
+          sha256sum main.js manifest.json styles.css "citizen-${GITHUB_REF_NAME}.zip" > SHA256SUMS.txt
+
       - name: Attest build provenance
         uses: actions/attest-build-provenance@v4
         with:
@@ -52,6 +59,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" main.js manifest.json styles.css \
-            --title "$GITHUB_REF_NAME" \
+          gh release create "$GITHUB_REF_NAME" main.js manifest.json styles.css "citizen-${GITHUB_REF_NAME}.zip" SHA256SUMS.txt \
+            --draft --verify-tag --title "Obsidian Citizen $GITHUB_REF_NAME" \
             --notes-file .github/release-notes.md

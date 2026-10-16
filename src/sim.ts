@@ -1,4 +1,6 @@
-import { forceSimulation, forceLink, forceManyBody, type Force, type ForceLink, type ForceManyBody, type Simulation as D3Simulation } from "d3-force-3d";
+import { selectMainNodeIds } from "./surface";
+import { surfaceRadiusForConnections } from "./surfaceGeometry";
+import { forceSimulation, forceLink, forceManyBody, forceCollide, type Force, type ForceLink, type ForceManyBody, type Simulation as D3Simulation } from "d3-force-3d";
 import type { GraphData, SimNode } from "./types";
 import type { MotionLevel } from "./settings";
 
@@ -36,6 +38,8 @@ export class Simulation {
   srcs: SimNode[] = [];
   dsts: SimNode[] = [];
 
+  private collisionRadii = new Map<string, number>();
+  private collision = forceCollide<SimNode>(node => this.collisionRadii.get(node.id) ?? 0.75).strength(1).iterations(3);
   private sim: D3Simulation<SimNode>;
   private linkForce: ForceLink<SimNode, SimLink>;
   private charge: ForceManyBody<SimNode>;
@@ -70,7 +74,8 @@ export class Simulation {
       .velocityDecay(0.34)
       .force("link", this.linkForce)
       .force("charge", this.charge)
-      .force("flow", flow);
+      .force("flow", flow)
+      .force("planet-clearance", this.collision);
   }
 
   /** Changing the glow or a label size must not jolt the layout, so only an actual change of motion level reheats it. */
@@ -235,12 +240,24 @@ export class Simulation {
 
     this.linkForce.links([]);
     this.nodes = next;
+    const mains = selectMainNodeIds(next);
+    this.collisionRadii.clear();
+    for (const node of next) if (mains.has(node.id)) this.collisionRadii.set(node.id, surfaceRadiusForConnections(new Set((adj.get(node.id) ?? []).filter(id => id !== node.id)).size) * 6 / 27 + 1.5);
+    this.collision.radius(node => this.collisionRadii.get(node.id) ?? 0.75);
     this.sim.nodes(next);
     const links: SimLink[] = data.links.map(l => ({ source: l.source, target: l.target }));
     this.linkForce.links(links);
     this.srcs = links.map(l => l.source as SimNode);
     this.dsts = links.map(l => l.target as SimNode);
     this.sim.alpha(Math.max(this.sim.alpha(), old.size ? 0.35 : 1));
+  }
+
+  /** Occupied geometry may outlive a topology change or a change of the selected main. */
+  setSurfaceEnvelope(id: string, surfaceRadius: number): void {
+    const radius = surfaceRadius * 6 / 27 + 1.5;
+    if (this.collisionRadii.get(id) === radius) return;
+    this.collisionRadii.set(id, radius);
+    this.collision.radius(node => this.collisionRadii.get(node.id) ?? 0.75);
   }
 
   /** Advance the layout by real time, in fixed 60 Hz steps so speed does not depend on refresh rate. */

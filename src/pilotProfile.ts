@@ -18,10 +18,14 @@ export interface PilotProfile {
 
 export const DEFAULT_PILOT_PROFILE: PilotProfile = { revision: 1, ship: "classic", engine: "classic", afterburner: "classic", laser: "classic" };
 
-export function stepPresentation(bank: number, tilt: number, input: { yaw: number; strafe: number; pitch: number; lift: number }, dt: number): [number, number] {
+export function stepPresentation(bank: number, tilt: number, input: { yaw: number; strafe: number; pitch: number; lift: number }, dt: number, spin?: { x: number; y: number }): [number, number] {
   const ease = 1 - Math.exp(-8 * Math.max(0, Math.min(0.1, dt)));
-  const targetBank = Math.max(-0.55, Math.min(0.55, input.yaw * 0.45 - input.strafe * 0.22));
-  const targetTilt = Math.max(-0.4, Math.min(0.4, input.pitch * 0.28 + input.lift * 0.1));
+  const targetBank = spin
+    ? Math.max(-0.85, Math.min(0.85, spin.y * 0.32)) - input.strafe * 0.22
+    : Math.max(-0.55, Math.min(0.55, input.yaw * 0.45 - input.strafe * 0.22));
+  const targetTilt = spin
+    ? Math.max(-0.4, Math.min(0.4, spin.x * 0.14)) + input.lift * 0.1
+    : Math.max(-0.4, Math.min(0.4, input.pitch * 0.28 + input.lift * 0.1));
   return [bank + (targetBank - bank) * ease, tilt + (targetTilt - tilt) * ease];
 }
 

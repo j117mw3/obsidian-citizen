@@ -2,7 +2,7 @@ import { deriveRoomKeys, makeRoomCode, parseRoomCode, seal, unseal, type RoomKey
 import { RelayChannel, cleanRelayUrl, type PostFn } from "./relay";
 import { DEFAULT_PILOT_PROFILE, validPilotProfile, type PilotProfile } from "./pilotProfile";
 
-export const ROOM_PROTOCOL = 5;
+export const ROOM_PROTOCOL = 14;
 export interface RoomMember { id: string; name: string; joinedAt: number; slot: number; profile: PilotProfile }
 export const ROOM_CAPACITY = 4;
 
@@ -81,7 +81,7 @@ export class RelayRoom {
   async join(codeInput: string, name: string, profile: PilotProfile = DEFAULT_PILOT_PROFILE): Promise<void> {
     const code = parseRoomCode(codeInput);
     if (!code) {
-      if (/^[A-HJ-NP-Z2-9]{8}$/i.test(codeInput.trim())) throw new Error("This is an older room code. Both pilots need version 0.5.0 or newer to use the public relay.");
+      if (/^[A-HJ-NP-Z2-9]{8}$/i.test(codeInput.trim())) throw new Error("This room uses the previous protocol. Both pilots must update to the same Obsidian Citizen build.");
       throw new Error("That is not a room code. It is ten letters and numbers, like ABCDE-FGHJK.");
     }
     await this.open(code, name, profile);
@@ -177,7 +177,7 @@ export class RelayRoom {
     const msg = await unseal(this.keys, text) as Record<string, unknown> | null;
     if (!msg || typeof msg !== "object" || msg.v !== 1 || typeof msg.k !== "string" || typeof msg.n !== "string" || msg.n.length > 64) return;
     if (msg.protocol !== ROOM_PROTOCOL && msg.k !== "hello") {
-      this.cb.status("This room uses a different multiplayer protocol. Everyone needs version 0.5.0.", true); return;
+      this.cb.status("This room uses a different multiplayer protocol. Everyone must update to the same Obsidian Citizen build.", true); return;
     }
     if (msg.k === "hello" && msg.protocol !== ROOM_PROTOCOL) {
       if (typeof msg.id === "string" && uuid.test(msg.id)) void this.send({ k: "incompatible", protocol: ROOM_PROTOCOL, to: msg.id });
@@ -191,7 +191,7 @@ export class RelayRoom {
       case "hello": return this.onHello(msg);
       case "roster": return this.onRoster(msg);
       case "full": if (msg.to === this.id) this.failPending("That room already has four pilots."); return;
-      case "incompatible": if (msg.to === this.id) this.failPending("This room uses a different multiplayer protocol. Everyone needs version 0.5.0."); return;
+      case "incompatible": if (msg.to === this.id) this.failPending("This room uses a different multiplayer protocol. Everyone must update to the same Obsidian Citizen build."); return;
       case "signal": if (msg.to === this.id && typeof msg.from === "string" && uuid.test(msg.from) && this.list.some(m => m.id === msg.from)) this.cb.signal(msg.from, msg.data); return;
       case "profile": return this.onProfile(msg);
       case "bye": return this.onBye(msg);
@@ -212,7 +212,7 @@ export class RelayRoom {
   }
 
   private onRoster(msg: Record<string, unknown>): void {
-    if (msg.protocol !== ROOM_PROTOCOL) { this.failPending("This room uses a different multiplayer protocol. Everyone needs version 0.5.0."); return; }
+    if (msg.protocol !== ROOM_PROTOCOL) { this.failPending("This room uses a different multiplayer protocol. Everyone must update to the same Obsidian Citizen build."); return; }
     if (!validMembers(msg.members)) return;
     const members = msg.members;
     if (!members.some(m => m.id === this.id)) return;

@@ -1,6 +1,7 @@
 import esbuild from "esbuild";
 import process from "process";
 import { builtinModules as builtins } from "node:module";
+import { readFileSync } from "node:fs";
 
 const prod = process.argv[2] === "production";
 
@@ -21,6 +22,7 @@ const context = await esbuild.context({
   minify: prod,
   treeShaking: true,
   legalComments: "eof",
+  banner: { js: `/*! Obsidian Citizen fork maintained by J117W3.\n${readFileSync(new URL("./LICENSE", import.meta.url), "utf8").replace(/\*\//g, "* /")}\n*/` },
   outfile: "main.js",
 });
 

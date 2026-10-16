@@ -1,10 +1,10 @@
 # Multiplayer service deployment
 
-## Current rooms in Obsidian Citizen 0.5.0
+## Current rooms in Citizen 0.7.2
 
 Room discovery uses the public ntfy relay by default. Each room has a ten-character code; room messages are encrypted before they leave Obsidian. The relay carries only setup and recovery traffic. Maps, flight inputs, ships, weapons, and combat checkpoints travel over direct WebRTC data channels. Players do not need provider accounts or server setup.
 
-The Cloudflare Worker at `https://constellation-rooms.mrassetto.workers.dev` serves the health check and the TURN fallback routes. It does not coordinate protocol-5 rooms. After eight seconds without a direct peer connection, the plugin requests a short-lived Worker-issued bearer token from `/turn/session`, then requests the available ICE servers from `/turn`. The Worker keeps refresh tokens in memory, rate-limits token issuance and refreshes, and does not log tokens or credential payloads. TURN credentials are issued through Metered's REST API, expire after one hour, and wait for provider propagation before they are returned. The TURN allowance is shared; provider limits can make relay connectivity unavailable while direct connections continue to work.
+The Cloudflare Worker at `https://constellation-rooms.mrassetto.workers.dev` serves the health check and TURN fallback routes. Room discovery uses encrypted ntfy messages; the Worker does not coordinate public-relay rooms. After eight seconds without a direct peer connection, the plugin requests a short-lived Worker-issued bearer token from `/turn/session`, then requests the available ICE servers from `/turn`. The Worker keeps refresh tokens in memory, rate-limits token issuance and refreshes, and does not log tokens or credential payloads. TURN credentials are issued through Metered's REST API, expire after one hour, and wait for provider propagation before they are returned. The TURN allowance is shared; provider limits can make relay connectivity unavailable while direct connections continue to work.
 
 ### Maintainer deployment
 
@@ -26,7 +26,7 @@ No domain purchase is needed because Cloudflare supplies HTTPS for the `workers.
 
 ### Current protocol and legacy service boundary
 
-Obsidian Citizen 0.5.0 uses protocol 5 for public-relay rooms. The hosted Worker still accepts the historical protocol-4 WebSocket route for older releases, and the Node.js/Docker service below also implements that older signaling protocol. These legacy services do not create or join 0.5.0 public-relay rooms. The plugin's **Custom relay** setting expects an HTTPS ntfy-compatible relay, not a WebSocket signaling server.
+Citizen 0.7.2 uses protocol 14 and checkpoint format 14 for public-relay rooms. Older protocol versions cannot join protocol-14 rooms. The hosted Worker still accepts the historical protocol-4 WebSocket route for older releases, and the Node.js/Docker service below also implements that older signaling protocol. These legacy services do not create or join current public-relay rooms. The plugin's **Custom relay** setting expects an HTTPS ntfy-compatible relay, not a WebSocket signaling server.
 ## Legacy protocol-4 Node.js service
 
 The plugin uses direct WebRTC data channels for map and flight traffic. This Node.js service only creates in-memory rooms, relays WebRTC setup messages, issues short-lived TURN credentials, and keeps the host's latest small combat checkpoint so a remaining participant can take over. It does not log gameplay messages or credentials. A room and its checkpoint disappear when its last participant leaves or the service restarts.
@@ -44,7 +44,7 @@ From this directory:
 5. Confirm `TURN_URLS` names the same TURN host and ports. Keep the `turns:` URL if the certificate is configured; retain the UDP and TCP `turn:` URLs for ordinary relays.
 6. Start the stack with `docker compose --env-file .env up -d --build`, then check `https://PUBLIC_DOMAIN/health`.
 
-This endpoint is for older protocol-4 clients only. Obsidian Citizen 0.5.0 cannot use it as a Custom relay; that setting expects an HTTPS ntfy-compatible relay. Do not expose the Node signaling port directly; Compose keeps it on the private bridge behind Caddy.
+This endpoint is for older protocol-4 clients only. Obsidian Citizen 0.6.0 cannot use it as a Custom relay; that setting expects an HTTPS ntfy-compatible relay. Do not expose the Node signaling port directly; Compose keeps it on the private bridge behind Caddy.
 
 ### Local protocol-4 service development
 
@@ -56,7 +56,7 @@ $env:TURN_SECRET = "local-development-secret"
 npm --prefix server start
 ```
 
-These commands support historical protocol-4 clients and the legacy service tests. The 0.5.0 Custom relay option does not accept `ws://localhost:8787`. The Node service's locally generated TURN credentials are separate from the hosted Worker route.
+These commands support historical protocol-4 clients and the legacy service tests. The 0.6.0 Custom relay option does not accept `ws://localhost:8787`. The Node service's locally generated TURN credentials are separate from the hosted Worker route.
 
 ## Data and limits
 

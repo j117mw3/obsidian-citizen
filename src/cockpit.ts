@@ -14,7 +14,7 @@ export interface Cockpit {
 export interface CockpitReading {
   health: number; shields: number; boost: number; speed: number; boostLocked: boolean; regenDelay: number; emptyHold: number;
   weapon: 0 | 1; heat: number; overheated: boolean; ammunition: number;
-  weaponReady: boolean; weaponCooldown: number; kills: number; leader: number; protectedFor: number; respawnIn: number;
+  weaponReady: boolean; weaponCooldown: number; weaponCooldownDuration: number; kills: number; leader: number; protectedFor: number; respawnIn: number;
   phase: string;
 }
 
@@ -111,7 +111,7 @@ export function buildCockpit(ship: ShipId = "classic"): Cockpit {
       : reading.boost >= 1 ? "FULL" : reading.regenDelay > 0 ? `RECHARGE IN ${reading.regenDelay.toFixed(1)}s` : "RECHARGING";
     const status = reading.respawnIn > 0 ? `RESPAWN ${Math.ceil(reading.respawnIn / 1000)}s` : reading.protectedFor > 0 ? `PROTECTED ${Math.ceil(reading.protectedFor / 1000)}s` : reading.phase;
     const weaponName = reading.weapon === 1 ? "Cannon" : "Blaster", rate = reading.weapon === 1 ? "2" : "6.25";
-    const weaponStatus = reading.weapon === 1 ? `Cannon ${reading.ammunition} rounds, ${reading.weaponReady ? "ready" : `cooling down for ${reading.weaponCooldown.toFixed(2)} seconds`}`
+    const weaponStatus = reading.weapon === 1 ? `Cannon ${reading.ammunition} rounds, ${reading.ammunition <= 0 ? "dry" : reading.weaponReady ? "ready" : `cooling down for ${reading.weaponCooldown.toFixed(2)} seconds`}`
       : `Blaster ${reading.weaponReady ? "ready" : reading.overheated ? "overheated" : `cooling down for ${reading.weaponCooldown.toFixed(2)} seconds`}, ${rate} shots per second, heat ${Math.round(reading.heat * 100)} percent`;
     dashboardText = `Hull ${health} percent. Shields ${Math.round(reading.shields)} of 40. Boost ${boost} percent, ${boostStatus}. Speed ${Math.round(reading.speed)}. ${weaponStatus}. ${status}. ${reading.kills} kills out of five. Leader has ${reading.leader}.`;
     screens.forEach(({ context, canvas, texture }, index) => {
@@ -123,13 +123,13 @@ export function buildCockpit(ship: ShipId = "classic"): Cockpit {
       context.font = "bold 30px system-ui"; context.fillStyle = "#f4fbff";
       context.fillText(index ? `${weaponName.toUpperCase()}  ·  ${reading.weapon === 1 ? `${reading.ammunition} AMMO` : `${rate} SHOTS/SEC`}` : `HULL ${health}%   SHIELD ${Math.round(reading.shields)}/40`, 20, 76, 594);
       context.font = "22px system-ui"; context.fillStyle = "#b6c8d5";
-      context.fillText(index ? (reading.weapon === 1 ? (reading.weaponReady ? "READY" : `COOLING ${reading.weaponCooldown.toFixed(2)}s`) : (reading.overheated ? `OVERHEATED  ·  ${Math.round(reading.heat * 100)}% HEAT` : `READY ${Math.round(reading.heat * 100)}% HEAT`)) : `SPEED ${Math.round(reading.speed)} u/s   BOOST ${boostStatus}`, 20, 111, 594);
+      context.fillText(index ? (reading.weapon === 1 ? (reading.ammunition <= 0 ? "DRY · 0 AMMO" : reading.weaponReady ? "READY" : `COOLING ${reading.weaponCooldown.toFixed(2)}s`) : (reading.overheated ? `OVERHEATED  ·  ${Math.round(reading.heat * 100)}% HEAT` : `READY ${Math.round(reading.heat * 100)}% HEAT`)) : `SPEED ${Math.round(reading.speed)} u/s   BOOST ${boostStatus}`, 20, 111, 594);
       context.font = "19px system-ui"; context.fillStyle = "#9db0c1";
       context.fillText(index ? status : `STATUS ${status}`, 20, 139, 594);
       const bx = 20, by = 154, bw = 594;
       context.fillStyle = "#263747"; context.fillRect(bx, by, bw, 13);
       const value = index
-        ? (reading.weapon === 1 ? (reading.weaponReady ? 1 : Math.max(0, Math.min(1, 1 - reading.weaponCooldown / 0.5))) : (reading.overheated ? 1 - reading.heat : (reading.weaponReady ? 1 : Math.max(0, Math.min(1, 1 - reading.weaponCooldown / 0.16)))))
+        ? (reading.weaponReady ? 1 : reading.weapon === 1 ? Math.max(0, Math.min(1, 1 - reading.weaponCooldown / reading.weaponCooldownDuration)) : (reading.overheated ? 1 - reading.heat : Math.max(0, Math.min(1, 1 - reading.weaponCooldown / reading.weaponCooldownDuration))))
         : health / 100;
       context.fillStyle = index ? (reading.weaponReady ? "#65e6ff" : "#f4ac62") : "#fb6573"; context.fillRect(bx, by, Math.max(2, bw * value), 13);
       if (!index) { context.fillStyle = "#263747"; context.fillRect(bx, by + 20, bw, 7); context.fillStyle = "#67ceff"; context.fillRect(bx, by + 20, bw * boost / 100, 7); }

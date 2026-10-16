@@ -1,7 +1,13 @@
 {
-  "name": "constellation-graph",
-  "version": "0.5.0",
+  "name": "citizen",
+  "version": "0.7.2",
   "description": "Obsidian Citizen: a 3D note constellation and multiplayer space sandbox.",
+  "author": "J117W3",
+  "homepage": "https://github.com/j117mw3/obsidian-citizen#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/j117mw3/obsidian-citizen.git"
+  },
   "main": "main.js",
   "private": true,
   "license": "MIT",
@@ -13,6 +19,7 @@
     "check:hosted": "node dev/check-hosted-service.mjs",
     "harness": "node dev/build-harness.mjs",
     "harness:network": "node dev/build-network-harness.mjs",
+    "test:surface-latency": "node dev/run-surface-latency.mjs",
     "install-local": "node dev/install-local.mjs"
   },
   "devDependencies": {
@@ -25,6 +32,7 @@
   },
   "dependencies": {
     "d3-force-3d": "^3.0.6",
+    "fflate": "0.8.3",
     "three": "~0.180.0"
   }
 }

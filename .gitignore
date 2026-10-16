@@ -6,6 +6,9 @@ server/.wrangler/
 *.map
 dev/harness.html
 dev/network-harness.html
+dev/surface-latency.html
+dev/surface-preview.html
+dev/surface-lifecycle.html
 dev/mock-data.json
 data.json
 .DS_Store

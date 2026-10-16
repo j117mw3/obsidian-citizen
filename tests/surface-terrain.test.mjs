@@ -1,0 +1,175 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {build} from 'esbuild';
+const bundle=await build({stdin:{contents:`export * as terrain from './src/surfaceTerrain';export * as physics from './src/surfacePhysics';export * as combat from './src/surfaceCombat';export * as layout from './src/surfaceTerrainLayout';export * as geometry from './src/surfaceGeometry';export * as mesh from './src/surfaceTerrainMesh';export * as world from './src/surfaceWorld';export * as wire from './src/surfaceGeometryWire';export * as cover from './src/surfaceCover';export * as coverWire from './src/surfaceCoverWire';export * as collision from './src/surfaceCollision';export * as authority from './src/surfaceAuthority';export * as snapshotWire from './src/surfaceSnapshotWire';export * as visuals from './src/surfaceVisuals';export * as patrol from './src/surfacePatrol';`,resolveDir:process.cwd()},bundle:true,platform:'node',format:'esm',write:false});
+const {terrain:t,physics:p,layout,geometry,mesh,world,wire,cover,coverWire,combat,collision,authority,snapshotWire,visuals,patrol}=await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString('base64')}`);
+const idle={moveX:0,moveY:0,sprint:false,jump:false,crouch:false,yawDelta:0,pitchDelta:0,lean:0};
+const normalize=v=>{const r=Math.hypot(...v);return v.map(x=>x/r)};
+test('terrain format hashes reject altered content and accept reordered fields',()=>{
+ const d=t.createTerrainDefinition(42,27);assert.ok(t.validTerrainDefinition(d,27));assert.ok(t.validTerrainDefinition(Object.fromEntries(Object.entries(d).reverse()),27));
+ for(const field of ['seed','radius','relief','routeAngle','profile'])assert.equal(t.validTerrainDefinition({...d,[field]:d[field]+1}),false);
+ assert.equal(t.validTerrainDefinition({...d,notePath:'private'}),false);
+ assert.equal(t.validTerrainDefinition({...d,chunkHashes:d.chunkHashes.map(()=> '00000000')}),false);
+});
+test('1000 seeds retain flat poles, bounded elevation and walkable normals at all supported radii',()=>{
+ for(let seed=0;seed<1000;seed++){
+  const radius=27*Math.sqrt(Math.max(1,[0,1,2,6,16,17,1000,19999][seed%8]/16));const d=t.createTerrainDefinition(seed,radius),q=t.terrainQuery(d);
+  for(const pole of [[0,1,0],[0,-1,0]])assert.equal(q.height(pole),0);
+  for(let i=0;i<32;i++){
+   const y=1-2*(i+.5)/32,a=i*2.399963229728653,n=[Math.sqrt(1-y*y)*Math.cos(a),y,Math.sqrt(1-y*y)*Math.sin(a)];
+   const h=q.height(n),normal=q.normal(n),dot=normal.reduce((s,x,k)=>s+x*n[k],0);
+   assert.ok(h>=-.8&&h<=1.6);assert.ok(Math.acos(Math.min(1,dot))<=25*Math.PI/180,`seed ${seed} slope`);
+  }
+ }
+});
+test('terrain rays and sweeps agree with radial ground, including shallow craters',()=>{
+ for(let seed=0;seed<30;seed++){
+  const d=t.createTerrainDefinition(seed,27),q=t.terrainQuery(d),n=normalize([1,.2,.5]),r=27+q.height(n),start=n.map(x=>x*(r+3)),end=n.map(x=>x*(r-2));
+  const hit=q.ray(start,end);assert.ok(Math.abs(hit-.6)<.00005);const sweep=q.sweepGround(start,end);assert.ok(sweep.hit);assert.ok(Math.abs(Math.hypot(...sweep.position)-r)<1e-9);
+ }
+});
+test('terrain grounded and jumping movement stays stable at 30,60,144 FPS and delayed display centers',()=>{
+ const d=t.createTerrainDefinition(77,27),walls=[];t.bindSurfaceTerrain(walls,d);const q=t.terrainQuery(d);
+ for(const fps of [30,60,144]){
+  let state=p.createSurfacePlayerState(normalize([1,.15,.3]),[0,0,-1],27,d);
+  for(let i=0;i<fps*8;i++){
+   const move=i>fps&&i<fps*6;state=p.stepSurfacePlayer(state,{...idle,moveY:move?1:0,jump:i===fps*3,crouch:i>fps*4&&i<fps*5},1/fps,walls);
+   assert.ok(p.validSurfacePlayerState(state));assert.ok(q.signedDistance(state.position)>-1e-7);
+   if(state.grounded)assert.ok(Math.abs(q.signedDistance(state.position))<1e-7);
+   const center=[Math.sin(i/fps)*10, i/fps,0],eye=state.position.map((x,k)=>x+normalize(state.position)[k]*1.65+center[k]);
+   assert.ok(Math.abs(Math.hypot(...eye.map((x,k)=>x-center[k]))-Math.hypot(...state.position)-1.65)<1e-10);
+  }
+ }
+});
+
+test('terrain production geometry retains paired walls at maximum degree and transport hashes',()=>{
+ for(const count of [0,1,2,6,16,17,1000,19999]){
+  const arena=geometry.generateDirectedSurfaceArena('hub',Array.from({length:count},(_,i)=>`n-00000000-0000-4000-8000-${String(i).padStart(12,'0')}`),new Map(),true);
+  assert.equal(arena.walls.length,count*2);assert.ok(layout.validateTerrainLayout(arena.terrain,arena).valid);
+  const encoded=wire.stringifySurfaceTransfer(arena,4*1024*1024),decoded=wire.parseSurfaceTransfer(encoded,4*1024*1024);
+  assert.equal(decoded.terrain.hash,arena.terrain.hash);assert.ok(t.terrainForWalls(decoded.walls));
+  assert.equal(decoded.walls.length,count*2);
+ }
+});
+test('unlinked terrain has static physical ruins and protected routes',()=>{
+ for(let seed=0;seed<1000;seed++){
+  const def=layout.prepareTerrainDefinition(seed,27);assert.ok(layout.validateTerrainLayout(def).valid);
+  const q=t.terrainQuery(def),ruins=q.staticNear([27,0,0],100);assert.ok(ruins.length>0);
+  for(const ruin of ruins){assert.ok(q.routeDistance(ruin.normal)>=Math.hypot(ruin.length,ruin.thickness)/2+1.6);assert.ok(Math.acos(Math.abs(ruin.normal[1]))*27>=6+Math.hypot(ruin.length,ruin.thickness)/2+1.6);}
+ }
+});
+test('static ruins block movement and shots without leaking into moving pose rows',()=>{
+ const arena=geometry.generateDirectedSurfaceArena('hub',[],new Map(),true),q=t.terrainQuery(arena.terrain),wall=q.staticNear([27,0,0],100)[0],box=collision.surfaceWallBox(wall,27);
+ const side=box.axes[2],start=box.center.map((x,k)=>x+side[k]*3),end=box.center.map((x,k)=>x-side[k]*3);
+ assert.equal(combat.traceSurfaceSegment(start,end,arena.walls,[]).kind,'wall');
+ assert.equal(p.surfacePoseClear(box.center,1.8,arena.walls),false);
+ const packet=coverWire.encodeCoverPoses([{key:'owner/hub',arena}],[{arenaKey:'owner/hub',health:100,surface:{position:box.center}}]);assert.equal(packet.length,0);
+});
+test('terrain snapshots preserve occupied terrain, timers, and migration',()=>{
+ const w=new world.SurfaceWorld({terrain:true}),topology={revision:1,nodes:[{id:'hub',dockable:true,group:0,degree:6},...Array.from({length:6},(_,i)=>({id:'n'+i,dockable:false,group:0,degree:1}))],links:Array.from({length:6},(_,i)=>['hub','n'+i])};
+ const positions=new Float32Array([0,0,0,...Array.from({length:6},(_,i)=>[10*Math.cos(i),0,10*Math.sin(i)]).flat()]);
+ w.setOwnerMap('owner',topology,positions);w.addPlayer('pilot',{position:[0,0,38],rotation:[0,0,0,1],velocity:[0,0,0]});assert.ok(w.dock('pilot','owner/hub',4000));
+ const first=w.getArena('owner/hub');assert.equal(first.arena.walls.length,12);assert.equal(w.getPlayer('pilot').surface.terrainHash,first.arena.terrain.hash);
+ w.setOwnerMap('owner',topology,positions.map((x,i)=>x+[9,15,-4][i%3]));w.moveCover(.016);
+ assert.equal(w.getArena('owner/hub').arena.terrain.hash,first.arena.terrain.hash);
+ const checkpoint=wire.parseSurfaceTransfer(wire.stringifySurfaceTransfer(w.checkpoint(5000),32*1024*1024),32*1024*1024),restored=new world.SurfaceWorld({terrain:true});
+ assert.ok(restored.restoreCheckpoint(checkpoint,6000,1000));assert.equal(restored.getArena('owner/hub').arena.terrain.hash,first.arena.terrain.hash);
+});
+test('near terrain mesh agrees with collision within .02, with bounded LOD complexity',()=>{
+ for(const radius of [27,27*Math.sqrt(19999/16)]){
+  const def=t.createTerrainDefinition(42,radius),observer=[radius+1.65,0,0],geo=mesh.buildTerrainMesh(def,observer),points=geo.getAttribute('position'),indices=geo.index.array,q=t.terrainQuery(def);let checked=0;
+  for(let i=0;i<indices.length;i+=3){const vertices=[0,1,2].map(k=>{const at=indices[i+k];return [points.getX(at),points.getY(at),points.getZ(at)]});
+   const c=[0,1,2].map(k=>(vertices[0][k]+vertices[1][k]+vertices[2][k])/3);
+   if(Math.hypot(...c.map((x,k)=>x-observer[k]))>20)continue;
+   // Skirts are below the top surface, never a walkable top triangle.
+   if(vertices.some(v=>q.signedDistance(v)<-.01))continue;
+   assert.ok(Math.abs(q.signedDistance(c))<=.02,`radius ${radius} error ${q.signedDistance(c)}`);checked++;
+  }
+  assert.ok(checked>0);assert.ok(points.count<1000000);geo.dispose();
+ }
+});
+
+test('1000 procedural encounter layouts retain paired walls, accessible routes and balanced resources',()=>{
+ for(let seed=0;seed<1000;seed++){
+  const count=[0,1,2,6,16,17][seed%6],ids=Array.from({length:count},(_,i)=>'file-'+i),directions=new Map(ids.map(id=>[id,seed%2?[0,1,0]:[1,0,0]]));
+  const arena=geometry.generateDirectedSurfaceArena('seed-'+seed,ids,directions,true),validation=layout.validateTerrainLayout(arena.terrain,arena);
+  assert.ok(validation.valid,JSON.stringify(validation.errors));assert.ok(validation.pickupImbalance<=.1);assert.equal(arena.walls.length,count*2);
+  for(const pickup of arena.pickups){const r=arena.radius+t.terrainHeight(arena.terrain,pickup.normal),feet=pickup.normal.map(v=>v*r);assert.ok(p.surfacePoseClear(feet,1.8,arena.walls,undefined,arena.radius));}
+ }
+});
+test('terrain reliable chunks and delayed snapshots prepare matching collision before late join, then migrate',()=>{
+ const owner='11111111-1111-4111-8111-111111111111',pilot='22222222-2222-4222-8222-222222222222',hub='n-33333333-3333-4333-8333-333333333333',key=owner+'/'+hub;
+ const host=new authority.SurfaceAuthority({terrain:true});host.setOwnerMap(owner,{revision:1,nodes:[{id:hub,dockable:true,group:0,degree:0}],links:[]},new Float32Array([0,0,0]));
+ host.addPlayer(pilot,{position:[0,0,8.45],rotation:[0,0,0,1],velocity:[0,0,0]});assert.ok(host.dock(pilot,owner,hub,4000));
+ const sender=new snapshotWire.SurfaceSnapshotWire(),receiver=new snapshotWire.SurfaceSnapshotWire(),pending=[],delays=[];let accepted=0;
+ for(let tick=0;tick<180;tick++){
+  const now=5000+tick*1000/60;host.step(1/60,Math.round(now));
+  if(tick%3===0){const frame=sender.encode(host.snapshot(1,tick+1,Math.round(now)),true);pending.push({at:now+100+(tick%5)*5,frame});
+   const chunk=sender.nextChunk(now);if(chunk){assert.ok(Buffer.byteLength(JSON.stringify(chunk))<16384);delays.push({at:now+100+(tick%3)*7,chunk});}}
+  while(delays.length&&delays[0].at<=now){const token=receiver.receiveChunk(delays.shift().chunk);if(token)sender.acknowledge([token]);}
+  while(pending.length&&pending[0].at<=now){const result=receiver.decode(pending.shift().frame,1);if(!result.snapshot)continue;accepted++;sender.acknowledge(result.acknowledge);
+   const arena=result.snapshot.arenas[0].arena,state=result.snapshot.players[0].surface;assert.equal(state.terrainHash,arena.terrain.hash);assert.ok(t.terrainForWalls(arena.walls));assert.ok(Math.abs(t.terrainQuery(arena.terrain).signedDistance(state.position))<1e-7);
+  }
+ }
+ assert.ok(accepted>40);const snap=host.snapshot(1,200,8000),inline=new snapshotWire.SurfaceSnapshotWire(),full=inline.decode(new snapshotWire.SurfaceSnapshotWire().encode(snap),1);assert.ok(full.snapshot);const refs=inline.decode({...snap,arenas:full.snapshot.arenas.map((a,i)=>({...a,geometryId:i+1,arena:i+1}))},1);assert.ok(refs.snapshot);assert.ok(t.terrainForWalls(refs.snapshot.arenas[0].arena.walls));
+ const bad=structuredClone(snap);bad.players[0].surface.terrainHash='00000000';assert.equal(authority.validSurfaceNetworkSnapshot(bad,1),false);
+ const checkpoint=host.checkpoint(8000),migrated=new authority.SurfaceAuthority({terrain:true});assert.ok(migrated.restoreCheckpoint(checkpoint,8100,100));assert.equal(migrated.world.getArena(key).arena.terrain.hash,host.world.getArena(key).arena.terrain.hash);
+});
+test('terrain slopes, both poles, pause, crouch, lean, and jumping preserve grounded radial orientation',()=>{
+ const arena=geometry.generateDirectedSurfaceArena('walk-terrain',[],new Map(),true),q=t.terrainQuery(arena.terrain);
+ for(const start of [[0,1,0],[0,-1,0],normalize([1,1,1])])for(const fps of [30,60,144]){
+  let state=p.createSurfacePlayerState(start,[1,0,0],arena.radius,arena.terrain);
+  for(let frame=0;frame<fps*12;frame++){
+   const input={...idle,moveY:frame<fps*9?1:0,sprint:frame>fps*2&&frame<fps*4,crouch:frame>fps*6&&frame<fps*8,lean:frame>fps*7?.5:0,jump:frame===fps*4};
+   state=p.stepSurfacePlayer(state,input,1/fps,arena.walls);assert.ok(q.signedDistance(state.position)>-1e-6);assert.ok(p.validSurfacePlayerState(state));
+   if(frame===fps*5){const paused=p.stepSurfacePlayer(state,input,0,arena.walls);assert.deepEqual(paused,state);}
+  }
+ }
+});
+
+test('irregular frames and delayed moving centers cannot change idle terrain altitude or heading',()=>{
+ const w=new world.SurfaceWorld({terrain:true}),map={revision:1,nodes:[{id:'hub',dockable:true,group:0,degree:0}],links:[]};w.setOwnerMap('owner',map,new Float32Array([0,0,0]));w.addPlayer('pilot',{position:[0,0,38],rotation:[0,0,0,1],velocity:[0,0,0]});assert.ok(w.dock('pilot','owner/hub',4000));
+ const original=w.getPlayer('pilot').surface,arena=w.getArena('owner/hub').arena;let elapsed=0;
+ for(let frame=0;frame<1200;frame++){
+  const dt=[1/30,1/144,.017,.05][frame%4];elapsed+=dt;
+  if(frame%7===0)w.setOwnerMap('owner',map,new Float32Array([Math.sin(elapsed)*50,elapsed*2,Math.cos(elapsed)*20]));
+  w.updatePlayer('pilot',idle,dt,Math.round(5000+elapsed*1000));const state=w.getPlayer('pilot').surface;assert.deepEqual(state.position,original.position);assert.deepEqual(state.forward,original.forward);assert.deepEqual(state.velocity,original.velocity);assert.equal(state.grounded,true);
+ }
+ assert.equal(w.getArena('owner/hub').arena.terrain.hash,arena.terrain.hash);w.ownerLeft('owner');assert.equal(w.getPlayer('pilot').mode,'ship');
+});
+test('moving terrain walls remain grounded and never seal protected approaches or intersect static ruins',()=>{
+ const arena=geometry.generateDirectedSurfaceArena('terrain-motion',Array.from({length:6},(_,i)=>'file'+i),new Map(),true),motion=new cover.SurfaceCoverMotion(arena),q=t.terrainQuery(arena.terrain);
+ const directions=new Map(arena.walls.map(w=>[w.connectionId,[0,1,0]]));
+ for(let tick=0;tick<600;tick++)motion.step(directions,[],1/60);
+ for(const wall of motion.walls){assert.ok(q.routeDistance(wall.normal)>=wall.length/2+1.6);assert.ok(Math.abs(Math.asin(wall.normal[1]))*27>=wall.length/2+1.6);
+  const box=collision.surfaceWallBox(wall,27);assert.ok(Math.abs(Math.hypot(...box.center)-(27+q.height(wall.normal)+(wall.height-.35)/2))<1e-8);
+  for(const ruin of q.staticNear(wall.normal.map(v=>v*27),6)){const d=Math.hypot(...ruin.normal.map((v,k)=>(v-wall.normal[k])*27));assert.ok(d>=wall.length/2+ruin.length/2+1-.01);}
+ }
+});
+test('training patrols use terrain grounding and clear capsule paths around permanent ruins',()=>{
+ const arena=geometry.generateDirectedSurfaceArena('terrain-training',[],new Map(),true),q=t.terrainQuery(arena.terrain);
+ for(let index=0;index<4;index++){
+  const actor=patrol.createSurfacePatrol(arena,index),initial=[...actor.state.position];let traveled=0;
+  for(let frame=0;frame<1200;frame++){const before=actor.state.position;const state=patrol.stepSurfacePatrol(actor,arena,1/60);traveled+=Math.hypot(...state.position.map((v,k)=>v-before[k]));assert.ok(Math.abs(q.signedDistance(state.position))<1e-5);assert.ok(p.surfacePoseClear(state.position,1.8,arena.walls));}
+  assert.ok(traveled>5,'patrol must find an open approach instead of staying blocked');
+ }
+});
+
+test('small-planet terrain has visible relief instead of only passing an upper elevation bound',()=>{
+ let globalMaximumSlope=0;
+ for(let seed=0;seed<1000;seed++){
+  const d=t.createTerrainDefinition(seed,27),q=t.terrainQuery(d);let low=Infinity,high=-Infinity;
+  for(let i=0;i<512;i++){const y=1-2*(i+.5)/512,a=i*2.399963,n=[Math.sqrt(1-y*y)*Math.cos(a),y,Math.sqrt(1-y*y)*Math.sin(a)],h=q.height(n),normal=q.normal(n);low=Math.min(low,h);high=Math.max(high,h);const slope=Math.acos(Math.min(1,normal.reduce((sum,v,k)=>sum+v*n[k],0)))*180/Math.PI;assert.ok(slope<=25);globalMaximumSlope=Math.max(globalMaximumSlope,slope);}
+  assert.ok(high-low>=1.6,`seed ${seed} is too flat: ${high-low}`);
+ }
+ assert.ok(globalMaximumSlope>15,'landforms should have readable shoulders');
+ assert.equal(t.validTerrainDefinition({...t.createTerrainDefinition(1,27),version:1}),false);
+});
+test('linked walls make measurable progress around ruin blockers and unreachable route-centre bearings',()=>{
+ const ids=Array.from({length:6},(_,i)=>'file'+i),directions=new Map(ids.map((id,i)=>[id,[Math.cos(i),.2,Math.sin(i)]])),arena=geometry.generateDirectedSurfaceArena('Surface Smoke/Surface Smoke Hub.md',ids,directions,true),motion=new cover.SurfaceCoverMotion(arena),before=motion.walls.map(w=>[...w.normal]);
+ const target=new Map(ids.map((id,i)=>[id,[Math.cos(i+.5),.2,Math.sin(i+.5)]]));
+ for(let tick=0;tick<600;tick++)motion.step(target,[],1/60);
+ const moved=motion.walls.map((w,i)=>Math.hypot(...w.normal.map((v,k)=>(v-before[i][k])*27)));
+ assert.ok(moved.every(distance=>distance>.25),JSON.stringify(moved));assert.ok(moved.filter(distance=>distance>1).length>=10);
+ assert.equal(motion.walls.length,12);
+});

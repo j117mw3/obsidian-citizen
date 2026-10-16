@@ -1,12 +1,14 @@
 import { App, PluginSettingTab, Setting, type SettingDefinitionItem } from "obsidian";
 import type ConstellationPlugin from "./main";
 import type { ConstellationSettings } from "./settings";
+import { DEFAULT_SURFACE_LASER_COLOR, normalizeSurfaceLaserColor } from "./surfaceColor";
 
 type Control =
   | { kind: "toggle" }
   | { kind: "dropdown"; options: Record<string, string> }
   | { kind: "slider"; min: number; max: number; step: number }
-  | { kind: "text"; placeholder: string };
+  | { kind: "text"; placeholder: string }
+  | { kind: "color" };
 
 interface SettingDef {
   key: keyof ConstellationSettings;
@@ -95,6 +97,28 @@ const SECTIONS: Section[] = [
     ],
   },
   {
+    heading: "Surface combat",
+    items: [
+      { key: "surfaceLaserColor", name: "Laser colour", control: { kind: "color" },
+        desc: "Your blaster colour is brightened to stay visible against the dark background, then shown to other players." },
+      { key: "surfaceSensitivity", name: "Surface look sensitivity", control: { kind: "slider", min: 0.2, max: 3, step: 0.1 } },
+      { key: "surfaceInvertY", name: "Invert surface look", control: { kind: "toggle" } },
+      { key: "surfaceFov", name: "Surface field of view", control: { kind: "slider", min: 60, max: 100, step: 1 } },
+      { key: "surfaceHeadBob", name: "Surface head bob", control: { kind: "toggle" }, desc: "Adds a subtle camera bounce while walking. Off by default." },
+      { key: "surfaceForwardKey", name: "Move forward key", control: { kind: "text", placeholder: "KeyW" } },
+      { key: "surfaceBackKey", name: "Move backward key", control: { kind: "text", placeholder: "KeyS" } },
+      { key: "surfaceLeftKey", name: "Move left key", control: { kind: "text", placeholder: "KeyA" } },
+      { key: "surfaceRightKey", name: "Move right key", control: { kind: "text", placeholder: "KeyD" } },
+      { key: "surfaceJumpKey", name: "Jump key", control: { kind: "text", placeholder: "Space" } },
+      { key: "surfaceSprintKey", name: "Sprint key", control: { kind: "text", placeholder: "ShiftLeft" } },
+      { key: "surfaceCrouchKey", name: "Crouch key (hold)", control: { kind: "text", placeholder: "ControlLeft" } },
+      { key: "surfaceLeanLeftKey", name: "Lean left key", control: { kind: "text", placeholder: "KeyQ" } },
+      { key: "surfaceLeanRightKey", name: "Lean right key", control: { kind: "text", placeholder: "KeyE" } },
+      { key: "surfaceInteractKey", name: "Interact / leave key", control: { kind: "text", placeholder: "KeyF" },
+        desc: "Enter a KeyboardEvent.code such as KeyF, Space, ArrowUp, or ShiftLeft. Duplicate or invalid assignments are corrected automatically." },
+    ],
+  },
+  {
     heading: "Notes",
     items: [
       { key: "groupBy", name: "Group by", control: { kind: "dropdown", options: { folder: "Folder", tag: "First tag", none: "Nothing" } }, rebuild: true },
@@ -142,6 +166,7 @@ export class ConstellationSettingTab extends PluginSettingTab {
 
   setControlValue(key: string, value: unknown): void {
     const def = ALL.find(d => d.key === key);
+    if (key === "surfaceLaserColor") value = normalizeSurfaceLaserColor(value) ?? DEFAULT_SURFACE_LASER_COLOR;
     this.plugin.update({ [key]: value }, def?.rebuild ?? false);
   }
 
@@ -152,6 +177,7 @@ export class ConstellationSettingTab extends PluginSettingTab {
       case "dropdown": return { type: "dropdown" as const, key: def.key, options: c.options };
       case "slider": return { type: "slider" as const, key: def.key, min: c.min, max: c.max, step: c.step };
       case "text": return { type: "text" as const, key: def.key, placeholder: c.placeholder };
+      case "color": return { type: "color" as const, key: def.key, defaultValue: DEFAULT_SURFACE_LASER_COLOR };
     }
   }
 
@@ -159,6 +185,10 @@ export class ConstellationSettingTab extends PluginSettingTab {
   display(): void {
     const { containerEl } = this;
     containerEl.empty();
+    new Setting(containerEl).setName("Obsidian Citizen — J117W3").setHeading();
+    containerEl.createEl("p", { text: "Explore your note constellation by spaceship, dock on main nodes, and enter spherical first-person arenas. Private multiplayer and solo training are included in this development build." });
+    containerEl.createEl("a", { text: "Obsidian Citizen repository and documentation", href: "https://github.com/j117mw3/obsidian-citizen" });
+    containerEl.createEl("p", { text: "Based on Constellation Graph by JusVibin. Original MIT notices are retained." });
     const s = this.plugin.settings;
     for (const section of SECTIONS) {
       new Setting(containerEl).setName(section.heading).setHeading();
@@ -170,6 +200,8 @@ export class ConstellationSettingTab extends PluginSettingTab {
         if (c.kind === "toggle") row.addToggle(t => t.setValue(Boolean(s[def.key])).onChange(v => set(v)));
         else if (c.kind === "dropdown") row.addDropdown(d => d.addOptions(c.options).setValue(String(s[def.key])).onChange(v => set(v)));
         else if (c.kind === "slider") row.addSlider(sl => sl.setLimits(c.min, c.max, c.step).setValue(Number(s[def.key])).onChange(v => set(v)));
+        else if (c.kind === "color") row.addColorPicker(p => p.setValue(normalizeSurfaceLaserColor(s[def.key]) ?? DEFAULT_SURFACE_LASER_COLOR)
+          .onChange(v => set(normalizeSurfaceLaserColor(v) ?? DEFAULT_SURFACE_LASER_COLOR)));
         else row.addText(t => t.setPlaceholder(c.placeholder).setValue(String(s[def.key])).onChange(v => set(v)));
       }
     }

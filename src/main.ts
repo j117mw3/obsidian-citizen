@@ -12,7 +12,9 @@ export default class ConstellationPlugin extends Plugin {
   private pendingReset = false;
 
   async onload(): Promise<void> {
-    this.settings = sanitizeSettings(await this.loadData());
+    const saved = await this.loadData();
+    this.settings = sanitizeSettings(saved);
+    if (saved && (saved.settingsSchemaVersion ?? 0) < this.settings.settingsSchemaVersion) await this.saveData(this.settings);
     this.registerView(VIEW_TYPE, leaf => new ConstellationView(leaf, this));
     this.addRibbonIcon("orbit", "Open Obsidian Citizen", () => void this.activate());
     this.addCommand({ id: "open", name: "Open Obsidian Citizen", callback: () => void this.activate() });
@@ -46,7 +48,7 @@ export default class ConstellationPlugin extends Plugin {
    * rebuild are debounced so dragging a slider or typing in a text box does not hammer the disk or the layout.
    */
   update(patch: Partial<ConstellationSettings>, rebuild = false): void {
-    this.settings = { ...this.settings, ...patch };
+    this.settings = sanitizeSettings({ ...this.settings, ...patch });
     this.views().forEach(v => v.applySettings(false));
 
     if (rebuild) {

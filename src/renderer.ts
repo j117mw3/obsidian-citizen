@@ -1,3 +1,8 @@
+import { updateTerrainPresentation } from "./surfaceTerrainMesh";
+import type { SurfacePlayerState } from "./surfacePhysics";
+import { SurfaceNameplates, type SurfaceNameplateTarget } from "./surfaceNameplates";
+import { SurfaceOperative } from "./surfaceOperative";
+import { generateDirectedSurfaceArena as generateSurfaceArena, surfaceWorldRadii } from "./surfaceGeometry";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
@@ -11,6 +16,26 @@ import type { AnonymousTopology, ImpactSnapshot, NavigationTarget, Pose, ShotSna
 import { buildShip, type Ship } from "./ship";
 import type { PilotProfile, ShipId } from "./pilotProfile";
 import type { RemoteAudioState } from "./sfx";
+import { interpolateRemotePose } from "./interpolation";
+import { StarCollisionGrid } from "./flight";
+import { SurfaceCoverMotion } from "./surfaceCover";
+import { decodeCoverPoses, type SurfaceCoverPacket } from "./surfaceCoverWire";
+import { createSurfaceArenaVisual, createSurfaceBotDropVisual, updateSurfaceCoverVisual, setSurfacePickupVisibility, SurfaceBoltGraphic, renderOccludedSurfaceWorld, surfaceSphereOccludes } from "./surfaceVisuals";
+import { selectMainNodeIds, surfaceBodySegments, SURFACE, type SurfaceBotView, type SurfaceBotShotView, type SurfaceBotDropView } from "./surface";
+import { surfaceShotDamage, type SurfaceShotKind, SURFACE_BLASTER } from "./surfaceCombat";
+import { SurfacePilot } from "./surfacePilot";
+import { SurfaceAudio } from "./surfaceAudio";
+import { SurfaceWorld, type SurfaceArenaView, type SurfaceShipState, type SurfaceTopology } from "./surfaceWorld";
+import { createSurfacePlayerState, type SurfaceInput } from "./surfacePhysics";
+import { spreadSurfaceDirection, surfaceSpreadDegrees, surfaceSeed, traceSurfaceSegment } from "./surfaceCombat";
+import type { SurfaceCombatTarget } from "./surfaceCombat";
+import { SurfaceHistory, type SurfaceHistoryFrame } from "./surfaceHistory";
+import { presentSurfacePlayers } from "./surfacePresentation";
+import type { SurfaceNetworkSnapshot, SurfacePlayerSnapshot, SurfaceProjectileSnapshot } from "./surfaceAuthority";
+import { DEFAULT_SURFACE_LASER_COLOR, normalizeSurfaceLaserColor } from "./surfaceColor";
+import { stepSurfacePlayer } from "./surfacePhysics";
+import { SurfacePrediction } from "./surfaceInput";
+import { SURFACE_WORLD_SCALE, surfaceToWorld, surfaceViewPose, worldToSurface } from "./surfaceView";
 
 THREE.ColorManagement.enabled = false; // we feed sRGB values straight to the screen
 
@@ -68,10 +93,18 @@ export function webglAvailable(): boolean {
 }
 
 interface Tween { t0: number; dur: number; p0: THREE.Vector3; p1: THREE.Vector3; t0v: THREE.Vector3; t1v: THREE.Vector3 }
-interface RemoteMap { playerId: string; points: THREE.Points; links: THREE.LineSegments; ids: Map<string, number>; nodeIds: string[]; revision: number; target: Float32Array; current: Float32Array; initialized: boolean }
-interface RemoteShip { ship: Ship; target: Pose | null; name: string; profile: PilotProfile; indicator: HTMLDivElement; label: HTMLSpanElement; arrow: HTMLSpanElement; velocity: THREE.Vector3 }
-interface RemoteBolt { line: THREE.Line; ownerId: string; origin: THREE.Vector3; target: THREE.Vector3; current: THREE.Vector3; direction: THREE.Vector3 }
+interface RemoteMap { playerId: string; points: THREE.Points; links: THREE.LineSegments; ids: Map<string, number>; nodeIds: string[]; topology: AnonymousTopology; revision: number; target: Float32Array; current: Float32Array; initialized: boolean; surfaceGroups: Map<string, THREE.Group> }
+interface RemotePoseSample { pose: Pose; at: number }
+interface RemoteShip { ship: Ship; target: Pose | null; samples: RemotePoseSample[]; name: string; profile: PilotProfile; indicator: HTMLDivElement; label: HTMLSpanElement; arrow: HTMLSpanElement; velocity: THREE.Vector3 }
+interface RemoteBolt { line: THREE.Line; ownerId: string; origin: THREE.Vector3; target: THREE.Vector3; current: THREE.Vector3; direction: THREE.Vector3; speed: number; targetAt: number }
 interface NetworkImpact { mesh: THREE.Mesh; expires: number }
+interface SurfaceBoltVisual { kind?: SurfaceShotKind; graphic: SurfaceBoltGraphic; arenaKey: string; ownerId: string; position: THREE.Vector3; direction: THREE.Vector3; travelled: number; startedAt: number; simulatedAt: number; stoppedAt: number }
+interface SurfaceBotVisual { bot: SurfaceBotView; group: THREE.Group; model: SurfaceOperative; baseColor: string; from: SurfacePlayerState; target: SurfacePlayerState; receivedAt: number; duration: number; lastSequence: number }
+interface SurfaceBotShotVisual { graphic: SurfaceBoltGraphic; shot: SurfaceBotShotView; }
+interface SurfaceBotDropVisual { group: THREE.Group; drop: SurfaceBotDropView; }
+interface RemoteSurfaceAvatar { group: THREE.Group; model: SurfaceOperative; color: string; lastAt: number; state?: SurfacePlayerState; arenaKey?: string }
+interface RemoteSurfaceAudioState { arenaKey: string; lifeId: number; position: [number, number, number]; distanceSinceStep: number; lastStepAt: number }
+interface NetworkSurfaceBolt { graphic: SurfaceBoltGraphic; shot: SurfaceProjectileSnapshot; updatedAt: number; predictionExpiresAt: number }
 interface Rect { x: number; y: number; w: number; h: number }
 
 export class ConstellationRenderer implements GraphRenderer {
@@ -162,12 +195,55 @@ export class ConstellationRenderer implements GraphRenderer {
   private treeLink = new Uint8Array(0); // links on the shortest-path tree during the trace
   private flashEl: HTMLDivElement;
   private pilot: PilotController;
+  private surfaceAudio = new SurfaceAudio();
+  private surfacePilot!: SurfacePilot;
+  private surfaceWorld = new SurfaceWorld({terrain:true});
+  private surfaceTopologyRevision = 1;
+  private surfaceMapAccumulator = 0;
+  private surfaceDisplayCenters = new Map<string, [number, number, number]>();
+  private parkedSurfaceShip: Ship | null = null;
+  private parkedHubId = "";
+  private parkedNormal = new THREE.Vector3(0, 1, 0);
+  private parkedRotation = new THREE.Quaternion();
+  private surfaceBolts: SurfaceBoltVisual[] = [];
+  private surfaceNameplates: SurfaceNameplates;
+  private surfacePlayerNames = new Map<string,string>();
+  private surfaceBotVisuals = new Map<string, SurfaceBotVisual>();
+  private surfaceBotShotVisuals = new Map<string, SurfaceBotShotVisual>();
+  private surfaceBotDropVisuals = new Map<string, SurfaceBotDropVisual>();
+  private trainingMaximum:100|150 = 100;
+  private readonly roomSurfaceHistory = new SurfaceHistory();
+  private readonly surfacePrediction = new SurfacePrediction();
+  private roomSurfacePlayers = new Map<string, SurfacePlayerSnapshot>();
+  private roomSurfaceBots: SurfaceBotView[] = [];
+  private roomSurfaceBotShots: SurfaceBotShotView[] = [];
+  private roomSurfaceBotDrops: SurfaceBotDropView[] = [];
+  private roomCombatEnabled = true;
+  private roomCoverMotion = new Map<string, { revision: number; motion: SurfaceCoverMotion }>();
+  private roomSurfaceArenas = new Map<string, SurfaceArenaView>();
+  private roomSurfaceSnapshotSequence = 0;
+  private roomSurfaceEpoch = 0;
+  private roomSurfaceSnapshotTime = 0;
+  private roomSurfaceRepresentedTime: number | null = null;
+  private roomSurfaceExhaustedSince = 0;
+  private roomSurfaceHostTime = 0;
+  private roomSurfaceReceivedAt = 0;
+  private roomSurfaceRtt = 0;
+  private roomSurfaceLocalArena: SurfaceArenaView | null = null;
+  private roomSurfaceLocalView: SurfacePlayerSnapshot | null = null;
+  private roomSurfaceLaserColor = DEFAULT_SURFACE_LASER_COLOR;
+  private remoteSurfaceAvatars = new Map<string, RemoteSurfaceAvatar>();
+  private remoteSurfaceAudioStates = new Map<string, RemoteSurfaceAudioState>();
+  private remoteSurfaceAudioEvents = new Set<string>();
+  private remoteParkedSurfaceShips = new Map<string, Ship>();
+  private networkSurfaceBolts = new Map<string, NetworkSurfaceBolt>();
   private aim = -1; // the note under the Pilot crosshair
   private fwd = new THREE.Vector3();
   private netQ = new THREE.Quaternion();
   private tmpQ = new THREE.Quaternion();
   private tmpE = new THREE.Euler();
   private remoteMaps = new Map<string, RemoteMap>();
+  private localSurfaceGroups = new Map<string, { group: THREE.Group; index: number }>();
   private multiplayer = false;
   private regionOrigin: [number, number, number] = [0, 0, 0];
   private worldNodes: SimNode[] = [];
@@ -179,6 +255,8 @@ export class ConstellationRenderer implements GraphRenderer {
   private remoteShips = new Map<string, RemoteShip>();
   private remoteShots = new Map<string, RemoteBolt>();
   private networkImpacts = new Map<string, NetworkImpact>();
+  private readonly pilotCollisionGrid = new StarCollisionGrid();
+  private lastPilotObstacleRefresh = -Infinity;
 
   constructor(private container: HTMLElement, private cb: RendererCallbacks, settings: ConstellationSettings) {
     this.settings = settings;
@@ -193,6 +271,7 @@ export class ConstellationRenderer implements GraphRenderer {
 
     this.flashEl = container.createDiv({ cls: "cg-flash", attr: { "aria-hidden": "true" } });
 
+    this.surfaceNameplates = new SurfaceNameplates(container);
     this.labelLayer = container.createDiv({ cls: "cg-labels", attr: { "aria-hidden": "true" } });
     this.indicatorLayer = container.createDiv({ cls: "cg-player-indicators", attr: { "aria-hidden": "true" } });
     this.scene.add(this.mapGroup);
@@ -227,6 +306,7 @@ export class ConstellationRenderer implements GraphRenderer {
       requestFastTravel: target => this.cb.onFastTravel?.(target),
       groupLabel: gi => this.groups[gi]?.label ?? "",
       nodeRadius: i => baseRadius(this.worldNodes[i]?.deg ?? 0),
+      nodeCollisionRadius: i => this.localSurfaceGroups.has(this.sim.nodes[i]?.id) ? (this.localSurfaceGroups.get(this.sim.nodes[i]?.id)!.group.userData.radius ?? SURFACE.radius) * SURFACE_WORLD_SCALE : undefined,
       solid: i => { const n = this.sim.nodes[i]; return !!n && !this.hidden.has(n.gi) && this.alpha[i] > 0.3; },
       clusters: () => this.clusterShells(),
       bounds: () => this.worldBounds(),
@@ -236,15 +316,53 @@ export class ConstellationRenderer implements GraphRenderer {
       select: i => { this.setSelected(i, false); this.cb.onSelect(i); },
       open: (i, newTab) => { if (!this.multiplayer) this.cb.onOpen(i, newTab); },
       onState: (active, text) => this.onPilotState(active, text),
+      baseFov: () => FOV,
+      setFov: fov => { this.camera.fov = Math.max(30, Math.min(90, fov)); this.camera.updateProjectionMatrix(); this.stale = true; },
       leave: () => this.setPilot(false),
       onAudioMute: (which, muted) => this.cb.onAudioMute?.(which, muted),
       onHangar: () => this.cb.onHangar?.(),
       onToggleGroups: () => this.cb.onToggleGroups?.(),
+      onFoldGroup: (index, all) => this.cb.onFoldGroup?.(index, all),
       onNetworkFrame: input => this.cb.onNetworkFrame?.(input),
+      onWeaponSelect: (sequence, weapon) => this.cb.onWeaponSelect?.(sequence, weapon),
+      showScores: on => this.cb.onShowScores?.(on),
       onFire: (sequence, gun, weapon, aimPoint) => this.cb.onFire?.(sequence, gun, weapon, aimPoint),
-      remoteTargets: () => [...this.remoteShips.values()].filter(remote => !!remote.target?.active && remote.target.health > 0 && remote.ship.group.visible)
-        .map(remote => ({ position: remote.ship.group.position, velocity: remote.velocity })),
+      onDockRequest: (destination, localIndex) => this.requestSurfaceDock(destination, localIndex),
+      dockingTarget: () => {
+        const target = this.pickSurfaceDockTarget();
+        return target ? { key: target.destination ? `${target.destination.ownerId}/${target.destination.starId}` : `solo/${this.sim.nodes[target.localIndex]?.id}`, distance: target.distance } : null;
+      },
+      resolveRoomCollisions: (position, velocity) => this.pilotCollisionGrid.resolve(position, velocity),
+      remoteTargets: () => [...this.remoteShips].filter(([, remote]) => !!remote.target?.active && remote.target.health > 0 && remote.ship.group.visible)
+        .map(([id, remote]) => ({ id, name: remote.name, position: remote.ship.group.position, rotation: remote.ship.group.quaternion, velocity: remote.velocity })),
     }, pilotOptions(settings));
+
+    this.surfacePilot = new SurfacePilot(this.container, this.canvas, this.camera, this.scene, {
+      step: (input, dt, now) => {
+        if (this.multiplayer) return this.stepRoomSurface(input, dt, now);
+        this.surfaceWorld.updatePlayer("solo", input, dt, now);
+        const view = this.surfaceWorld.getPlayer("solo");
+        const arena = view?.arenaKey ? this.surfaceWorld.getArena(view.arenaKey) : null;
+        if (arena) this.surfacePilot.updateArena(arena);
+        return view;
+      },
+      charge: active => {
+        const player = this.multiplayer ? this.roomSurfaceLocalView : this.surfaceWorld.getPlayer("solo");
+        if (!player?.arenaKey || (this.multiplayer && !this.roomCombatEnabled)) return;
+        if (this.multiplayer) this.cb.onSurfaceCharge?.(active, player.arenaKey, player.lifeId);
+        else this.surfaceWorld.setCharge("solo", active, Date.now(), player.arenaKey, player.lifeId);
+      },
+      fire: (origin, direction, sequence, viewTime, kind) => this.onSurfaceFire(origin, direction, sequence, viewTime, kind),
+      hostViewTime: () => this.currentSurfaceViewTime(),
+      hostTime: () => this.currentSurfaceHostTime(),
+      arenaCenter: arena => this.surfaceDisplayCenter(arena),
+      nearbyThreats: () => this.nearbySurfaceThreats(),
+      connectionRtt: () => this.roomSurfaceRtt,
+      connectionDegraded: () => this.roomSurfaceExhaustedSince > 0 && Date.now() - this.roomSurfaceExhaustedSince >= 250,
+      prepareSpaceAudio: () => this.pilot.prepareSurfaceAudio(),
+      trainingReset: maximum => this.resetTrainingDummy(maximum),
+      ended: (ship, center) => this.multiplayer ? this.returnToRoomSurfaceShip(ship, center) : this.returnToSurfaceShip(ship, center),
+    }, settings, this.surfaceAudio);
 
     this.canvas.addEventListener("pointermove", this.onPointerMove);
     this.canvas.addEventListener("pointerleave", this.onPointerLeave);
@@ -281,6 +399,7 @@ export class ConstellationRenderer implements GraphRenderer {
     this.reveal = null;
     if (this.nova) { this.sim.novaCancel(); this.nova = null; this.novaBloom = 0; this.uniforms.uPulse.value = 1; this.uniforms.uNova.value = 0; }
     this.groups = data.groups;
+    this.surfaceTopologyRevision++;
     this.sim.setData(data);
     this.refreshWorldNodes(true);
     const n = this.sim.nodes.length;
@@ -304,12 +423,18 @@ export class ConstellationRenderer implements GraphRenderer {
     this.linkAt = new Map(this.sim.srcs.map((s, l) => [this.pairKey(s.index, this.sim.dsts[l].index), l]));
     this.recolor();
     this.labelPriority = this.sim.nodes.map((_, i) => i).sort((a, b) => this.sim.nodes[b].deg - this.sim.nodes[a].deg);
+    if (!this.multiplayer && !this.surfacePilot?.active) this.rebuildLocalSurfaceVisuals();
     this.dirty = true; this.stale = true;
     if (!this.fitDone) this.age = 0;
   }
 
   applySettings(s: ConstellationSettings): void {
+    const oldSurfaceColor = normalizeSurfaceLaserColor(this.settings.surfaceLaserColor) ?? DEFAULT_SURFACE_LASER_COLOR;
     this.settings = s;
+    const surfaceColor = normalizeSurfaceLaserColor(s.surfaceLaserColor) ?? DEFAULT_SURFACE_LASER_COLOR;
+    this.surfacePilot.applySettings(s);
+    this.roomSurfaceLaserColor = surfaceColor;
+    if (this.multiplayer && surfaceColor !== oldSurfaceColor) this.cb.onSurfaceColorChoice?.(surfaceColor);
     const level = effectiveMotion(s);
     this.still = level === "off";
     this.sim.setMotion(level);
@@ -361,6 +486,12 @@ export class ConstellationRenderer implements GraphRenderer {
   }
 
   setMultiplayer(active: boolean): void {
+    if (!active && this.multiplayer && this.surfacePilot?.active && this.roomSurfaceLocalView && this.roomSurfaceLocalArena) {
+      const center = this.roomSurfaceLocalArena.center, stored = this.roomSurfaceLocalView.ship, scale = SURFACE_WORLD_SCALE;
+      const ship = { position: stored.position.map((value, axis) => center[axis] + (value - center[axis]) * scale) as [number, number, number],
+        rotation: [...stored.rotation] as [number, number, number, number], velocity: [...stored.velocity] as [number, number, number] };
+      this.surfacePilot.completeExit(ship, [...center]);
+    }
     if (!active && this.pilot.active) this.pilot.exit();
     if (active && !this.multiplayer) {
       if (this.nova) this.novaStop(false);
@@ -378,6 +509,10 @@ export class ConstellationRenderer implements GraphRenderer {
       this.bloom.strength = effectiveHighContrast(this.settings) ? 0 : 0.35 * this.settings.glow;
     }
     this.multiplayer = active;
+    if (active) this.cb.onSurfaceColorChoice?.(normalizeSurfaceLaserColor(this.settings.surfaceLaserColor) ?? DEFAULT_SURFACE_LASER_COLOR);
+    this.lastPilotObstacleRefresh = -Infinity;
+    if (!active) this.pilotCollisionGrid.rebuild([]);
+    if (!active) this.pilot.setRoomAuthority(false);
     if (active) {
       if (this.drag) this.dragEnd();
       this.press = null; this.lastClick = null;
@@ -388,8 +523,19 @@ export class ConstellationRenderer implements GraphRenderer {
     this.pilot.setOptions(pilotOptions(this.settings, active));
     this.container.classList.toggle("cg-room-active", active);
     this.remoteShips.forEach(remote => remote.ship.group.scale.setScalar(active ? 0.68 : 0.34));
-    if (!active) { this.localPlayerId = ""; this.localTopology = null; this.indicatorLayer.replaceChildren(); }
+    if (!active) {
+      this.localPlayerId = ""; this.localTopology = null; this.rebuildLocalSurfaceVisuals(); this.indicatorLayer.replaceChildren();
+      this.clearRoomSurfacePresentation();
+    }
     this.stale = true; this.dirty = true;
+  }
+
+  setRoomAuthority(localHost: boolean): void { this.pilot.setRoomAuthority(localHost); }
+  resetRemoteInterpolation(): void {
+    for (const remote of this.remoteShips.values()) { remote.samples.length = 0; remote.target = null; remote.ship.group.visible = false; remote.indicator.hidden = true; }
+    this.roomSurfaceHistory.clear(); this.roomSurfaceSnapshotSequence = 0; this.roomSurfaceRepresentedTime = null;
+    this.surfacePrediction.reset(); this.surfacePilot.clearHeldInputs();
+    this.roomSurfaceExhaustedSince = 0;
   }
 
   regenerateRoomLayout(remainingMs: number): void {
@@ -411,15 +557,480 @@ export class ConstellationRenderer implements GraphRenderer {
   }
 
   setRoundDisplay(kills: number, leader: number, phase: string, remainingMs: number): void {
+    const enabled = phase === "combat" || phase === "SOLO";
+    if (this.roomCombatEnabled !== enabled) {
+      this.roomCombatEnabled = enabled;
+      if (!enabled) {
+        this.surfacePilot?.clearHeldInputs(); this.surfacePrediction.reset();
+        for (const bolt of this.surfaceBolts) bolt.graphic.dispose();
+        this.surfaceBolts.length = 0;
+        for (const id of this.networkSurfaceBolts.keys()) this.removeNetworkSurfaceBolt(id);
+        for (const visual of this.surfaceBotShotVisuals.values()) visual.graphic.dispose();
+        this.surfaceBotShotVisuals.clear();
+      }
+    }
     this.pilot.setRoundDisplay(kills, leader, phase, remainingMs);
   }
 
   setLocalTopology(playerId: string, topology: AnonymousTopology | null): void {
     if (this.navigationTarget?.ownerId === this.localPlayerId && this.navigationTarget.revision !== topology?.revision) this.setNavigationTarget(null);
     this.localPlayerId = playerId; this.localTopology = topology;
+    this.rebuildLocalSurfaceVisuals();
+  }
+
+  setSurfaceSnapshot(snapshot: SurfaceNetworkSnapshot, estimatedHostTime: number, rttMs: number): void {
+    if (!this.multiplayer || snapshot.epoch < this.roomSurfaceEpoch || !Number.isFinite(estimatedHostTime)) return;
+    if (snapshot.epoch !== this.roomSurfaceEpoch) {
+      this.roomCoverMotion?.clear();
+      this.roomSurfaceEpoch = snapshot.epoch; this.roomSurfaceSnapshotSequence = 0;
+      this.roomSurfaceHistory.clear(); this.roomSurfaceRepresentedTime = null; this.roomSurfaceExhaustedSince = 0;
+      this.surfacePrediction.reset(); this.surfacePilot.clearHeldInputs();
+    }
+    if (snapshot.sequence <= this.roomSurfaceSnapshotSequence) return;
+    const receivedAt = Date.now();
+    this.roomSurfaceSnapshotTime = snapshot.hostTime;
+    this.roomSurfaceSnapshotSequence = snapshot.sequence; this.roomSurfaceHostTime = estimatedHostTime; this.roomSurfaceReceivedAt = receivedAt;
+    this.roomSurfaceRtt = Math.max(0, Math.min(2000, Number.isFinite(rttMs) ? rttMs : 0));
+    const previousPlayers = this.roomSurfacePlayers;
+    this.roomSurfacePlayers = new Map(snapshot.players.map(player => [player.id, { ...player }]));
+    const previousBotShots = new Set(this.roomSurfaceBotShots.map(shot => shot.id));
+    this.roomSurfaceBots = snapshot.bots.map(bot => ({ ...bot, state: this.cloneSurfaceBotState(bot.state) }));
+    this.roomSurfaceBotShots = snapshot.botShots.map(shot => ({ ...shot, position: [...shot.position], direction: [...shot.direction] }));
+    this.roomSurfaceBotDrops = snapshot.botDrops.map(drop => ({ ...drop, position: [...drop.position] }));
+    this.roomSurfaceArenas = new Map(snapshot.arenas.map(arena => [arena.key, this.applyRoomCover(arena, snapshot.cover)]));
+    for(const key of this.roomCoverMotion.keys())if(!this.roomSurfaceArenas.has(key))this.roomCoverMotion.delete(key);
+    for (const arena of snapshot.arenas) this.synchronizeSurfaceArenaVisual(arena, snapshot.pickups.filter(pickup => pickup.arenaKey === arena.key));
+    this.syncSurfaceBotVisuals(this.roomSurfaceBots, snapshot.sequence, performance.now());
+    for (const shot of snapshot.botShots) if (!previousBotShots.has(shot.id)) {
+      const arena = this.roomSurfaceArenas.get(shot.arenaKey);
+      if (arena) this.surfaceAudio.play("blaster", this.surfaceScenePosition(shot.position, arena), 1, () => this.surfaceDisplayCenter(arena));
+    }
+    this.updateRemoteSurfaceAudio(previousPlayers, snapshot.players, receivedAt, this.currentSurfaceHostTime(), snapshot.damageCues);
+    for (const player of snapshot.players) if (player.mode === "surface" && player.surface && player.arenaKey) {
+      this.roomSurfaceHistory.record({ playerId: player.id, arenaKey: player.arenaKey, arenaRevision: this.roomSurfaceArenas.get(player.arenaKey)?.revision, lifeId: player.lifeId, at: snapshot.hostTime,
+        state: player.surface, protected: player.protectedUntil > snapshot.hostTime });
+    }
+
+    const authoritativeLocal = this.roomSurfacePlayers.get(this.localPlayerId) ?? null;
+    const localArena = authoritativeLocal?.arenaKey ? this.roomSurfaceArenas.get(authoritativeLocal.arenaKey) : null;
+    const local = authoritativeLocal ? this.surfacePrediction.reconcile(authoritativeLocal, snapshot.epoch, localArena?.arena.walls ?? []) : null;
+    if (local) this.roomSurfacePlayers.set(local.id, local);
+    this.roomSurfaceLocalView = local;
+    if (local?.mode === "surface" && local.arenaKey && local.surface) {
+      const arena = this.roomSurfaceArenas.get(local.arenaKey);
+      if (arena) {
+        this.roomSurfaceLocalArena = arena; this.roomSurfaceLaserColor = local.laserColor;
+        if (!this.surfacePilot.active) {
+          if (this.pilot.active) this.pilot.exit(false);
+          this.controls.enabled = false; this.controls.autoRotate = false; this.tween = null;
+          this.parkedHubId = arena.hubId;
+          const parked = this.parkedWorldPosition(local, arena);
+          const displayedCenter = this.surfaceDisplayCenter(arena);
+          this.parkedNormal.set(parked[0] - displayedCenter[0], parked[1] - displayedCenter[1], parked[2] - displayedCenter[2]).normalize();
+          this.parkedRotation.set(...local.ship.rotation);
+          this.createParkedSurfaceShip(); this.placeLocalParkedSurfaceShip(parked, local.ship.rotation);
+          this.surfacePilot.enter(local.id, local, arena);
+        } else {
+          this.surfacePilot.updateArena(arena);
+          this.surfacePilot.applyAuthoritativeState(local, arena);
+          const parked = this.parkedWorldPosition(local, arena);
+          this.placeLocalParkedSurfaceShip(parked, local.ship.rotation);
+        }
+      }
+    } else if (local?.mode === "ship") {
+      if (this.surfacePilot.active && this.roomSurfaceLocalArena) this.surfacePilot.completeExit(local.ship, [...this.roomSurfaceLocalArena.center]);
+      this.roomSurfaceLocalArena = null;
+      this.removeParkedSurfaceShip();
+    }
+    if (local) this.surfacePilot.applyCombatEvents(snapshot.damageCues, snapshot.hitConfirmations, local.id, this.currentSurfaceHostTime());
+
+    const seenBolts = new Set<string>();
+    for (const projectile of snapshot.projectiles) {
+      seenBolts.add(projectile.id);
+      const isNew = !this.networkSurfaceBolts.has(projectile.id);
+      this.upsertNetworkSurfaceBolt(projectile, snapshot.hostTime);
+      if (isNew && projectile.ownerId !== this.localPlayerId) {
+        const arena = this.roomSurfaceArenas.get(projectile.arenaKey);
+        if (arena) this.surfaceAudio.play("blaster", this.surfaceScenePosition(projectile.position, arena), 1, () => this.surfaceDisplayCenter(arena));
+      }
+    }
+    for (const [id, bolt] of this.networkSurfaceBolts) if (!seenBolts.has(id) && Date.now() > bolt.predictionExpiresAt) this.removeNetworkSurfaceBolt(id);
+    this.stale = true;
+  }
+
+  reconcileSurfaceFire(sequence: number, accepted: boolean): void {
+    const id = `${this.localPlayerId}:${sequence}`, bolt = this.networkSurfaceBolts.get(id);
+    if (!accepted) { this.removeNetworkSurfaceBolt(id); return; }
+    if (bolt) bolt.predictionExpiresAt = Date.now() + 350;
+  }
+
+  setSurfaceLaserColor(color: string): void {
+    const approved = normalizeSurfaceLaserColor(color) ?? DEFAULT_SURFACE_LASER_COLOR;
+    this.roomSurfaceLaserColor = approved; this.surfacePilot?.setLaserColor(approved); this.stale = true;
+  }
+
+  private synchronizeSurfaceArenaVisual(arena: SurfaceArenaView, pickups: readonly { id: string; available: boolean; respawnAt: number }[]): void {
+    if (arena.ownerId === this.localPlayerId || arena.ownerId === "solo") {
+      const index = arena.ownerId === "solo" ? this.idIndex.get(arena.hubId) : this.localTopology?.nodes.findIndex(node => node.id === arena.hubId);
+      if (index === undefined || index < 0) return;
+      const id = this.sim.nodes[index]?.id;
+      if (!id) return;
+      let entry = this.localSurfaceGroups.get(id);
+      if (!entry || entry.group.userData.arenaSeed !== arena.arena.seed || entry.group.userData.geometryRevision !== arena.revision) {
+        if (entry) this.disposeSurfaceGroup(entry.group);
+        const group = createSurfaceArenaVisual(arena.arena); this.scene.add(group);
+        entry = { group, index }; this.localSurfaceGroups.set(id, entry);
+        this.sim.setSurfaceEnvelope?.(id, arena.arena.radius ?? SURFACE.radius);
+      }
+      entry.group.userData.geometryRevision = arena.revision;
+      entry.group.visible = true;
+      setSurfacePickupVisibility(entry.group, pickups);
+    } else {
+      const map = this.remoteMaps.get(arena.ownerId);
+      if (!map) return;
+      let group = map.surfaceGroups.get(arena.hubId);
+      if (!group || group.userData.arenaSeed !== arena.arena.seed || group.userData.geometryRevision !== arena.revision) {
+        if (group) this.disposeSurfaceGroup(group);
+        group = createSurfaceArenaVisual(arena.arena); this.scene.add(group); map.surfaceGroups.set(arena.hubId, group);
+      }
+      group.userData.geometryRevision = arena.revision;
+      setSurfacePickupVisibility(group, pickups);
+    }
+  }
+
+  private applyRoomCover(arena: SurfaceArenaView, packets?: readonly SurfaceCoverPacket[]): SurfaceArenaView {
+    this.roomCoverMotion ??= new Map();
+    let state=this.roomCoverMotion.get(arena.key),fresh=false;
+    if(!state||state.revision!==arena.revision){state={revision:arena.revision,motion:new SurfaceCoverMotion(arena.arena)};this.roomCoverMotion.set(arena.key,state);fresh=true;}
+    state.motion.networkTargets.clear();
+    const packet=packets?.find(item=>item.arenaKey===arena.key),rows=packet?decodeCoverPoses(packet.poses,arena.arena.walls.length):[];
+    for(const [index,normal] of rows??[]){state.motion.networkTargets.set(index,normal);if(fresh)state.motion.setWall(index,normal);}
+    return {...arena,arena:{...arena.arena,walls:state.motion.walls}};
+  }
+
+  private moveRoomCover(dt: number): void {
+    if(!this.multiplayer)return;
+    for(const arena of this.roomSurfaceArenas.values()) {
+      const state=this.roomCoverMotion.get(arena.key);if(!state)continue;
+      const directions=new Map<string,[number,number,number]>();
+      if(arena.ownerId===this.localPlayerId&&this.localTopology){
+        const hub=this.localTopology.nodes.findIndex(n=>n.id===arena.hubId),center=this.worldNodes[hub];
+        if(center)this.localTopology.nodes.forEach((node,i)=>{const p=this.worldNodes[i];if(p)directions.set(node.id,[p.x-center.x,p.y-center.y,p.z-center.z]);});
+      }else{
+        const map=this.remoteMaps.get(arena.ownerId),hub=map?.nodeIds.indexOf(arena.hubId)??-1;
+        if(map?.initialized&&hub>=0)map.nodeIds.forEach((id,i)=>directions.set(id,[map.current[i*3]-map.current[hub*3],map.current[i*3+1]-map.current[hub*3+1],map.current[i*3+2]-map.current[hub*3+2]]));
+      }
+      const players=[...this.roomSurfacePlayers.values()].filter(p=>p.arenaKey===arena.key&&p.surface&&p.health>0).map(p=>p.surface!);
+      state.motion.step(directions,players,dt,true);
+    }
+  }
+
+  private surfaceDisplayCenter(arena: SurfaceArenaView): [number, number, number] {
+    return this.surfaceDisplayCenters?.get(arena.key) ?? arena.center;
+  }
+
+  /** One presentation frame for the camera and every object belonging to an arena. */
+  private resolveSurfaceDisplayFrames(): void {
+    this.surfaceDisplayCenters ??= new Map();
+    const arenas = this.multiplayer ? [...this.roomSurfaceArenas.values()] : this.surfaceWorld.listArenas();
+    const seen = new Set<string>();
+    for (const arena of arenas) {
+      let center: [number, number, number] | undefined, group: THREE.Group | undefined;
+      if (arena.ownerId === "solo" || arena.ownerId === this.localPlayerId) {
+        const index = arena.ownerId === "solo" ? this.idIndex.get(arena.hubId) : this.localTopology?.nodes.findIndex(node => node.id === arena.hubId);
+        const node = index === undefined || index < 0 ? undefined : this.worldNodes[index];
+        if (node) {
+          center = [node.x, node.y, node.z];
+          group = this.localSurfaceGroups.get(this.sim.nodes[index!]?.id)?.group;
+        }
+      } else {
+        const map = this.remoteMaps.get(arena.ownerId), index = map?.nodeIds.indexOf(arena.hubId) ?? -1;
+        if (map?.initialized && index >= 0) {
+          center = [map.current[index * 3], map.current[index * 3 + 1], map.current[index * 3 + 2]];
+          group = map.surfaceGroups.get(arena.hubId);
+        }
+      }
+      center ??= this.surfaceDisplayCenters.get(arena.key) ?? [...arena.center];
+      this.surfaceDisplayCenters.set(arena.key, center); seen.add(arena.key);
+      group?.position.set(...center);
+      if(group)updateSurfaceCoverVisual(group,arena.arena);
+      const occupied = this.multiplayer ? this.roomSurfaceLocalView?.arenaKey === arena.key : this.surfaceWorld.getPlayer("solo")?.arenaKey === arena.key;
+      if(group&&arena.arena.terrain){const state=occupied?(this.surfacePilot.surfacePosition):undefined;
+        updateTerrainPresentation(group,arena.arena.terrain,state??undefined);
+      }
+      if (group && occupied) group.visible = true;
+    }
+    for (const key of this.surfaceDisplayCenters.keys()) if (!seen.has(key)) this.surfaceDisplayCenters.delete(key);
+    this.surfaceAudio?.updateSources?.();
+    if (!this.multiplayer) this.updateParkedSurfaceShip();
+    else if (this.roomSurfaceLocalView?.mode === "surface" && this.roomSurfaceLocalArena) {
+      this.placeLocalParkedSurfaceShip(this.parkedWorldPosition(this.roomSurfaceLocalView, this.roomSurfaceLocalArena), this.roomSurfaceLocalView.ship.rotation);
+    }
+  }
+
+  private stepRoomSurface(input: SurfaceInput & { interact: boolean }, dt: number, now: number): SurfacePlayerSnapshot | null {
+    const local = this.roomSurfaceLocalView, arena = local?.arenaKey ? this.roomSurfaceArenas.get(local.arenaKey) : null;
+    if (!local?.surface || local.mode !== "surface" || !arena) return null;
+    if (!this.roomCombatEnabled) return local;
+    const sequence = this.cb.onSurfaceInput?.(input, local.arenaKey!, local.lifeId);
+    if (sequence === undefined) return local;
+    this.surfacePrediction.record({ sequence, arenaKey: local.arenaKey!, lifeId: local.lifeId, input }, this.roomSurfaceEpoch);
+    const predicted = { ...local, surface: stepSurfacePlayer(local.surface, input, dt, arena.arena.walls) };
+    this.roomSurfaceLocalView = predicted; this.roomSurfacePlayers.set(predicted.id, predicted);
+    return predicted;
+  }
+
+  private currentSurfaceViewTime(): number {
+    if (!this.multiplayer || !this.roomSurfaceReceivedAt) return Date.now();
+    return Math.floor(this.roomSurfaceRepresentedTime ?? this.roomSurfaceSnapshotTime);
+  }
+
+  private currentSurfaceHostTime(): number {
+    if (!this.multiplayer || !this.roomSurfaceReceivedAt) return Date.now();
+    return this.roomSurfaceHostTime + Math.max(0, Date.now() - this.roomSurfaceReceivedAt);
+  }
+
+  private nearbySurfaceThreats(): Array<{ bearing: number; distance: number }> {
+    const local = this.roomSurfaceLocalView;
+    if (!local?.surface || local.mode !== "surface" || !local.arenaKey || local.health <= 0) return [];
+    const up = new THREE.Vector3(...local.surface.position).normalize();
+    const forward = new THREE.Vector3(...local.surface.forward).projectOnPlane(up).normalize();
+    const right = new THREE.Vector3().crossVectors(forward, up).normalize();
+    const threats: Array<{ bearing: number; distance: number }> = [];
+    for (const other of this.roomSurfacePlayers.values()) {
+      if (other.id === local.id || other.mode !== "surface" || other.arenaKey !== local.arenaKey || !other.surface || other.health <= 0) continue;
+      const target = new THREE.Vector3(...other.surface.position).normalize(), dot = Math.max(-1, Math.min(1, up.dot(target)));
+      const distance = (local.surface.radius ?? SURFACE.radius) * Math.acos(dot);
+      if (distance >= 20) continue;
+      const tangent = target.addScaledVector(up, -dot);
+      const bearing = tangent.lengthSq() < 1e-8 ? 0 : Math.atan2(right.dot(tangent), forward.dot(tangent));
+      threats.push({ bearing, distance });
+    }
+    return threats;
+  }
+
+  private parkedWorldPosition(player: SurfacePlayerSnapshot, arena: SurfaceArenaView): [number, number, number] {
+    const scale = SURFACE_WORLD_SCALE;
+    const saved = player.ship.position;
+    const relative: [number, number, number] = [saved[0] - arena.center[0], saved[1] - arena.center[1], saved[2] - arena.center[2]];
+    const normal = new THREE.Vector3(...relative);
+    if (normal.lengthSq() < 1e-8) normal.set(0, 1, 0); else normal.normalize();
+    const center = this.surfaceDisplayCenter(arena);
+    return [center[0] + normal.x * (arena.arena.radius ?? SURFACE.radius) * scale * 1.2, center[1] + normal.y * (arena.arena.radius ?? SURFACE.radius) * scale * 1.2, center[2] + normal.z * (arena.arena.radius ?? SURFACE.radius) * scale * 1.2];
+  }
+
+  private placeLocalParkedSurfaceShip(position: [number, number, number], rotation: [number, number, number, number]): void {
+    if (!this.parkedSurfaceShip) return;
+    this.parkedSurfaceShip.group.position.set(...position); this.parkedSurfaceShip.group.quaternion.set(...rotation);
+    this.parkedSurfaceShip.lights.forEach(light => { light.position.copy(this.parkedSurfaceShip!.group.position); light.quaternion.copy(this.parkedSurfaceShip!.group.quaternion); });
+  }
+
+  private createRemoteSurfaceAvatar(id: string, color: string): RemoteSurfaceAvatar {
+    const group = new THREE.Group(); group.name = `surface-avatar:${id}`; group.scale.setScalar(SURFACE_WORLD_SCALE);
+    const model = new SurfaceOperative(color); group.add(model.group); this.scene.add(group);
+    return { group, model, color, lastAt: 0 };
+  }
+
+  private updateRemoteSurfaceAvatar(id: string, player: SurfacePlayerSnapshot, arena: SurfaceArenaView, state: SurfaceHistoryFrame["state"]): void {
+    let avatar = this.remoteSurfaceAvatars.get(id);
+    if (!avatar) { avatar = this.createRemoteSurfaceAvatar(id, player.laserColor); this.remoteSurfaceAvatars.set(id, avatar); }
+    if (avatar.color !== player.laserColor) { avatar.model.setColor(player.laserColor); avatar.color = player.laserColor; }
+    const up = new THREE.Vector3(...state.position).normalize();
+    const forward = new THREE.Vector3(...state.forward).projectOnPlane(up).normalize();
+    const right = new THREE.Vector3().crossVectors(forward, up).normalize();
+    avatar.group.position.set(...this.surfaceDisplayCenter(arena)).addScaledVector(new THREE.Vector3(...state.position), SURFACE_WORLD_SCALE);
+    avatar.group.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(right, up, forward.negate()));
+    const now = performance.now(); avatar.model.pose(state, avatar.lastAt ? (now-avatar.lastAt)/1000 : 0); avatar.lastAt = now;
+    avatar.state = state; avatar.arenaKey = arena.key;
+    avatar.group.visible = player.health > 0 || player.respawnAt > 0;
+  }
+
+  private surfaceScenePosition(position: readonly number[], arena: SurfaceArenaView): [number, number, number] {
+    const scale = SURFACE_WORLD_SCALE;
+    const center = this.surfaceDisplayCenter(arena);
+    return [center[0] + position[0] * scale, center[1] + position[1] * scale, center[2] + position[2] * scale];
+  }
+
+  private updateRemoteSurfaceAudio(previous: ReadonlyMap<string, SurfacePlayerSnapshot>, players: readonly SurfacePlayerSnapshot[], receivedAt: number, hostTime: number, damageCues: SurfaceNetworkSnapshot["damageCues"] = []): void {
+    const seen = new Set<string>();
+    for (const player of players) {
+      if (player.id === this.localPlayerId || player.mode !== "surface" || !player.surface || !player.arenaKey) continue;
+      const arena = this.roomSurfaceArenas.get(player.arenaKey);
+      if (!arena) continue;
+      seen.add(player.id);
+      const position = this.surfaceScenePosition(player.surface.position, arena);
+      const before = previous.get(player.id);
+      if (before?.mode === "surface" && before.surface && before.arenaKey === player.arenaKey && before.lifeId === player.lifeId) {
+        if (before.surface.grounded && !player.surface.grounded) this.surfaceAudio.play("jump", position, 1, () => this.surfaceDisplayCenter(arena));
+        if (!before.surface.grounded && player.surface.grounded) this.surfaceAudio.play("land", position, 1, () => this.surfaceDisplayCenter(arena));
+        if (player.ventUntil > hostTime && before.ventUntil <= hostTime) this.surfaceAudio.play("vent", position, 1, () => this.surfaceDisplayCenter(arena));
+        if ((player.health > before.health || player.armor > before.armor) && player.kills === before.kills) this.surfaceAudio.play("pickup", position, 1, () => this.surfaceDisplayCenter(arena));
+      }
+
+      let footsteps = this.remoteSurfaceAudioStates.get(player.id);
+      if (!footsteps || footsteps.arenaKey !== player.arenaKey || footsteps.lifeId !== player.lifeId) {
+        footsteps = { arenaKey: player.arenaKey, lifeId: player.lifeId, position: [...player.surface.position], distanceSinceStep: 0, lastStepAt: receivedAt };
+        this.remoteSurfaceAudioStates.set(player.id, footsteps);
+        continue;
+      }
+      if (player.surface.grounded && player.health > 0) {
+        const previousNormal = new THREE.Vector3(...footsteps.position).normalize();
+        const nextNormal = new THREE.Vector3(...player.surface.position).normalize();
+        const angle = Math.acos(Math.max(-1, Math.min(1, previousNormal.dot(nextNormal))));
+        footsteps.distanceSinceStep += (player.surface.radius ?? SURFACE.radius) * angle;
+        if (footsteps.distanceSinceStep >= 1.4 && receivedAt - footsteps.lastStepAt >= 350) {
+          this.surfaceAudio.play("footstep", position, 1, () => this.surfaceDisplayCenter(arena));
+          footsteps.distanceSinceStep = 0; footsteps.lastStepAt = receivedAt;
+        }
+      } else footsteps.distanceSinceStep = 0;
+      footsteps.position = [...player.surface.position];
+    }
+    for (const id of this.remoteSurfaceAudioStates.keys()) if (!seen.has(id)) this.remoteSurfaceAudioStates.delete(id);
+    // Confirmed cues are the single source of damage audio; resource deltas
+    // describe the same hits and would otherwise play every impact twice.
+    for (const cue of damageCues) {
+      if (cue.targetId === this.localPlayerId || this.remoteSurfaceAudioEvents.has(`damage:${cue.id}`)) continue;
+      this.rememberRemoteSurfaceAudioEvent(`damage:${cue.id}`);
+      if (hostTime - cue.at >= 1000) continue;
+      const target = this.roomSurfacePlayers.get(cue.targetId), arena = target?.arenaKey ? this.roomSurfaceArenas.get(target.arenaKey) : null;
+      if (target?.mode === "surface" && target.surface && arena) this.surfaceAudio.play("damage", this.surfaceScenePosition(target.surface.position, arena), 1, () => this.surfaceDisplayCenter(arena));
+    }
+  }
+
+  private rememberRemoteSurfaceAudioEvent(id: string): void {
+    this.remoteSurfaceAudioEvents.add(id);
+    if (this.remoteSurfaceAudioEvents.size > 128) this.remoteSurfaceAudioEvents.delete(this.remoteSurfaceAudioEvents.values().next().value!);
+  }
+
+  private updateRoomSurfacePresentation(): void {
+    if (!this.multiplayer) return;
+    const hostNow = this.roomSurfaceHostTime + Math.max(0, Date.now() - this.roomSurfaceReceivedAt);
+    const seenAvatars = new Set<string>();
+    const presentation = presentSurfacePlayers(this.roomSurfaceHistory, this.roomSurfacePlayers.values(), this.roomSurfaceArenas,
+      this.localPlayerId, this.roomSurfaceLocalView?.arenaKey ?? null, hostNow, this.roomSurfaceSnapshotTime);
+    for (const { player, arena, frame } of presentation.samples) {
+      this.updateRemoteSurfaceAvatar(player.id, player, arena, frame.state); seenAvatars.add(player.id);
+    }
+    this.roomSurfaceRepresentedTime = presentation.representedAt;
+    this.roomSurfaceExhaustedSince = presentation.exhausted ? this.roomSurfaceExhaustedSince || Date.now() : 0;
+    for (const [id, avatar] of this.remoteSurfaceAvatars) if (!seenAvatars.has(id)) { this.disposeSurfaceGroup(avatar.group); this.remoteSurfaceAvatars.delete(id); }
+    this.updateRemoteParkedShips();
+    this.updateNetworkSurfaceBolts(hostNow);
+  }
+
+  private updateRemoteParkedShips(): void {
+    const seen = new Set<string>();
+    for (const player of this.roomSurfacePlayers.values()) {
+      if (player.id === this.localPlayerId || player.mode !== "surface" || !player.arenaKey) continue;
+      const arena = this.roomSurfaceArenas.get(player.arenaKey); if (!arena) continue;
+      let ship = this.remoteParkedSurfaceShips.get(player.id);
+      if (!ship) {
+        const profile = this.remoteShips.get(player.id)?.profile;
+        ship = buildShip(profile?.ship ?? "classic"); ship.group.scale.setScalar(0.15); this.remoteParkedSurfaceShips.set(player.id, ship);
+        this.scene.add(ship.group); ship.lights.forEach(light => { light.visible = true; this.scene.add(light); });
+      }
+      ship.group.position.set(...this.parkedWorldPosition(player, arena)); ship.group.quaternion.set(...player.ship.rotation);
+      ship.lights.forEach(light => { light.position.copy(ship!.group.position); light.quaternion.copy(ship!.group.quaternion); });
+      seen.add(player.id);
+    }
+    for (const [id, ship] of this.remoteParkedSurfaceShips) if (!seen.has(id)) {
+      this.scene.remove(ship.group); ship.lights.forEach(light => this.scene.remove(light)); ship.dispose(); this.remoteParkedSurfaceShips.delete(id);
+    }
+  }
+
+  private upsertNetworkSurfaceBolt(projectile: SurfaceProjectileSnapshot, hostTime: number): void {
+    let bolt = this.networkSurfaceBolts.get(projectile.id);
+    if (!bolt) {
+      const graphic = new SurfaceBoltGraphic(projectile.color, projectile.kind === "charged"); this.scene.add(graphic);
+      bolt = { graphic, shot: projectile, updatedAt: hostTime, predictionExpiresAt: 0 }; this.networkSurfaceBolts.set(projectile.id, bolt);
+    }
+    bolt.graphic.setColor(projectile.color);
+    bolt.shot = projectile; bolt.updatedAt = hostTime;
+    if (!bolt.predictionExpiresAt) bolt.predictionExpiresAt = Date.now() + 350;
+  }
+
+  private updateNetworkSurfaceBolts(hostNow: number): void {
+    for (const [id, bolt] of this.networkSurfaceBolts) {
+      const arena = this.roomSurfaceArenas.get(bolt.shot.arenaKey);
+      if (!arena) { this.removeNetworkSurfaceBolt(id); continue; }
+      const age = bolt.shot.stoppedAt ? 0 : Math.max(0, Math.min(0.1, (hostNow - bolt.updatedAt) / 1000, (bolt.shot.startedAt + SURFACE_BLASTER.boltLifetimeMs - bolt.updatedAt) / 1000));
+      const travel = Math.min(120 * age, SURFACE_BLASTER.boltRange - bolt.shot.travelled);
+      const position = new THREE.Vector3(...bolt.shot.position).addScaledVector(new THREE.Vector3(...bolt.shot.direction), travel);
+      const blocker = traceSurfaceSegment(bolt.shot.position, position.toArray() as [number, number, number], arena.arena.walls, [], "", arena.arena.radius ?? SURFACE.radius);
+      if (blocker) position.set(...blocker.position);
+      const tail = Math.min(2.2, bolt.shot.travelled + travel);
+      const start = position.clone().addScaledVector(new THREE.Vector3(...bolt.shot.direction), -tail);
+      const sceneScale = SURFACE_WORLD_SCALE, center = new THREE.Vector3(...this.surfaceDisplayCenter(arena));
+      start.multiplyScalar(sceneScale).add(center); position.multiplyScalar(sceneScale).add(center);
+      bolt.graphic.setSegment(start, position);
+      if (Date.now() > bolt.predictionExpiresAt && hostNow - bolt.shot.startedAt > SURFACE_BLASTER.boltLifetimeMs + 100) this.removeNetworkSurfaceBolt(id);
+    }
+  }
+
+  private removeNetworkSurfaceBolt(id: string): void {
+    const bolt = this.networkSurfaceBolts.get(id); if (!bolt) return;
+    bolt.graphic.dispose(); this.networkSurfaceBolts.delete(id);
+  }
+
+  private clearRoomSurfacePresentation(): void {
+    this.surfaceNameplates?.clear();
+    this.surfaceDisplayCenters?.clear();
+    this.roomSurfaceHistory.clear(); this.roomSurfacePlayers.clear(); this.roomSurfaceArenas.clear(); this.roomCoverMotion?.clear(); this.roomSurfaceSnapshotSequence = 0;
+    this.surfacePrediction.reset();
+    this.roomSurfaceEpoch = 0; this.roomSurfaceSnapshotTime = 0; this.roomSurfaceRepresentedTime = null; this.roomSurfaceExhaustedSince = 0;
+    this.roomSurfaceHostTime = 0; this.roomSurfaceReceivedAt = 0; this.roomSurfaceRtt = 0; this.roomSurfaceLocalArena = null; this.roomSurfaceLocalView = null;
+    this.remoteSurfaceAudioStates.clear(); this.remoteSurfaceAudioEvents.clear();
+    for (const id of [...this.remoteSurfaceAvatars.keys()]) { const avatar = this.remoteSurfaceAvatars.get(id)!; this.disposeSurfaceGroup(avatar.group); this.remoteSurfaceAvatars.delete(id); }
+    for (const id of [...this.remoteParkedSurfaceShips.keys()]) {
+      const ship = this.remoteParkedSurfaceShips.get(id)!; this.scene.remove(ship.group); ship.lights.forEach(light => this.scene.remove(light)); ship.dispose(); this.remoteParkedSurfaceShips.delete(id);
+    }
+    for (const id of [...this.networkSurfaceBolts.keys()]) this.removeNetworkSurfaceBolt(id);
+    this.removeParkedSurfaceShip();
+  }
+
+  private disposeSurfaceGroup(group: THREE.Group): void {
+    group.traverse(object => {
+      const item = object as THREE.Mesh | THREE.LineSegments;
+      if (item.geometry) item.geometry.dispose();
+      const material = item.material;
+      if (material) for (const value of Array.isArray(material) ? material : [material]) { (value as THREE.MeshBasicMaterial).map?.dispose(); value.dispose(); }
+    });
+    group.removeFromParent();
+  }
+
+  private frozenSurfaceGeometry(ownerId: string, hubId: string) {
+    if (this.multiplayer) return this.roomSurfaceArenas?.get(`${ownerId}/${hubId}`)?.arena;
+    const key = this.surfaceWorld?.getPlayer("solo")?.arenaKey;
+    return key === `solo/${hubId}` ? this.surfaceWorld.getArena(key)?.arena : undefined;
+  }
+
+  private rebuildLocalSurfaceVisuals(): void {
+    for (const entry of this.localSurfaceGroups.values()) this.disposeSurfaceGroup(entry.group);
+    this.localSurfaceGroups.clear();
+    const mains = this.multiplayer ? null : selectMainNodeIds(this.sim.nodes);
+    const topology = this.multiplayer ? this.localTopology : {
+      nodes: this.sim.nodes.map(node => ({ id: node.id, dockable: mains!.has(node.id) })),
+      links: this.sim.srcs.flatMap((source, index) => {
+        const a = this.sim.nodes[source.index]?.id, b = this.sim.nodes[this.sim.dsts[index].index]?.id;
+        return a && b ? [[a, b] as [string, string]] : [];
+      }),
+    };
+    if (!topology) { this.stale = true; return; }
+    for (let index = 0; index < topology.nodes.length; index++) {
+      const hub = topology.nodes[index];
+      const frozen = this.frozenSurfaceGeometry(this.multiplayer ? this.localPlayerId : "solo", hub.id);
+      if (!hub.dockable && !frozen) continue;
+      const connected = topology.links.flatMap(edge => edge[0] === hub.id ? [edge[1]] : edge[1] === hub.id ? [edge[0]] : []);
+      const group = createSurfaceArenaVisual(frozen ?? generateSurfaceArena(hub.id, connected, new Map(), true));
+      this.sim.setSurfaceEnvelope?.(this.sim.nodes[index].id, group.userData.radius);
+      this.scene.add(group);
+      this.localSurfaceGroups.set(hub.id, { group, index });
+    }
+    this.stale = true;
   }
 
   setPlayerNames(names: Map<string, string>): void {
+    this.surfacePlayerNames = new Map(names);
     for (const [id, remote] of this.remoteShips) {
       remote.name = names.get(id) ?? "Pilot";
       remote.label.textContent = remote.name;
@@ -520,7 +1131,17 @@ export class ConstellationRenderer implements GraphRenderer {
     const lines = new THREE.LineSegments(lineGeometry, new THREE.LineBasicMaterial({ color: 0x8ca8d4, transparent: true, opacity: 0.2, depthWrite: false }));
     lines.frustumCulled = false; lines.renderOrder = 0; lines.visible = false; this.scene.add(lines);
     (lines as THREE.LineSegments & { __edgeIndices?: number[] }).__edgeIndices = topology.links.flatMap(link => [ids.get(link[0]) ?? -1, ids.get(link[1]) ?? -1]);
-    this.remoteMaps.set(playerId, { playerId, points, links: lines, ids, nodeIds: topology.nodes.map(node => node.id), revision: topology.revision, target: pos.slice(), current: pos, initialized: false });
+    const surfaceGroups = new Map<string, THREE.Group>();
+    for (const hub of topology.nodes) {
+      const frozen = this.frozenSurfaceGeometry(playerId, hub.id);
+      if (!hub.dockable && !frozen) continue;
+      const connected = topology.links.flatMap(edge => edge[0] === hub.id ? [edge[1]] : edge[1] === hub.id ? [edge[0]] : []);
+      const group = createSurfaceArenaVisual(frozen ?? generateSurfaceArena(hub.id, connected, new Map(), true));
+      group.visible = false;
+      this.scene.add(group);
+      surfaceGroups.set(hub.id, group);
+    }
+    this.remoteMaps.set(playerId, { playerId, points, links: lines, ids, nodeIds: topology.nodes.map(node => node.id), topology, revision: topology.revision, target: pos.slice(), current: pos, initialized: false, surfaceGroups });
     this.stale = true;
   }
 
@@ -549,10 +1170,13 @@ export class ConstellationRenderer implements GraphRenderer {
       const arrow = document.createElement("span"); arrow.className = "cg-player-indicator-arrow";
       const label = document.createElement("span"); label.className = "cg-player-indicator-label";
       indicator.append(arrow, label); this.indicatorLayer.appendChild(indicator);
-      remote = { ship, target: null, name, profile: chosen, indicator, label, arrow, velocity: new THREE.Vector3() }; this.remoteShips.set(playerId, remote);
+      remote = { ship, target: null, samples: [], name, profile: chosen, indicator, label, arrow, velocity: new THREE.Vector3() }; this.remoteShips.set(playerId, remote);
     }
     if (profile && profile.revision > remote.profile.revision) this.setPlayerProfile(playerId, profile);
     remote.name = name; remote.label.textContent = name;
+    const at = performance.now();
+    remote.samples.push({ pose, at });
+    if (remote.samples.length > 24) remote.samples.splice(0, remote.samples.length - 24);
     remote.target = pose;
     if (!pose.active || pose.health <= 0) { remote.ship.group.visible = false; remote.indicator.hidden = true; }
     this.stale = true;
@@ -568,13 +1192,16 @@ export class ConstellationRenderer implements GraphRenderer {
         continue;
       }
       const shooter = this.remoteShips.get(shot.ownerId);
-      if (shooter?.target?.active && shooter.target.health > 0) this.pilot.playRemoteShot(shot.ownerId, shot.id, shot.sound, shot.weapon, shot.position, shot.startedAt);
+      if (shooter?.target?.active && shooter.target.health > 0) {
+        if (this.surfacePilot.active) this.pilot.playSurfaceRemoteShot(shot.ownerId, shot.id, shot.sound, shot.weapon, shot.position, shot.startedAt);
+        else this.pilot.playRemoteShot(shot.ownerId, shot.id, shot.sound, shot.weapon, shot.position, shot.startedAt);
+      }
       let bolt = this.remoteShots.get(shot.id);
       if (!bolt) {
         const geometry = new THREE.BufferGeometry(); geometry.setAttribute("position", new THREE.BufferAttribute(new Float32Array(6), 3));
         const line = new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: shot.weapon === 1 ? 0xffbd5c : 0x8cecff, transparent: true, opacity: 0.95 }));
         line.frustumCulled = false; line.renderOrder = 4; this.scene.add(line);
-        bolt = { line, ownerId: shot.ownerId, origin: new THREE.Vector3(...shot.origin), target: new THREE.Vector3(), current: new THREE.Vector3(), direction: new THREE.Vector3() };
+        bolt = { line, ownerId: shot.ownerId, origin: new THREE.Vector3(...shot.origin), target: new THREE.Vector3(), current: new THREE.Vector3(), direction: new THREE.Vector3(), speed: shot.speed, targetAt: now };
         bolt.current.set(...shot.position);
         const initial = geometry.getAttribute("position") as THREE.BufferAttribute;
         const direction = new THREE.Vector3(...shot.direction).normalize(), traveled = bolt.origin.distanceTo(bolt.current), tail = Math.min(shot.weapon === 1 ? 13 : 22, traveled);
@@ -582,12 +1209,13 @@ export class ConstellationRenderer implements GraphRenderer {
         initial.setXYZ(1, ...shot.position); initial.needsUpdate = true;
         this.remoteShots.set(shot.id, bolt);
       }
-      bolt.origin.set(...shot.origin); bolt.target.set(...shot.position); bolt.direction.set(...shot.direction).normalize();
+      bolt.origin.set(...shot.origin); bolt.target.set(...shot.position); bolt.direction.set(...shot.direction).normalize(); bolt.speed = shot.speed; bolt.targetAt = now;
     }
     for (const [id, bolt] of this.remoteShots) if (!seen.has(id)) {
       this.scene.remove(bolt.line); bolt.line.geometry.dispose(); (bolt.line.material as THREE.Material).dispose(); this.remoteShots.delete(id);
     }
     for (const impact of impacts) if (!this.networkImpacts.has(impact.id)) {
+      if (this.surfacePilot.active) this.surfaceAudio.play("impact", impact.position, 0.25);
       const mesh = new THREE.Mesh(new THREE.SphereGeometry(impact.kind === "ship" ? 5 : 3.5, 8, 6), new THREE.MeshBasicMaterial({ color: impact.kind === "ship" ? 0xff625f : 0xffc46b, transparent: true, opacity: 0.9, depthWrite: false }));
       mesh.position.set(...impact.position); mesh.renderOrder = 5; this.scene.add(mesh);
       this.networkImpacts.set(impact.id, { mesh, expires: now + 350 });
@@ -618,6 +1246,7 @@ export class ConstellationRenderer implements GraphRenderer {
   private removeRemoteMap(playerId: string): void {
     const remote = this.remoteMaps.get(playerId); if (!remote) return;
     this.scene.remove(remote.points, remote.links); remote.points.geometry.dispose(); remote.links.geometry.dispose();
+    for (const group of remote.surfaceGroups.values()) this.disposeSurfaceGroup(group);
     (remote.points.material as THREE.Material).dispose(); (remote.links.material as THREE.Material).dispose();
     this.remoteMaps.delete(playerId); this.stale = true;
   }
@@ -633,6 +1262,13 @@ export class ConstellationRenderer implements GraphRenderer {
         remote.current[i] += delta * (1 - Math.exp(-25 * dt));
       }
       p.needsUpdate = true; remote.points.visible = true;
+      for (const [hubId, group] of remote.surfaceGroups) {
+        const index = remote.ids.get(hubId);
+        if (index === undefined) continue;
+        const offset = index * 3;
+        group.position.set(remote.current[offset], remote.current[offset + 1], remote.current[offset + 2]);
+        group.visible = true;
+      }
       const lp = remote.links.geometry.getAttribute("position") as THREE.BufferAttribute;
       const edges = (remote.links as THREE.LineSegments & { __edgeIndices?: number[] }).__edgeIndices ?? [];
       for (let i = 0; i < edges.length; i += 2) {
@@ -641,27 +1277,34 @@ export class ConstellationRenderer implements GraphRenderer {
       }
       lp.needsUpdate = true; remote.links.visible = true;
     }
-    const shipAlpha = 1 - Math.exp(-36 * dt), velocityAlpha = 1 - Math.exp(-18 * dt);
+    for (const [hubId, { group, index }] of this.localSurfaceGroups) {
+      const currentIndex = this.multiplayer ? index : this.idIndex.get(hubId) ?? -1;
+      const node = this.worldNodes[currentIndex];
+      if (!node) { group.visible = false; continue; }
+      group.position.set(node.x, node.y, node.z);
+      group.visible = !this.hidden.has(node.gi) && this.alpha[currentIndex] > 0.2;
+    }
+    const now = performance.now();
     for (const remote of this.remoteShips.values()) {
-      const pose = remote.target;
+      const pose = this.presentRemotePose(remote, now);
       if (!pose?.active || pose.health <= 0) { remote.ship.group.visible = false; remote.indicator.hidden = true; remote.velocity.set(0, 0, 0); continue; }
       const group = remote.ship.group;
       const target = this.tmp.set(...pose.position);
       this.netQ.set(...pose.rotation).normalize().multiply(this.tmpQ.setFromEuler(this.tmpE.set(pose.tilt, 0, pose.bank)));
       this.tmp4.set(...pose.velocity);
       if (!group.visible) { group.position.copy(target); group.quaternion.copy(this.netQ); remote.velocity.copy(this.tmp4); group.visible = true; }
-      else { group.position.lerp(target, shipAlpha); group.quaternion.slerp(this.netQ, shipAlpha); remote.velocity.lerp(this.tmp4, velocityAlpha); }
-      moving = moving || group.position.distanceTo(target) > 0.05;
+      else { group.position.copy(target); group.quaternion.copy(this.netQ); remote.velocity.copy(this.tmp4); }
+      moving = moving || remote.samples.length > 1;
     }
     for (const bolt of this.remoteShots.values()) {
-      bolt.current.lerp(bolt.target, 0.55);
+      const age = Math.max(0, Math.min(0.075, (performance.now() - bolt.targetAt) / 1000));
+      bolt.current.copy(bolt.target).addScaledVector(bolt.direction, bolt.speed * age);
       const a = bolt.line.geometry.getAttribute("position") as THREE.BufferAttribute;
       const tail = Math.min(22, bolt.origin.distanceTo(bolt.current));
       a.setXYZ(0, bolt.current.x - bolt.direction.x * tail, bolt.current.y - bolt.direction.y * tail, bolt.current.z - bolt.direction.z * tail);
       a.setXYZ(1, bolt.current.x, bolt.current.y, bolt.current.z);
       a.needsUpdate = true; moving = true;
     }
-    const now = performance.now();
     for (const [id, impact] of this.networkImpacts) {
       const left = impact.expires - now;
       if (left <= 0) { this.scene.remove(impact.mesh); impact.mesh.geometry.dispose(); (impact.mesh.material as THREE.Material).dispose(); this.networkImpacts.delete(id); continue; }
@@ -669,6 +1312,30 @@ export class ConstellationRenderer implements GraphRenderer {
       (impact.mesh.material as THREE.MeshBasicMaterial).opacity = Math.min(1, left / 120); moving = true;
     }
     return moving;
+  }
+
+  private refreshPilotObstacleGrid(now: number): void {
+    if (now - this.lastPilotObstacleRefresh < 100) return;
+    this.lastPilotObstacleRefresh = now;
+    const sets: Float32Array[] = [], radii: ArrayLike<number>[] = [];
+    if (this.worldNodes.length) {
+      const local = new Float32Array(this.worldNodes.length * 3);
+      for (let i = 0; i < this.worldNodes.length; i++) {
+        const node = this.worldNodes[i], offset = i * 3;
+        local[offset] = node.x; local[offset + 1] = node.y; local[offset + 2] = node.z;
+      }
+      sets.push(local);
+      radii.push(this.localTopology ? surfaceWorldRadii(this.localTopology, new Map([...this.localSurfaceGroups].map(([id, entry]) => [id, entry.group.userData.radius ?? 27]))) : []);
+    }
+    for (const remote of this.remoteMaps.values()) if (remote.initialized) {
+      sets.push(remote.current); radii.push(surfaceWorldRadii(remote.topology, new Map([...remote.surfaceGroups].map(([id, group]) => [id, group.userData.radius ?? 27]))));
+    }
+    this.pilotCollisionGrid.rebuild(sets, radii);
+  }
+
+  private presentRemotePose(remote: RemoteShip, now: number): Pose | null {
+    remote.target = interpolateRemotePose(remote.samples, now);
+    return remote.target;
   }
 
   private updateNavigationMarker(): void {
@@ -695,7 +1362,9 @@ export class ConstellationRenderer implements GraphRenderer {
     for (const remote of this.remoteShips.values()) {
       const pose = remote.target, group = remote.ship.group, indicator = remote.indicator;
       if (!pose?.active || pose.health <= 0 || !group.visible) { indicator.hidden = true; continue; }
-      const point = group.position, view = point.clone().applyMatrix4(this.camera.matrixWorldInverse);
+      const point = group.position;
+      if (this.isSurfacePointOccluded(point)) { indicator.hidden = true; continue; }
+      const view = point.clone().applyMatrix4(this.camera.matrixWorldInverse);
       const projected = point.clone().project(this.camera), behind = view.z >= 0;
       const x = (projected.x * 0.5 + 0.5) * w, y = (-projected.y * 0.5 + 0.5) * h;
       const onScreen = !behind && x >= 24 && x <= w - 24 && y >= 26 && y <= h - 22;
@@ -728,7 +1397,8 @@ export class ConstellationRenderer implements GraphRenderer {
   }
 
   /** Enter or leave free flight. The orbit controls are parked while it runs, and the view eases back out when it ends. */
-  setPilot(on: boolean): void {
+  setPilot(on: boolean, resumedShip?: SurfaceShipState): void {
+    if (this.surfacePilot?.active) return;
     if (on === this.pilot.active) return;
     if (!on) { this.pilot.exit(); return; }
     if (!this.settings.pilotEnabled) { this.cb.onPilot?.(false, "Pilot mode is turned off in the settings"); return; }
@@ -742,7 +1412,400 @@ export class ConstellationRenderer implements GraphRenderer {
     window.clearTimeout(this.resumeTimer);
     this.controls.enabled = false; this.controls.autoRotate = false;
     this.frameB = this.worldBounds();
-    this.pilot.enter();
+    if (resumedShip) this.pilot.resumeFromSurface(resumedShip); else this.pilot.enter();
+  }
+
+  private soloSurfaceTopology(): SurfaceTopology {
+    const nodes = this.sim.nodes;
+    return {
+      revision: this.surfaceTopologyRevision,
+      nodes: nodes.map(node => ({ id: node.id, group: node.gi, degree: node.deg, dockable: this.localSurfaceGroups.has(node.id) })),
+      links: this.sim.srcs.flatMap((source, i) => {
+        const a = nodes[source.index]?.id, b = nodes[this.sim.dsts[i].index]?.id;
+        return a && b ? [[a, b] as [string, string]] : [];
+      }),
+    };
+  }
+
+  private soloSurfacePositions(): Float32Array {
+    const values = new Float32Array(this.sim.nodes.length * 3);
+    this.sim.nodes.forEach((node, i) => { values[i * 3] = node.x; values[i * 3 + 1] = node.y; values[i * 3 + 2] = node.z; });
+    return values;
+  }
+
+  private toSurfaceShip(ship: { position: [number, number, number]; rotation: [number, number, number, number]; velocity: [number, number, number] }, center: [number, number, number]): { position: [number, number, number]; rotation: [number, number, number, number]; velocity: [number, number, number] } {
+    const multiplier = 1 / SURFACE_WORLD_SCALE;
+    return {
+      position: ship.position.map((value, i) => center[i] + (value - center[i]) * multiplier) as [number, number, number],
+      rotation: [...ship.rotation],
+      velocity: ship.velocity.map(value => value * multiplier) as [number, number, number],
+    };
+  }
+
+  /** Docking targets the visible planet from the ship nose, independent of sprite picking and chase-camera parallax. */
+  private pickSurfaceDockTarget(): { destination: NavigationTarget | null; localIndex: number; distance: number } | null {
+    const ship = this.pilot.shipSnapshot();
+    const ray = new THREE.Ray(new THREE.Vector3(...ship.position), new THREE.Vector3(0, 0, -1).applyQuaternion(new THREE.Quaternion(...ship.rotation)).normalize());
+    const hit = new THREE.Vector3();
+    let best: { destination: NavigationTarget | null; localIndex: number; distance: number } | null = null, nearest = Infinity;
+    const consider = (center: THREE.Vector3, destination: NavigationTarget | null, localIndex: number, radius: number) => {
+      if (!ray.intersectSphere(new THREE.Sphere(center, radius), hit)) return;
+      const distance = ray.origin.distanceToSquared(hit);
+      if (distance < nearest) { nearest = distance; best = { destination, localIndex, distance: ray.origin.distanceTo(center) - radius }; }
+    };
+    for (const [id, entry] of this.localSurfaceGroups) {
+      const node = this.multiplayer ? this.worldNodes[entry.index] : this.sim.nodes[entry.index];
+      if (!node) continue;
+      const destination = this.multiplayer && this.localTopology ? { ownerId: this.localPlayerId, starId: id, revision: this.localTopology.revision } : null;
+      consider(new THREE.Vector3(node.x, node.y, node.z), destination, entry.index, (entry.group?.userData.radius ?? SURFACE.radius) * SURFACE_WORLD_SCALE);
+    }
+    if (this.multiplayer) for (const remote of this.remoteMaps.values()) {
+      if (!remote.initialized) continue;
+      remote.topology.nodes.forEach((node, index) => {
+        if (!node.dockable) return;
+        const offset = index * 3;
+        consider(new THREE.Vector3(remote.current[offset], remote.current[offset + 1], remote.current[offset + 2]),
+          { ownerId: remote.playerId, starId: node.id, revision: remote.revision }, -1, (remote.surfaceGroups?.get(node.id)?.userData.radius ?? SURFACE.radius) * SURFACE_WORLD_SCALE);
+      });
+    }
+    return best;
+  }
+
+  private requestSurfaceDock(_destination: NavigationTarget | null, _localIndex: number): void {
+    if (this.surfacePilot.active || !this.pilot.active) return;
+    const target = this.pickSurfaceDockTarget();
+    if (!target) { this.cb.onPilot?.(true, "Aim at a main node before docking."); return; }
+    const { destination, localIndex } = target;
+    if (this.multiplayer) {
+      if (!destination) { this.cb.onPilot?.(true, "Aim at a main node before docking."); return; }
+      const topology = destination.ownerId === this.localPlayerId ? this.localTopology : this.remoteMaps.get(destination.ownerId)?.topology;
+      if (!topology?.nodes.some(node => node.id === destination.starId && node.dockable)) { this.cb.onPilot?.(true, "Only main nodes accept docking."); return; }
+      this.cb.onSurfaceDock?.(destination);
+      return;
+    }
+    const node = this.sim.nodes[localIndex];
+    if (!node || !this.localSurfaceGroups.has(node.id)) { this.cb.onPilot?.(true, "Aim at a main node before docking."); return; }
+    const center: [number, number, number] = [node.x, node.y, node.z];
+    this.surfaceWorld.setOwnerMap("solo", this.soloSurfaceTopology(), this.soloSurfacePositions());
+    const ship = this.toSurfaceShip(this.pilot.shipSnapshot(), center);
+    this.surfaceWorld.addPlayer("solo", ship);
+    if (!this.surfaceWorld.dock("solo", `solo/${node.id}`, Date.now(), 1 / SURFACE_WORLD_SCALE)) {
+      const preparation=this.surfaceWorld.getPreparationError(`solo/${node.id}`);if(preparation){this.pilot.showDockMessage(preparation);this.cb.onPilot?.(true,preparation);return;}
+      this.pilot.showDockMessage("Dock rejected · wait 3s after damage, stay within 12u and below speed 10, then release and hold J again.");
+      this.cb.onPilot?.(true, "Docking needs a clear approach, low speed, and three seconds without damage.");
+      return;
+    }
+    const player = this.surfaceWorld.getPlayer("solo"), arena = player?.arenaKey ? this.surfaceWorld.getArena(player.arenaKey) : null;
+    if (!player || !arena) return;
+    this.parkedHubId = node.id;
+    this.parkedNormal.set(player.ship.position[0] - center[0], player.ship.position[1] - center[1], player.ship.position[2] - center[2]).normalize();
+    this.parkedRotation.set(...ship.rotation);
+    this.createParkedSurfaceShip();
+    this.pilot.exit(false);
+    this.controls.enabled = false; this.controls.autoRotate = false; this.tween = null;
+    this.synchronizeSurfaceArenaVisual(arena, this.surfaceWorld.getPickups(arena.key, Date.now()));
+    this.surfacePilot.enter("solo", player, arena);
+    this.createTrainingDummy(arena);
+    this.stale = true;
+  }
+
+  setSurfaceDockResult(accepted: boolean, reason?: "preparation"): void {
+    if(reason==="preparation"){this.pilot.showDockMessage("Planet preparation failed: no accessible combat layout. Try a different main node.");return;}
+    if (!accepted) this.pilot.showDockMessage("Dock rejected · wait 3s after damage, stay within 12u and below speed 10; the arena may be full. Release J to retry.");
+  }
+
+  private createParkedSurfaceShip(): void {
+    if (this.parkedSurfaceShip) {
+      this.scene.remove(this.parkedSurfaceShip.group);
+      this.parkedSurfaceShip.lights.forEach(light => this.scene.remove(light));
+      this.parkedSurfaceShip.dispose();
+    }
+    this.parkedSurfaceShip = buildShip(this.settings.pilotShip);
+    this.parkedSurfaceShip.group.scale.setScalar(0.15);
+    this.parkedSurfaceShip.lights.forEach(light => { light.visible = true; this.scene.add(light); });
+    this.scene.add(this.parkedSurfaceShip.group);
+    this.updateParkedSurfaceShip();
+  }
+
+  private updateParkedSurfaceShip(): void {
+    if (!this.parkedSurfaceShip || !this.parkedHubId) return;
+    const index = this.idIndex.get(this.parkedHubId);
+    const node = index === undefined ? null : this.sim.nodes[index];
+    if (!node) return;
+    const arena = this.surfaceWorld?.getArena(`solo/${this.parkedHubId}`);
+    const center = arena ? this.surfaceDisplayCenter(arena) : [node.x, node.y, node.z] as [number, number, number];
+    this.parkedSurfaceShip.group.position.set(...center).addScaledVector(this.parkedNormal, (arena?.arena.radius ?? SURFACE.radius) * SURFACE_WORLD_SCALE * 1.2);
+    this.parkedSurfaceShip.group.quaternion.copy(this.parkedRotation);
+    this.parkedSurfaceShip.lights.forEach(light => {
+      light.position.copy(this.parkedSurfaceShip!.group.position);
+      light.quaternion.copy(this.parkedSurfaceShip!.group.quaternion);
+    });
+  }
+
+  private removeParkedSurfaceShip(): void {
+    if (!this.parkedSurfaceShip) return;
+    this.scene.remove(this.parkedSurfaceShip.group);
+    this.parkedSurfaceShip.lights.forEach(light => this.scene.remove(light));
+    this.parkedSurfaceShip.dispose();
+    this.parkedSurfaceShip = null; this.parkedHubId = "";
+  }
+
+  private updateSoloSurfaceWorld(dt: number): void {
+    if (this.multiplayer || !this.surfacePilot.active) return;
+    this.surfaceWorld.moveCover(dt);
+    this.surfaceMapAccumulator += dt;
+    if (this.surfaceMapAccumulator < 0.1) return;
+    this.surfaceMapAccumulator %= 0.1;
+    this.surfaceWorld.setOwnerMap("solo", this.soloSurfaceTopology(), this.soloSurfacePositions());
+    const player = this.surfaceWorld.getPlayer("solo");
+    const arena = player?.arenaKey ? this.surfaceWorld.getArena(player.arenaKey) : null;
+    if (arena) {
+      this.surfacePilot.updateArena(arena);
+      this.synchronizeSurfaceArenaVisual(arena, this.surfaceWorld.getPickups(arena.key, Date.now()));
+    }
+    this.updateParkedSurfaceShip();
+  }
+
+  private returnToSurfaceShip(ship: { position: [number, number, number]; rotation: [number, number, number, number]; velocity: [number, number, number] }, center: [number, number, number]): void {
+    const scale = SURFACE_WORLD_SCALE;
+    const offset = new THREE.Vector3(...ship.position).sub(new THREE.Vector3(...center)).multiplyScalar(scale);
+    const position = this.pilotCollisionGrid.clearPointOnRay(new THREE.Vector3(...center), offset, offset.length());
+    this.camera.position.copy(position);
+    this.camera.quaternion.set(...ship.rotation);
+    this.clearSurfaceCombat();
+    this.removeParkedSurfaceShip();
+    this.rebuildLocalSurfaceVisuals();
+    this.controls.enabled = true; this.tween = null; this.autoFrame = false;
+    this.setPilot(true, { position: position.toArray() as [number, number, number], rotation: [...ship.rotation], velocity: [0, 0, 0] });
+  }
+
+  private returnToRoomSurfaceShip(ship: { position: [number, number, number]; rotation: [number, number, number, number]; velocity: [number, number, number] }, center: [number, number, number]): void {
+    this.camera.position.set(...ship.position);
+    this.camera.quaternion.set(...ship.rotation);
+    this.removeParkedSurfaceShip();
+    this.roomSurfaceLocalArena = null;
+    this.controls.enabled = true; this.tween = null; this.autoFrame = false;
+    this.setPilot(true, ship);
+  }
+
+  private updateSurfaceNameplates(): void {
+    const local=this.multiplayer ? this.roomSurfaceLocalView : this.surfaceWorld.getPlayer("solo");
+    const arena=local?.arenaKey ? (this.multiplayer ? this.roomSurfaceArenas.get(local.arenaKey) : this.surfaceWorld.getArena(local.arenaKey)) : null;
+    const targets: SurfaceNameplateTarget[]=[];
+    if (this.surfacePilot.active && local && local.health>0 && arena) {
+      if (this.multiplayer) { for (const [id,avatar] of this.remoteSurfaceAvatars) {
+        const player=this.roomSurfacePlayers.get(id);
+        if (id!==local.id && player && player.health>0 && avatar.state && avatar.arenaKey===arena.key && avatar.group.visible) targets.push({id,name:this.surfacePlayerNames.get(id)??"Pilot",health:player.health,arenaKey:arena.key,state:avatar.state});
+      }}
+      for (const bot of this.surfaceBotVisuals.values()) if (bot.group.visible && bot.bot.arenaKey === arena.key) {
+        targets.push({ id: bot.bot.id, name: ["North patrol", "South patrol", "East patrol", "West patrol"][bot.bot.index] ?? "Planetary bot",
+          health: bot.bot.health, arenaKey: arena.key, state: bot.target });
+      }
+    }
+    this.surfaceNameplates.update(this.camera,this.canvas.clientWidth,this.canvas.clientHeight,targets.length && arena ? arena : null,arena ? this.surfaceDisplayCenter(arena) : null,targets);
+  }
+
+  private createTrainingDummy(arena: ReturnType<SurfaceWorld["getArena"]>): void {
+    if (!arena) return;
+    this.surfaceWorld.resetTrainingBots(this.trainingMaximum === 150 ? 50 : 0, Date.now());
+    this.syncSurfaceBotVisuals(this.surfaceWorld.listBots(), -1, performance.now());
+  }
+
+  private cloneSurfaceBotState(state: SurfacePlayerState): SurfacePlayerState {
+    return { ...state, position: [...state.position], forward: [...state.forward], velocity: [...state.velocity] };
+  }
+
+  private syncSurfaceBotVisuals(bots: readonly SurfaceBotView[], sequence: number, receivedAt: number): void {
+    const seen = new Set<string>();
+    for (const bot of bots) {
+      const arena = this.multiplayer ? this.roomSurfaceArenas.get(bot.arenaKey) : this.surfaceWorld.getArena(bot.arenaKey);
+      if (!arena) continue;
+      seen.add(bot.id);
+      let visual = this.surfaceBotVisuals.get(bot.id);
+      if (!visual) {
+        const baseColor = ["#7FE8FF", "#FFBD5C", "#FFB96E", "#B8A2FF"][bot.index] ?? "#7FE8FF";
+        const group = new THREE.Group(); group.name = `surface-bot:${bot.id}`; group.scale.setScalar(SURFACE_WORLD_SCALE);
+        const model = new SurfaceOperative(baseColor); group.add(model.group); this.scene.add(group);
+        const state = this.cloneSurfaceBotState(bot.state);
+        visual = { bot, group, model, baseColor, from: state, target: state, receivedAt, duration: 0, lastSequence: -1 };
+        this.surfaceBotVisuals.set(bot.id, visual);
+      }
+      if (!this.multiplayer) {
+        visual.from = visual.target = this.cloneSurfaceBotState(bot.state); visual.receivedAt = receivedAt; visual.duration = 0;
+      } else if (visual.lastSequence !== sequence) {
+        const next = this.cloneSurfaceBotState(bot.state);
+        if (visual.bot.lifeId !== bot.lifeId || visual.bot.arenaKey !== bot.arenaKey) visual.from = next;
+        else visual.from = visual.target;
+        visual.target = next; visual.receivedAt = receivedAt; visual.duration = 50;
+        visual.lastSequence = sequence;
+      }
+      visual.bot = { ...bot, state: this.cloneSurfaceBotState(bot.state) };
+      visual.model.setAggressive(bot.aggressive, visual.baseColor);
+      visual.group.visible = bot.health > 0;
+    }
+    for (const [id, visual] of this.surfaceBotVisuals) if (!seen.has(id)) {
+      this.disposeSurfaceGroup(visual.group); this.surfaceBotVisuals.delete(id);
+    }
+  }
+
+  private resetTrainingDummy(maximum: 100 | 150): void {
+    this.trainingMaximum=maximum;
+    if (!this.multiplayer) this.surfaceWorld.resetTrainingBots(maximum === 150 ? 50 : 0, Date.now());
+    this.syncSurfaceBotVisuals(this.multiplayer ? this.roomSurfaceBots : this.surfaceWorld.listBots(), this.roomSurfaceSnapshotSequence, performance.now());
+  }
+
+  private updateSurfaceBotActors(dt: number, now: number): void {
+    if (!this.multiplayer) {
+      this.surfaceWorld.stepBots(Math.max(0, Math.min(0.1, dt)), now);
+      this.syncSurfaceBotVisuals(this.surfaceWorld.listBots(), -1, performance.now());
+    }
+    for (const visual of this.surfaceBotVisuals.values()) {
+      const arena = this.multiplayer ? this.roomSurfaceArenas.get(visual.bot.arenaKey) : this.surfaceWorld.getArena(visual.bot.arenaKey);
+      if (!arena) continue;
+      const t = this.multiplayer ? Math.max(0, Math.min(1, (performance.now() - visual.receivedAt) / Math.max(1, visual.duration))) : 1;
+      const state = this.interpolateSurfaceBotState(visual.from, visual.target, t);
+      const up = new THREE.Vector3(...state.position).normalize(), forward = new THREE.Vector3(...state.forward).projectOnPlane(up).normalize();
+      const right = new THREE.Vector3().crossVectors(forward, up).normalize();
+      visual.group.position.set(...surfaceToWorld(state.position, this.surfaceDisplayCenter(arena)));
+      visual.group.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(right, up, forward.negate()));
+      visual.model.pose(state, dt);
+    }
+    this.updateSurfaceBotShots(now);
+    this.updateSurfaceBotDrops();
+  }
+
+  private interpolateSurfaceBotState(from: SurfacePlayerState, to: SurfacePlayerState, amount: number): SurfacePlayerState {
+    const lerp = (a: readonly number[], b: readonly number[]) => a.map((value, index) => value + (b[index] - value) * amount);
+    const position = new THREE.Vector3(...lerp(from.position, to.position)).normalize().multiplyScalar(to.radius ?? SURFACE.radius);
+    const forward = new THREE.Vector3(...lerp(from.forward, to.forward)).projectOnPlane(position.clone().normalize()).normalize();
+    return { ...to, position: position.toArray() as [number, number, number], forward: forward.toArray() as [number, number, number], velocity: lerp(from.velocity, to.velocity) as [number, number, number] };
+  }
+
+  private updateSurfaceBotShots(now: number): void {
+    const shots = this.multiplayer ? this.roomSurfaceBotShots : this.surfaceWorld.listBotShots();
+    const seen = new Set<string>();
+    for (const shot of shots) {
+      const arena = this.multiplayer ? this.roomSurfaceArenas.get(shot.arenaKey) : this.surfaceWorld.getArena(shot.arenaKey);
+      if (!arena) continue;
+      seen.add(shot.id);
+      let visual = this.surfaceBotShotVisuals.get(shot.id);
+      if (!visual) { const graphic = new SurfaceBoltGraphic("#FF6B62"); this.scene.add(graphic); visual = { graphic, shot }; this.surfaceBotShotVisuals.set(shot.id, visual); }
+      visual.shot = shot;
+      const hostNow = this.multiplayer ? this.currentSurfaceHostTime() : now;
+      if (shot.stoppedAt > 0 && hostNow >= shot.stoppedAt) continue;
+      const extrapolation = this.multiplayer ? Math.max(0, Math.min(60, hostNow - this.roomSurfaceSnapshotTime)) / 1000 : 0;
+      const position = new THREE.Vector3(...shot.position).addScaledVector(new THREE.Vector3(...shot.direction), shot.stoppedAt ? 0 : 120 * extrapolation);
+      const end = new THREE.Vector3(...surfaceToWorld(position.toArray(), this.surfaceDisplayCenter(arena)));
+      const start = end.clone().addScaledVector(new THREE.Vector3(...shot.direction), -Math.min(1.6, Math.max(0.25, shot.travelled + 120 * extrapolation)) * SURFACE_WORLD_SCALE);
+      visual.graphic.setSegment(start, end);
+    }
+    for (const [id, visual] of this.surfaceBotShotVisuals) if (!seen.has(id)) { visual.graphic.dispose(); this.surfaceBotShotVisuals.delete(id); }
+  }
+
+  private updateSurfaceBotDrops(): void {
+    const drops = this.multiplayer ? this.roomSurfaceBotDrops : this.surfaceWorld.listBotDrops(Date.now());
+    const seen = new Set<string>();
+    for (const drop of drops) {
+      const arena = this.multiplayer ? this.roomSurfaceArenas.get(drop.arenaKey) : this.surfaceWorld.getArena(drop.arenaKey);
+      if (!arena || (drop.expiresAt <= Date.now() && !this.multiplayer)) continue;
+      seen.add(drop.id);
+      let visual = this.surfaceBotDropVisuals.get(drop.id);
+      if (!visual) {
+        const group = createSurfaceBotDropVisual(drop); group.scale.setScalar(SURFACE_WORLD_SCALE); this.scene.add(group);
+        visual = { group, drop }; this.surfaceBotDropVisuals.set(drop.id, visual);
+      }
+      visual.drop = drop;
+      const normal = new THREE.Vector3(...drop.position).normalize();
+      visual.group.position.set(...surfaceToWorld(drop.position, this.surfaceDisplayCenter(arena))).addScaledVector(normal, 0.18 * SURFACE_WORLD_SCALE);
+      visual.group.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal);
+    }
+    for (const [id, visual] of this.surfaceBotDropVisuals) if (!seen.has(id)) { this.disposeSurfaceGroup(visual.group); this.surfaceBotDropVisuals.delete(id); }
+  }
+
+  private clearSurfaceBotVisuals(): void {
+    for (const visual of this.surfaceBotVisuals.values()) this.disposeSurfaceGroup(visual.group);
+    for (const visual of this.surfaceBotShotVisuals.values()) visual.graphic.dispose();
+    for (const visual of this.surfaceBotDropVisuals.values()) this.disposeSurfaceGroup(visual.group);
+    this.surfaceBotVisuals.clear(); this.surfaceBotShotVisuals.clear(); this.surfaceBotDropVisuals.clear();
+  }
+
+  private clearTrainingDummy(): void {
+    this.clearSurfaceBotVisuals();
+  }
+
+  private onSurfaceFire(origin: [number, number, number], direction: [number, number, number], sequence: number, viewTime: number, kind: SurfaceShotKind = "normal"): ReturnType<SurfaceWorld["getPlayer"]> {
+    if (this.multiplayer) {
+      const player = this.roomSurfaceLocalView, arena = this.roomSurfaceLocalArena;
+      if (!player?.surface || player.mode !== "surface" || !arena || !player.arenaKey) return null;
+      if (!this.roomCombatEnabled) return player;
+      if(player.ventUntil>this.currentSurfaceHostTime() || player.heat>=100)return player;
+      this.cb.onSurfaceFire?.(sequence, viewTime, player.arenaKey, player.lifeId, direction, kind);
+      const surfaceOrigin = worldToSurface(origin, this.surfaceDisplayCenter(arena));
+      if (traceSurfaceSegment(surfaceViewPose(player.surface).eye, surfaceOrigin, arena.arena.walls, [], "", arena.arena.radius ?? SURFACE.radius)) return player;
+      const shotDirection = spreadSurfaceDirection(direction, surfaceSpreadDegrees(player.surface), surfaceSeed(player.id, sequence));
+      const startedAt = Math.floor(this.roomSurfaceHostTime + Math.max(0, Date.now() - this.roomSurfaceReceivedAt));
+      const projectile: SurfaceProjectileSnapshot = {
+        id: `${player.id}:${sequence}`, ownerId: player.id, sequence, lifeId: player.lifeId, arenaKey: player.arenaKey,
+        kind, position: surfaceOrigin, direction: shotDirection, travelled: 0, color: player.laserColor, startedAt, stoppedAt: 0,
+      };
+      this.upsertNetworkSurfaceBolt(projectile, startedAt);
+      return player;
+    }
+    const player = this.surfaceWorld.getPlayer("solo"), arena = player?.arenaKey ? this.surfaceWorld.getArena(player.arenaKey) : null;
+    if (!player?.surface || !arena) return player;
+    const surfaceOrigin = worldToSurface(origin, this.surfaceDisplayCenter(arena));
+    if (traceSurfaceSegment(surfaceViewPose(player.surface).eye, surfaceOrigin, arena.arena.walls, [], "", arena.arena.radius ?? SURFACE.radius)) return player;
+    const startedAt = Date.now(), fired = this.surfaceWorld.tryFire("solo", sequence, startedAt, kind);
+    if (!fired.accepted) return this.surfaceWorld.getPlayer("solo");
+    const spread = surfaceSpreadDegrees(player.surface);
+    const shotDirection = spreadSurfaceDirection(direction, spread, surfaceSeed("solo", sequence));
+    const graphic = new SurfaceBoltGraphic(this.roomSurfaceLaserColor, kind === "charged"); this.scene.add(graphic);
+    this.surfaceBolts.push({ kind, graphic, arenaKey: arena.key, ownerId: "solo", position: new THREE.Vector3(...surfaceOrigin), direction: new THREE.Vector3(...shotDirection), travelled: 0, startedAt, simulatedAt: startedAt, stoppedAt: 0 });
+    return this.surfaceWorld.getPlayer("solo");
+  }
+
+  private clearSurfaceCombat(): void {
+    this.clearSurfaceBotVisuals();
+    for (const bolt of this.surfaceBolts) bolt.graphic.dispose();
+    this.surfaceBolts.length = 0;
+  }
+
+  private updateSurfaceCombat(_dt: number, now: number): void {
+    this.updateSurfaceBotActors(_dt, now);
+    const remaining: SurfaceBoltVisual[] = [];
+    for (const bolt of this.surfaceBolts) {
+      const arena = this.surfaceWorld.getArena(bolt.arenaKey);
+      if (!arena || (bolt.stoppedAt && now >= bolt.stoppedAt)) { bolt.graphic.dispose(); continue; }
+      const stepAt = Math.min(now, bolt.startedAt + SURFACE_BLASTER.boltLifetimeMs);
+      if (!bolt.stoppedAt && (now - bolt.simulatedAt > 100 || stepAt <= bolt.simulatedAt && now >= bolt.startedAt + SURFACE_BLASTER.boltLifetimeMs)) { bolt.graphic.dispose(); continue; }
+      const travel = bolt.stoppedAt ? 0 : Math.min(120 * Math.max(0, stepAt - bolt.simulatedAt) / 1000, Math.max(0, 30 - bolt.travelled));
+      const start = bolt.position.clone();
+      const end = start.clone().addScaledVector(bolt.direction, travel);
+      const bots = this.surfaceWorld.listBots().filter(bot => bot.arenaKey === arena.key && bot.health > 0);
+      const targets: SurfaceCombatTarget[] = bots.map(bot => ({ id: bot.id, state: bot.state, health: bot.health, protected: false }));
+      const hit = bolt.stoppedAt || travel <= 0 ? null : traceSurfaceSegment(start.toArray() as [number, number, number], end.toArray() as [number, number, number], arena.arena.walls, targets, bolt.ownerId, arena.arena.radius ?? SURFACE.radius);
+      if (hit) {
+        bolt.position.set(...hit.position);
+        bolt.travelled += travel * hit.t;
+        bolt.stoppedAt = now + 90;
+        this.surfaceAudio.play("impact", this.surfaceScenePosition(hit.position, arena), 1, () => this.surfaceDisplayCenter(arena));
+        const bot = hit.kind === "player" && hit.id ? bots.find(target => target.id === hit.id) : undefined;
+        if (bot) {
+          this.surfaceWorld.damageBot(bot.id, bolt.ownerId, surfaceShotDamage(bolt.kind), now);
+          this.surfacePilot?.confirmTrainingHit?.(`dummy:${bolt.ownerId}:${bolt.startedAt}`);
+        }
+      } else {
+        bolt.position.addScaledVector(bolt.direction, travel);
+        bolt.travelled += travel;
+      }
+      if (!bolt.stoppedAt) bolt.simulatedAt = stepAt;
+      if (!bolt.stoppedAt && (stepAt >= bolt.startedAt + SURFACE_BLASTER.boltLifetimeMs || bolt.travelled >= 30)) { bolt.graphic.dispose(); continue; }
+      const tail = Math.min(2.2, Math.max(0.08, bolt.travelled));
+      const from = bolt.position.clone().addScaledVector(bolt.direction, -tail);
+      bolt.graphic.setSegment(new THREE.Vector3(...surfaceToWorld(from.toArray() as [number, number, number], this.surfaceDisplayCenter(arena))), new THREE.Vector3(...surfaceToWorld(bolt.position.toArray() as [number, number, number], this.surfaceDisplayCenter(arena))));
+      remaining.push(bolt);
+    }
+    this.surfaceBolts = remaining;
   }
 
   private onPilotState(active: boolean, text: string): void {
@@ -894,15 +1957,24 @@ export class ConstellationRenderer implements GraphRenderer {
     ] as [string, EventListener][]) this.canvas.removeEventListener(ev, fn);
     this.canvas.removeEventListener("pointerdown", this.onPointerDown, true);
     this.pilot.destroy();
+    this.surfacePilot.dispose();
+    this.surfaceAudio.dispose();
+    this.clearSurfaceCombat();
+    this.removeParkedSurfaceShip();
     for (const bolt of this.remoteShots.values()) { this.scene.remove(bolt.line); bolt.line.geometry.dispose(); (bolt.line.material as THREE.Material).dispose(); }
     for (const impact of this.networkImpacts.values()) { this.scene.remove(impact.mesh); impact.mesh.geometry.dispose(); (impact.mesh.material as THREE.Material).dispose(); }
     this.remoteShots.clear(); this.networkImpacts.clear();
+    for (const entry of this.localSurfaceGroups.values()) this.disposeSurfaceGroup(entry.group);
+    this.localSurfaceGroups.clear();
+    for (const remote of this.remoteMaps.values()) for (const group of remote.surfaceGroups.values()) this.disposeSurfaceGroup(group);
+    this.remoteMaps.clear();
     this.disposeNodes();
     this.stars.geometry.dispose(); (this.stars.material as THREE.Material).dispose();
     // EffectComposer.dispose() does not free its passes, and browsers cap live WebGL contexts
     this.bloom.dispose(); this.renderPass.dispose(); this.composer.dispose();
     this.navigationMarker.geometry.dispose(); (this.navigationMarker.material as THREE.Material).dispose();
     this.renderer.dispose(); this.renderer.forceContextLoss();
+    this.surfaceNameplates.dispose();
     this.canvas.remove(); this.labelLayer.remove(); this.indicatorLayer.remove(); this.flashEl.remove();
   }
 
@@ -1008,7 +2080,7 @@ export class ConstellationRenderer implements GraphRenderer {
   private onPointerLeave = () => { this.pointer.inside = false; this.pointer.moved = true; };
   private onPointerDown = (e: PointerEvent) => {
     if (e.button === 2) { this.clearSelection(); return; }
-    if (e.button !== 0 || this.pilot.active) return; // in Pilot mode a press is a shot, handled by the pilot
+    if (e.button !== 0 || this.pilot.active || this.surfacePilot.active) return; // active game modes own their fire input
     this.setPointer(e);
     if (this.multiplayer) {
       this.setHover(-1);
@@ -1142,7 +2214,10 @@ export class ConstellationRenderer implements GraphRenderer {
     let moving = this.updateRemoteMaps(dt);
     if (!this.paused) { this.sim.step(dt); moving = this.sim.isActive() || moving; }
     this.refreshWorldNodes();
-    if (!this.drag && !this.pilot.active && (this.pointer.moved || (this.pointer.inside && moving && this.frameNo % 8 === 0))) {
+    this.updateSoloSurfaceWorld(dt);
+    this.moveRoomCover(dt);
+    this.refreshPilotObstacleGrid(now);
+    if (!this.drag && !this.pilot.active && !this.surfacePilot.active && (this.pointer.moved || (this.pointer.inside && moving && this.frameNo % 8 === 0))) {
       this.pointer.moved = false;
       this.setHover(this.pointer.inside ? this.pick() : -1);
       this.canvas.style.cursor = this.hover >= 0 ? "pointer" : "grab";
@@ -1151,8 +2226,12 @@ export class ConstellationRenderer implements GraphRenderer {
     if (this.dirty) this.recomputeTargets();
 
     const animating = this.updateBuffers(dt, moving || this.stale);
+    this.resolveSurfaceDisplayFrames();
     let camMoved = false;
-    if (this.pilot.active) {
+    if (this.surfacePilot.active) {
+      this.surfacePilot.update(dt, Date.now());
+      this.stale = true;
+    } else if (this.pilot.active) {
       this.pilot.update(dt);
       // keep the orbit target ahead of the ship, so labels still fade with distance
       this.controls.target.copy(this.camera.position).addScaledVector(this.tmp.set(0, 0, -1).applyQuaternion(this.camera.quaternion), 300);
@@ -1161,6 +2240,9 @@ export class ConstellationRenderer implements GraphRenderer {
       this.updateCamera(now);
       camMoved = this.controls.update(dt);
     }
+    this.updateRoomSurfacePresentation();
+    this.updateSurfaceCombat(dt, Date.now());
+    this.updateSurfaceNameplates();
     this.updateNavigationMarker();
     this.updatePlayerIndicators();
     const remoteAudio: RemoteAudioState[] = [...this.remoteShips].map(([id, remote]) => ({
@@ -1168,13 +2250,21 @@ export class ConstellationRenderer implements GraphRenderer {
       active: !!remote.target?.active && remote.target.health > 0 && remote.ship.group.visible,
       speed: remote.target ? Math.hypot(...remote.target.velocity) : 0, thrust: remote.target?.thrust ?? 0, boosting: remote.target?.boosting ?? false,
     }));
-    this.pilot.updateNearbyAudio(remoteAudio, this.multiplayer && this.pilot.active && this.settings.pilotNearbyAudio);
+    if (this.surfacePilot.active) {
+      const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion).toArray() as [number, number, number];
+      const up = new THREE.Vector3(0, 1, 0).applyQuaternion(this.camera.quaternion).toArray() as [number, number, number];
+      this.pilot.updateSurfaceNearbyAudio(remoteAudio, { position: this.camera.position.toArray() as [number, number, number], forward, up }, this.settings.pilotNearbyAudio);
+    } else this.pilot.updateNearbyAudio(remoteAudio, this.multiplayer && this.pilot.active && this.settings.pilotNearbyAudio);
     if (!(moving || animating || camMoved || this.stale || this.tween || this.follow >= 0)) return; // fully at rest: draw nothing
     this.stale = false;
 
     this.stars.rotation.y += this.paused || this.still ? 0 : dt * 0.004;
     this.updateLabels();
-    if (this.settings.bloom && !this.degraded && !effectiveHighContrast(this.settings) && this.bloom.strength > 0) this.composer.render(); else this.renderer.render(this.scene, this.camera);
+    renderOccludedSurfaceWorld(this.scene, this.surfacePilot.active, () => {
+      if (this.settings.bloom && !this.degraded && !effectiveHighContrast(this.settings) && this.bloom.strength > 0) this.composer.render();
+      else this.renderer.render(this.scene, this.camera);
+    });
+    this.surfacePilot.renderViewmodel(this.renderer);
 
     // protect slow machines: drop the glow pass first, then lower resolution
     this.slow = dt > 0.04 ? this.slow + 1 : Math.max(0, this.slow - 1);
@@ -1356,6 +2446,17 @@ export class ConstellationRenderer implements GraphRenderer {
     }
   }
 
+  private isSurfacePointOccluded(point: THREE.Vector3): boolean {
+    if (!this.surfacePilot.active) return false;
+    const arenas = this.multiplayer ? this.roomSurfaceArenas.values() : this.surfaceWorld.listArenas();
+    for (const arena of arenas){const center=this.surfaceDisplayCenter(arena);
+      if(arena.arena.terrain){const a=worldToSurface(this.camera.position.toArray() as [number,number,number],center),b=worldToSurface(point.toArray() as [number,number,number],center);
+        if(traceSurfaceSegment(a,b,arena.arena.walls,[],"",arena.arena.radius??27))return true;
+      }else if(surfaceSphereOccludes(this.camera.position,point,center,(arena.arena.radius??27)*SURFACE_WORLD_SCALE))return true;
+    }
+    return false;
+  }
+
   private updateLabels(): void {
     const s = this.settings, nodes = this.worldNodes, hc = effectiveHighContrast(s);
     if (this.multiplayer) { for (const label of this.labels) label.toggleClass("cg-hidden", true); return; }
@@ -1382,7 +2483,9 @@ export class ConstellationRenderer implements GraphRenderer {
     let used = 0;
     for (const i of want) {
       const n = nodes[i];
-      v.set(n.x, n.y, n.z).project(this.camera);
+      v.set(n.x, n.y, n.z);
+      if (this.isSurfacePointOccluded(v)) continue;
+      v.project(this.camera);
       if (v.z > 1 || Math.abs(v.x) > 1.05 || Math.abs(v.y) > 1.05) continue;
       if (this.pilot.active && (n.x - cx0) * fx0 + (n.y - cy0) * fy0 + (n.z - cz0) * fz0 < 1) continue; // behind the ship
       const sx = (v.x * 0.5 + 0.5) * w, rise = baseRadius(n.deg) * 2.2 + 6, sy = (-v.y * 0.5 + 0.5) * h - rise;
