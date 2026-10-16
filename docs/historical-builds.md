@@ -1,27 +1,25 @@
-# Historical Obsidian Citizen builds
+# Release downloads
 
-Original install packages for the local development milestones 0.5.1 through 0.7.1. These are archived testing candidates, not the unfinished bot/scoring update or a Community directory release.
+Each update has its own GitHub release, containing main.js, manifest.json, styles.css, a versioned install ZIP, and SHA256SUMS.txt.
 
-Each ZIP contains only main.js, manifest.json, and styles.css, and retains the historical constellation-graph plugin ID. Back up your settings, disable the plugin, and extract the selected version into <vault>/.obsidian/plugins/constellation-graph/. All players must use the same build. Do not mix these files with the future independent citizen installation.
-
-ZIP CRC, manifest versions, exact three-file contents, SHA-256 hashes, and private-path/credential-marker scans were verified at archival publication. No historical build was rebuilt from source, and this check does not certify native Obsidian gameplay or cross-computer acceptance. Version-specific verification documents record their original checks and limitations.
-
-These milestones were developed without separate source commits. The release tag points to the documentation commit that publishes this archive; GitHub-generated Source code downloads are that documentation baseline, NOT matching source snapshots for these binaries. Use the versioned ZIP assets below for the actual archived builds. The completed upcoming release will have matching committed source.
-
-| Version | Install ZIP |
+| Version | Release |
 |---|---|
-| 0.5.1 | [Obsidian-Citizen-0.5.1-historical.zip](https://github.com/j117mw3/obsidian-citizen/releases/download/historical-builds-2026-10-16/Obsidian-Citizen-0.5.1-historical.zip) |
-| 0.5.2 | [Obsidian-Citizen-0.5.2-historical.zip](https://github.com/j117mw3/obsidian-citizen/releases/download/historical-builds-2026-10-16/Obsidian-Citizen-0.5.2-historical.zip) |
-| 0.6.0 | [Obsidian-Citizen-0.6.0-historical.zip](https://github.com/j117mw3/obsidian-citizen/releases/download/historical-builds-2026-10-16/Obsidian-Citizen-0.6.0-historical.zip) |
-| 0.6.1 | [Obsidian-Citizen-0.6.1-historical.zip](https://github.com/j117mw3/obsidian-citizen/releases/download/historical-builds-2026-10-16/Obsidian-Citizen-0.6.1-historical.zip) |
-| 0.6.2 | [Obsidian-Citizen-0.6.2-historical.zip](https://github.com/j117mw3/obsidian-citizen/releases/download/historical-builds-2026-10-16/Obsidian-Citizen-0.6.2-historical.zip) |
-| 0.6.3 | [Obsidian-Citizen-0.6.3-historical.zip](https://github.com/j117mw3/obsidian-citizen/releases/download/historical-builds-2026-10-16/Obsidian-Citizen-0.6.3-historical.zip) |
-| 0.6.4 | [Obsidian-Citizen-0.6.4-historical.zip](https://github.com/j117mw3/obsidian-citizen/releases/download/historical-builds-2026-10-16/Obsidian-Citizen-0.6.4-historical.zip) |
-| 0.6.5 | [Obsidian-Citizen-0.6.5-historical.zip](https://github.com/j117mw3/obsidian-citizen/releases/download/historical-builds-2026-10-16/Obsidian-Citizen-0.6.5-historical.zip) |
-| 0.6.6 | [Obsidian-Citizen-0.6.6-historical.zip](https://github.com/j117mw3/obsidian-citizen/releases/download/historical-builds-2026-10-16/Obsidian-Citizen-0.6.6-historical.zip) |
-| 0.6.7 | [Obsidian-Citizen-0.6.7-historical.zip](https://github.com/j117mw3/obsidian-citizen/releases/download/historical-builds-2026-10-16/Obsidian-Citizen-0.6.7-historical.zip) |
-| 0.6.8 | [Obsidian-Citizen-0.6.8-historical.zip](https://github.com/j117mw3/obsidian-citizen/releases/download/historical-builds-2026-10-16/Obsidian-Citizen-0.6.8-historical.zip) |
-| 0.7.0 | [Obsidian-Citizen-0.7.0-historical.zip](https://github.com/j117mw3/obsidian-citizen/releases/download/historical-builds-2026-10-16/Obsidian-Citizen-0.7.0-historical.zip) |
-| 0.7.1 | [Obsidian-Citizen-0.7.1-historical.zip](https://github.com/j117mw3/obsidian-citizen/releases/download/historical-builds-2026-10-16/Obsidian-Citizen-0.7.1-historical.zip) |
+| 0.5.1 | [Obsidian Citizen 0.5.1](https://github.com/j117mw3/obsidian-citizen/releases/tag/0.5.1) |
+| 0.5.2 | [Obsidian Citizen 0.5.2](https://github.com/j117mw3/obsidian-citizen/releases/tag/0.5.2) |
+| 0.6.0 | [Obsidian Citizen 0.6.0](https://github.com/j117mw3/obsidian-citizen/releases/tag/0.6.0) |
+| 0.6.1 | [Obsidian Citizen 0.6.1](https://github.com/j117mw3/obsidian-citizen/releases/tag/0.6.1) |
+| 0.6.2 | [Obsidian Citizen 0.6.2](https://github.com/j117mw3/obsidian-citizen/releases/tag/0.6.2) |
+| 0.6.3 | [Obsidian Citizen 0.6.3](https://github.com/j117mw3/obsidian-citizen/releases/tag/0.6.3) |
+| 0.6.4 | [Obsidian Citizen 0.6.4](https://github.com/j117mw3/obsidian-citizen/releases/tag/0.6.4) |
+| 0.6.5 | [Obsidian Citizen 0.6.5](https://github.com/j117mw3/obsidian-citizen/releases/tag/0.6.5) |
+| 0.6.6 | [Obsidian Citizen 0.6.6](https://github.com/j117mw3/obsidian-citizen/releases/tag/0.6.6) |
+| 0.6.7 | [Obsidian Citizen 0.6.7](https://github.com/j117mw3/obsidian-citizen/releases/tag/0.6.7) |
+| 0.6.8 | [Obsidian Citizen 0.6.8](https://github.com/j117mw3/obsidian-citizen/releases/tag/0.6.8) |
+| 0.7.0 | [Obsidian Citizen 0.7.0](https://github.com/j117mw3/obsidian-citizen/releases/tag/0.7.0) |
+| 0.7.1 | [Obsidian Citizen 0.7.1](https://github.com/j117mw3/obsidian-citizen/releases/tag/0.7.1) |
 
-Hunter / JusVibin is credited for the original Constellation Graph foundation; J117W3 maintains this independent MIT fork. Original packages are preserved byte-for-byte. Existing 0.3.x releases and the superseded 0.5.0 draft remain unchanged.
+Original packages are preserved byte-for-byte. Close Obsidian, back up settings, and install the three files into <vault>/.obsidian/plugins/constellation-graph/. Every multiplayer participant must use the same version.
+
+These releases recover previously packaged updates. Each version tag contains its recovered plugin files, license, checksums, and notes. Matching historical TypeScript source snapshots were not saved; the releases do not claim reconstructed source history. Git may normalize text line endings in generated source downloads; use the attached install ZIP and SHA256SUMS.txt for exact original bytes.
+
+ZIP integrity, file membership, manifest versions, private-path/credential-marker scans, and SHA-256 checks passed. Native gameplay and cross-computer acceptance remain separate; consult the version-specific verification documents. The unfinished bot/scoring update is excluded.

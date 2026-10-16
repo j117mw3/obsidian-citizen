@@ -2,7 +2,7 @@
 
 ## Publication history
 
-The original 0.5.1 through 0.7.1 install packages are published together in the [historical build archive](https://github.com/j117mw3/obsidian-citizen/releases/tag/historical-builds-2026-10-16). They retain the `constellation-graph` ID. These headings describe local development milestones, not separate source-tagged releases. Existing historical 0.3.x releases and the 0.5.0 draft are retained. The upcoming independent release uses the unique `citizen` ID; manual settings migration is described in the README.
+Versions **0.5.1 through 0.7.1** are published as individual [GitHub releases](https://github.com/j117mw3/obsidian-citizen/releases), each with its own version tag, original plugin files, ZIP, checksums, and update notes. The packages retain the `constellation-graph` ID. Tags preserve recovered release files because matching historical TypeScript source snapshots were not saved. Existing 0.3.x releases and the 0.5.0 draft are retained. The upcoming independent release uses the unique `citizen` ID; manual settings migration is described in the README.
 
 ## 0.7.1
 
