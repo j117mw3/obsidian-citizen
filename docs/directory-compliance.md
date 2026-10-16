@@ -12,3 +12,12 @@ The 0.7.4 release failed the completed automated directory review. The following
 Validation: production build with TypeScript checking passed; 238 automated tests passed with zero failures. No additional test duplicates these static naming/style changes. Native visual acceptance is not claimed.
 
 The chosen name OB Citizen remains unchanged. It is separately flagged by the directory's manifest name check and needs a directory-team ruling or a newly selected name. Other typed-code, DOM-helper, and CSS warnings in the original report are not all resolved by this focused correction. ZIP/checksum extras and vault/clipboard access are recommendations, not blocking errors; release archives are intentionally retained.
+
+## Controlled naming comparison
+
+- Main source commit 48b3ab4 retains OB Citizen and removes the redundant heading completely.
+- Diagnostic commit 19e531c357c155393c170c7baa8fce0afc5345c5 differs from that main source only in manifest.json: the display name is Citizen instead of OB Citizen. Repository URL, plugin ID, package metadata, and all other files are identical.
+- The directory preview for diagnostic commit 19e531c completed with zero errors. It reports a warning that Citizen differs from the existing listing's OB Citizen name; it does not report the trademark-name error.
+- The same repository slug therefore does not independently cause the reported name rejection. Whether rejecting OB Citizen is the intended policy or an overbroad check remains a directory-team question.
+- The successful diagnostic also verifies removal of the two original source errors and the redundant-General-heading error, plus the author-profile and disabled-issues warnings. Remaining source/CSS warnings are still visible.
+- This is a branch-only diagnostic, not a renamed public release. Version 0.7.4 remains the published release; the corrected source awaits a future release after the name decision.
