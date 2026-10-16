@@ -1,15 +1,14 @@
-# Obsidian Citizen 0.6.5
+# Obsidian Citizen 0.6.6
 
-- Stop first-person shot requests, recoil, muzzle flashes and blaster sounds while the host-timed vent is active or full heat awaits authoritative cooling. The threshold shot still fires; weapon balance and the two-second vent are unchanged.
-- Show a bounded weapon-local steam effect during venting.
-- Replace the single stationary solo dummy with four passive patrols: one near each pole and two on opposite hemispheres. Use fixed-step spherical movement, predictive capsule clearance, steering, pauses and stuck recovery; keep patrols out of the exit zones.
-- Give each dummy independent damage and respawn state; reset/armor controls affect all four. Existing line-of-sight names, red HP bars and confirmed-hit feedback apply to every patrol.
-- Add larger cosmetic technical sector markings to the opaque panel/circuit surface without introducing obstacles or changing cover generation.
-- Keep settings and room/checkpoint protocol 9 unchanged; multiplayer receives no training NPC payloads.
+- Make crouch hold-only. Settings schema 5 migrates toggle preferences to hold and retains custom key bindings; remove the obsolete mode selector.
+- Hold right mouse for one second and release a 50-damage, 55-heat charged bolt. Early release cancels; charging pauses cooling and blocks primary fire. Two quick charged shots force the existing two-second vent. Normal-shot balance remains unchanged.
+- Show charge percentage, muzzle energy buildup, stronger recoil and a thicker charged bolt. Cancel charges on focus loss, death, exit, host migration or five-second expiration.
+- Validate charge duration on the host; send start/release/cancel through ordered reliable transport, preserve retried-fire deduplication, wall blocking, armor, confirmed hits and bounded rewind. Preserve shot kind in snapshots and migrated in-flight bolts; unfinished charges do not migrate.
+- Bump plugin to 0.6.6 and room/checkpoint contracts to 10, rejecting old rooms/checkpoints. Geometry encoding and privacy boundaries remain unchanged.
 
 ## Install
 
-Download `main.js`, `manifest.json`, and `styles.css`, or extract `Obsidian-Citizen-0.6.5.zip` into `<vault>/.obsidian/plugins/constellation-graph/` with Obsidian closed. Back up your existing plugin and settings first. These original files retain the historical `constellation-graph` ID. All multiplayer participants need the same version. Requires desktop Obsidian 1.7.2 or newer.
+Download `main.js`, `manifest.json`, and `styles.css`, or extract `Obsidian-Citizen-0.6.6.zip` into `<vault>/.obsidian/plugins/constellation-graph/` with Obsidian closed. Back up your existing plugin and settings first. These original files retain the historical `constellation-graph` ID. All multiplayer participants need the same version. Requires desktop Obsidian 1.7.2 or newer.
 
 ## Verification and provenance
 
