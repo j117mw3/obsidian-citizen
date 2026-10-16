@@ -28,7 +28,8 @@
 .cg-player-indicators { position: absolute; inset: 0; z-index: 2; overflow: hidden; pointer-events: none; }
 .cg-player-indicator { position: absolute; left: 0; top: 0; display: flex; align-items: center; gap: 5px; max-width: 190px; padding: 2px 7px; border: 1px solid rgba(255, 91, 103, .32); border-radius: 999px; color: #ffd7d9; background: rgba(15, 8, 13, .66); font-size: 10px; line-height: 1.25; text-shadow: 0 1px 5px #000; white-space: nowrap; }
 .cg-player-indicator[hidden] { display: none; }
-.cg-player-indicator-arrow { color: #ff626d; font-size: 13px; font-weight: 800; line-height: 1; }
+.cg-player-indicator-arrow { color: #ff626d; font-size: 13px; font-weight: 800; line-height: 1; transform: rotate(var(--cg-player-arrow-angle, 0deg)); }
+.cg-player-indicator-near .cg-player-indicator-arrow { transform: none; }
 .cg-player-indicator-label { overflow: hidden; text-overflow: ellipsis; }
 .cg-player-indicator-near { padding: 1px 6px; background: rgba(15, 8, 13, .48); }
 .cg-room-active .cg-labels { visibility: hidden; }

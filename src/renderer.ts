@@ -1372,7 +1372,7 @@ export class ConstellationRenderer implements GraphRenderer {
       remote.label.textContent = `${remote.name} · ${Math.round(reference.distanceTo(point))} m`;
       if (onScreen) {
         indicator.classList.add("cg-player-indicator-near");
-        remote.arrow.textContent = "⌄"; remote.arrow.style.transform = "";
+        remote.arrow.textContent = "⌄";
         indicator.style.transform = `translate(${Math.round(x)}px, ${Math.round(y - 22)}px) translate(-50%, -50%)`;
       } else {
         indicator.classList.remove("cg-player-indicator-near");
@@ -1383,7 +1383,7 @@ export class ConstellationRenderer implements GraphRenderer {
         const length = Math.hypot(dx, dy); dx /= length; dy /= length;
         const edge = Math.min((w / 2 - 30) / Math.max(0.001, Math.abs(dx)), (h / 2 - 30) / Math.max(0.001, Math.abs(dy)));
         const px = w / 2 + dx * Math.max(0, edge), py = h / 2 + dy * Math.max(0, edge);
-        remote.arrow.style.transform = `rotate(${Math.atan2(dy, dx) * 180 / Math.PI + 90}deg)`;
+        remote.arrow.style.setProperty("--cg-player-arrow-angle", `${Math.atan2(dy, dx) * 180 / Math.PI + 90}deg`);
         indicator.style.transform = `translate(${Math.round(px)}px, ${Math.round(py)}px) translate(-50%, -50%)`;
       }
     }

@@ -14,7 +14,7 @@ Download [OB Citizen 0.7.4](https://github.com/j117mw3/obsidian-citizen/releases
 
 **Historical releases (0.7.1 and older):** these archived packages retain the `constellation-graph` ID and install into `<vault>/.obsidian/plugins/constellation-graph/`. They share Hunter's plugin identity and must not be installed over his version unless you intend to replace it. Their original packages have not been renamed or rebuilt. See the [archive instructions](docs/historical-builds.md) for verification scope and source-history limitations.
 
-**Plugin identity and settings:** starting with 0.7.2, this independent fork uses the unique `citizen` plugin ID so it cannot overwrite Hunter's plugin. It installs into `<vault>/.obsidian/plugins/citizen/`. Testers moving from the archived `constellation-graph` builds can back up and disable the old plugin, then copy only its `data.json` into the new folder while Obsidian is closed to retain preferences. Keep the original folder as a backup. Saved graph tabs may need reopening with **Open OB Citizen**. The installer does not migrate or delete settings automatically.
+**Plugin identity and settings:** starting with 0.7.2, this independent fork uses the unique `citizen` plugin ID so it cannot overwrite Hunter's plugin. It installs into `<vault>/.obsidian/plugins/citizen/`. Testers moving from the archived `constellation-graph` builds can back up and disable the old plugin, then copy only its `data.json` into the new folder while Obsidian is closed to retain preferences. Keep the original folder as a backup. Saved graph tabs may need reopening with the **OB Citizen: Open graph** command. The installer does not migrate or delete settings automatically.
 
 The independent [OB Citizen directory listing](https://community.obsidian.md/plugins/citizen) is live, with Hunter / JusVibin credited as a contributor. Automated review currently flags the abbreviated display name as containing part of “Obsidian”; directory installation is not yet approved. Use the GitHub release for manual installation while that review finding is resolved.
 
@@ -53,7 +53,7 @@ These views use a synthetic vault with four fictional notes; no personal vault n
 
 ## Use
 
-- Ribbon icon (orbit) or the command **Open OB Citizen**.
+- Ribbon icon (orbit) or the command **OB Citizen: Open graph**.
 - It updates live as you add, remove, rename and link notes. Your selection and any hidden groups are kept.
 
 ### Mouse

@@ -85,8 +85,8 @@ export class PilotHangar {
   }
 
   setFlightActive(active: boolean): void { this.resume.hidden = !active; this.close.hidden = active; }
-  show(): void { if (this.destroyed) return; this.panel.hidden = false; this.resize(); this.frame = requestAnimationFrame(this.draw); }
-  hide(): void { this.panel.hidden = true; cancelAnimationFrame(this.frame); }
+  show(): void { if (this.destroyed) return; this.panel.hidden = false; this.resize(); this.frame = this.panel.ownerDocument.defaultView?.requestAnimationFrame(this.draw) ?? 0; }
+  hide(): void { this.panel.hidden = true; this.panel.ownerDocument.defaultView?.cancelAnimationFrame(this.frame); }
   private resize(): void {
     if (!this.gl || this.panel.hidden) return;
     const width = Math.max(1, this.canvas.clientWidth), height = Math.max(1, this.canvas.clientHeight);
@@ -95,10 +95,10 @@ export class PilotHangar {
   private draw = (): void => {
     if (this.destroyed || this.panel.hidden || !this.gl) return;
     if (this.ship) this.ship.group.rotation.y += 0.006;
-    this.gl.render(this.scene, this.camera); this.frame = requestAnimationFrame(this.draw);
+    this.gl.render(this.scene, this.camera); this.frame = this.panel.ownerDocument.defaultView?.requestAnimationFrame(this.draw) ?? 0;
   };
   destroy(): void {
-    this.destroyed = true; cancelAnimationFrame(this.frame); this.observer.disconnect();
+    this.destroyed = true; this.panel.ownerDocument.defaultView?.cancelAnimationFrame(this.frame); this.observer.disconnect();
     if (this.ship) { this.scene.remove(this.ship.group); this.ship.dispose(); this.ship = null; }
     this.gl?.dispose(); this.gl = null; this.panel.remove();
   }
