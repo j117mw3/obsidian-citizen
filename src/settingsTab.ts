@@ -185,7 +185,6 @@ export class ConstellationSettingTab extends PluginSettingTab {
   display(): void {
     const { containerEl } = this;
     containerEl.empty();
-    new Setting(containerEl).setName("General").setHeading();
     containerEl.createEl("p", { text: "Explore your note constellation by spaceship, dock on main nodes, and enter spherical first-person arenas. Private multiplayer and solo training are included in this development build." });
     containerEl.createEl("a", { text: "OB Citizen repository and documentation", href: "https://github.com/j117mw3/obsidian-citizen" });
     containerEl.createEl("p", { text: "Based on Constellation Graph by JusVibin. Original MIT notices are retained." });

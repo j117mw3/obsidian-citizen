@@ -3,7 +3,7 @@
 The 0.7.4 release failed the completed automated directory review. The following source changes are candidates for branch review; they are not yet part of a new published release.
 
 - Move the player-indicator arrow's static reset to a CSS class. Dynamic offscreen rotation uses a CSS custom property; the onscreen class resets it with ordinary stylesheet precedence.
-- Use General for the settings introduction heading instead of repeating the plugin name.
+- Remove the redundant settings introduction heading. The first preview also prohibited General, so the introduction now starts with its descriptive paragraph.
 - Name the command Open graph; Obsidian already prefixes it with the plugin name. The ribbon and view retain the chosen OB Citizen branding.
 - Point manifest authorUrl at the maintainer's GitHub profile.
 - Enable the repository issue tracker for support.
