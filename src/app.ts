@@ -126,7 +126,7 @@ export class ConstellationApp {
     let made: GraphRenderer | null = null;
     if (webglAvailable()) {
       try { made = new ConstellationRenderer(this.stage, callbacks, settings); }
-      catch (e) { console.warn("Obsidian Citizen: the 3D view could not start", e); }
+      catch (e) { console.warn("OB Citizen: the 3D view could not start", e); }
     }
     this.flat = !made;
     this.renderer = made ?? new FallbackRenderer(callbacks);

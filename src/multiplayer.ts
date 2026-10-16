@@ -1249,7 +1249,7 @@ export class MultiplayerSession {
     const now = Date.now(), age = this.surfaceClock.estimateHostTime(now) - sentAt;
     if (age < 0 || age > 15_000 || sentAt <= this.lastCheckpointWireAt || !state || typeof state !== "object") return;
     const checkpoint = state as RoomCheckpoint;
-    if (checkpoint.version !== 14) { this.callbacks.status("Incompatible room checkpoint. Everyone must update to the same Obsidian Citizen build (protocol 14).", true); return; }
+    if (checkpoint.version !== 14) { this.callbacks.status("Incompatible room checkpoint. Everyone must update to the same OB Citizen build (protocol 14).", true); return; }
     if (!Number.isSafeInteger(checkpoint.epoch) || checkpoint.epoch !== this.epoch) return;
     const probe = new CombatWorld(checkpoint.epoch), surfaceProbe = new SurfaceAuthority({terrain:true});
     if (probe.restore(state, now, age) && surfaceProbe.restoreCheckpoint(checkpoint.surface, now, age)) {

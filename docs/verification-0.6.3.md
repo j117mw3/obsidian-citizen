@@ -1,4 +1,4 @@
-# Obsidian Citizen 0.6.3: opaque surface visibility
+# OB Citizen 0.6.3: opaque surface visibility
 
 Installed local testing candidate in `<test-vault>\.obsidian\plugins\constellation-graph`. Protocol/checkpoint remain 9. Gameplay and settings are unchanged. No public release, computer-use session or automatic Obsidian restart was performed.
 

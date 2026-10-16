@@ -1,4 +1,4 @@
-# Obsidian Citizen 0.6.8 verification
+# OB Citizen 0.6.8 verification
 
 Installed in `<test-vault>`. Previous version: 0.6.7. Backup: `<checkout>\dist\installed-backups\before-0.6.8-20261016-022121`. Plugin ID, J117W3 fork metadata and saved settings were preserved.
 

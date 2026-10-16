@@ -1,4 +1,4 @@
-# Obsidian Citizen 0.6.1 verification
+# OB Citizen 0.6.1 verification
 
 Implemented, packaged and installed into `<test-vault>\.obsidian\plugins\constellation-graph`. This is a local testing candidate, not a published release. Native acceptance remains pending the user's restart and gameplay observation. No computer-use tools were used and Obsidian was not restarted.
 

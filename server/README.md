@@ -44,7 +44,7 @@ From this directory:
 5. Confirm `TURN_URLS` names the same TURN host and ports. Keep the `turns:` URL if the certificate is configured; retain the UDP and TCP `turn:` URLs for ordinary relays.
 6. Start the stack with `docker compose --env-file .env up -d --build`, then check `https://PUBLIC_DOMAIN/health`.
 
-This endpoint is for older protocol-4 clients only. Obsidian Citizen 0.6.0 cannot use it as a Custom relay; that setting expects an HTTPS ntfy-compatible relay. Do not expose the Node signaling port directly; Compose keeps it on the private bridge behind Caddy.
+This endpoint is for older protocol-4 clients only. OB Citizen 0.6.0 cannot use it as a Custom relay; that setting expects an HTTPS ntfy-compatible relay. Do not expose the Node signaling port directly; Compose keeps it on the private bridge behind Caddy.
 
 ### Local protocol-4 service development
 

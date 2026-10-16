@@ -1,4 +1,4 @@
-# Obsidian Citizen 0.6.0 verification record
+# OB Citizen 0.6.0 verification record
 
 ## Current candidate and remaining gates
 
@@ -8,7 +8,7 @@ The user's renewed report identified J doing nothing in solo and multiplayer on 
 
 The flight HUD now shows whether a main is aimed at, surface distance, the twelve-unit approach limit, braking guidance at speeds above ten, and continuous 1.5-second J-hold progress. Releasing J, switching main, losing readiness or disabling controls resets progress; a completed hold sends only once until release. Host rejection messages appear in that HUD. Solo main collisions use the actual sphere radius plus the ship hull. Shared main-only/sphere aim checks and host admission remain in force. Tests exercise the hold in both solo and room configurations, cancellation/readiness gates, no repeated requests, explicit rejection feedback, solo collision, and the existing renderer/world docking route.
 
-Plugin metadata now identifies **Obsidian Citizen by J117W3**, with the configured fork repository `https://github.com/j117mw3/obsidian-constellation-graph`. Settings and README link to the fork and describe its gameplay. The original plugin ID/settings remain compatible, and upstream attribution and the full original MIT notice are retained, including in the built bundle. No GitHub publication or public community-catalog change was performed.
+Plugin metadata now identifies **OB Citizen by J117W3**, with the configured fork repository `https://github.com/j117mw3/obsidian-constellation-graph`. Settings and README link to the fork and describe its gameplay. The original plugin ID/settings remain compatible, and upstream attribution and the full original MIT notice are retained, including in the built bundle. No GitHub publication or public community-catalog change was performed.
 
 Type checking, **160 tests**, production build, archive-member hashes, private marker scans and notice checks pass. The later user request authorizes updating the installed plugin: all three plugin files were backed up and replaced, then read back with matching hashes. `data.json` was unchanged. [Installation evidence](docking-install-verification.json). **Obsidian must be restarted to load the new code/metadata; no reload or native docking confirmation was performed by the agent.** Native acceptance remains unverified; no computer-use tools were used.
 

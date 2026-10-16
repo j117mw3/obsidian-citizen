@@ -1,4 +1,4 @@
-# Obsidian Citizen 0.5.2 verification record
+# OB Citizen 0.5.2 verification record
 
 ## Automated and hosted checks
 

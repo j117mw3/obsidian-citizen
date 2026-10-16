@@ -1,10 +1,9 @@
-Obsidian Citizen 0.7.3 fixes patrol bot rendering over uneven terrain. The displayed bot pose now follows the arena's terrain elevation throughout interpolation instead of flattening to the planet's base radius. Authoritative bot state and multiplayer protocol 14 are unchanged.
+OB Citizen 0.7.4 updates the plugin's display name across the manifest, commands, tab title, settings, messages, build banner, documentation, and release workflow.
 
-- Fix East Patrol appearing partly buried or too high as it moves between latitudes with different terrain height.
-- Add a regression that checks seven interpolated poses across a seeded equatorward terrain-height change.
-- Keep room protocol and checkpoint format at 14. Use version 0.7.3 on all clients to receive the display fix.
-- Continue to use the independent `citizen` plugin ID. See the README for migration from the historical `constellation-graph` ID.
+- The plugin ID stays `citizen`, so existing Citizen installations keep their settings and update in place.
+- The repository URL stays the same. Historical releases and their original packages remain available.
+- Gameplay, room protocol 14, and checkpoint format 14 are unchanged from 0.7.3, including the patrol terrain-grounding fix.
 
-Install `main.js`, `manifest.json`, and `styles.css` in `<vault>/.obsidian/plugins/citizen/`, or extract `citizen-0.7.3.zip` there. SHA256SUMS.txt records the asset hashes. Requires desktop Obsidian 1.7.2 or newer.
+Install `main.js`, `manifest.json`, and `styles.css` in `<vault>/.obsidian/plugins/citizen/`, or extract `citizen-0.7.4.zip` there. SHA256SUMS.txt records the asset hashes. Requires desktop Obsidian 1.7.2 or newer.
 
-All 238 automated tests, TypeScript checking, production build, and network-harness build pass. Native visual/gameplay acceptance and cross-computer connectivity have not been verified. See docs/verification-0.7.3.md and CHANGELOG.md. GitHub release availability does not imply Community directory approval.
+All 238 automated tests and the production build with TypeScript checking pass. See README.md, CHANGELOG.md, and docs/verification-0.7.4.md. GitHub release availability does not imply Community directory approval.

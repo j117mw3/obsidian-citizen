@@ -1,4 +1,4 @@
-# Obsidian Citizen 0.7.2 verification
+# OB Citizen 0.7.2 verification
 
 This release adds four shared combat bots per occupied planet, bot shots and +30 health drops, recognizable pickup visuals, a shared ten-player-kill limit, frozen round transitions, and space/docked pose preservation. Multiplayer messages and host checkpoints contain bounded bot state. Room protocol and combat checkpoint version are 14; older clients are rejected.
 

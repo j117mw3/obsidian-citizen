@@ -1,4 +1,4 @@
-# Obsidian Citizen 0.6.4: surface detail and combat feedback
+# OB Citizen 0.6.4: surface detail and combat feedback
 
 Installed local testing candidate in `<test-vault>\.obsidian\plugins\constellation-graph`. Room/checkpoint protocol remain 9. Saved settings, movement, collision, weapon balance and occupied layout generation are unchanged. No public release, computer-use session or automatic restart was performed.
 

@@ -1,4 +1,4 @@
-# Obsidian Citizen 0.6.7 verification
+# OB Citizen 0.6.7 verification
 
 ## Implemented
 

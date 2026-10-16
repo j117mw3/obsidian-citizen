@@ -1,4 +1,4 @@
-# Obsidian Citizen 0.6.2 verification
+# OB Citizen 0.6.2 verification
 
 Implemented, packaged and installed in `<test-vault>\.obsidian\plugins\constellation-graph`. This is a local testing candidate. Protocol and room checkpoint format remain 9. No public release, native restart, computer-use session or native visual acceptance was performed.
 

@@ -1,4 +1,4 @@
-# Obsidian Citizen 0.6.5: vent lock and wandering patrols
+# OB Citizen 0.6.5: vent lock and wandering patrols
 
 Installed local testing candidate in `<test-vault>\.obsidian\plugins\constellation-graph`. Room/checkpoint remain 9; settings, player movement, weapon balance and cover generation are unchanged. No public release, computer-use session or automatic restart was performed.
 

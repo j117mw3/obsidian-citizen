@@ -1,24 +1,24 @@
-# Obsidian Citizen
+# OB Citizen
 
-Obsidian Citizen turns your notes into a 3D constellation you can explore, fly through, and use as the setting for optional multiplayer space and first-person combat. Maintained by **J117W3**.
+OB Citizen turns your notes into a 3D constellation you can explore, fly through, and use as the setting for optional multiplayer space and first-person combat. Maintained by **J117W3**.
 
 ## A fork taking a different direction
 
-This project combines Hunter / JusVibin's original [Constellation Graph](https://github.com/xjusvibin/obsidian-constellation-graph) foundation with J117W3's multiplayer, cockpit, docking, and planetary arena work. Hunter's graph, flight, spacecraft, and audio work remains credited, and the original MIT copyright notice is retained. Obsidian Citizen is an independently maintained fork: its direction is a playable space and surface sandbox built around a private note constellation. It is a community project and is not affiliated with Obsidian.
+This project combines Hunter / JusVibin's original [Constellation Graph](https://github.com/xjusvibin/obsidian-constellation-graph) foundation with J117W3's multiplayer, cockpit, docking, and planetary arena work. Hunter's graph, flight, spacecraft, and audio work remains credited, and the original MIT copyright notice is retained. OB Citizen is an independently maintained fork: its direction is a playable space and surface sandbox built around a private note constellation. It is a community project and is not affiliated with Obsidian.
 
 ## Download and install
 
-Download [Obsidian Citizen 0.7.3](https://github.com/j117mw3/obsidian-citizen/releases/tag/0.7.3). Every published update from **0.5.1 through 0.7.3** has its own entry on the [Releases page](https://github.com/j117mw3/obsidian-citizen/releases), with individual plugin files, an install ZIP, checksums, and version-specific notes. Earlier 0.3.x releases remain available. Choose the same version on every multiplayer computer.
+Download [OB Citizen 0.7.4](https://github.com/j117mw3/obsidian-citizen/releases/tag/0.7.4). Every published update from **0.5.1 through 0.7.4** has its own entry on the [Releases page](https://github.com/j117mw3/obsidian-citizen/releases), with individual plugin files, an install ZIP, checksums, and version-specific notes. Earlier 0.3.x releases remain available. Choose the same version on every multiplayer computer.
 
 **Install the current release (0.7.2 and newer):** back up your settings, close Obsidian, and extract the ZIP's `main.js`, `manifest.json`, and `styles.css` directly into `<vault>/.obsidian/plugins/citizen/`. Requires desktop Obsidian 1.7.2 or newer.
 
 **Historical releases (0.7.1 and older):** these archived packages retain the `constellation-graph` ID and install into `<vault>/.obsidian/plugins/constellation-graph/`. They share Hunter's plugin identity and must not be installed over his version unless you intend to replace it. Their original packages have not been renamed or rebuilt. See the [archive instructions](docs/historical-builds.md) for verification scope and source-history limitations.
 
-**Plugin identity and settings:** starting with 0.7.2, this independent fork uses the unique `citizen` plugin ID so it cannot overwrite Hunter's plugin. It installs into `<vault>/.obsidian/plugins/citizen/`. Testers moving from the archived `constellation-graph` builds can back up and disable the old plugin, then copy only its `data.json` into the new folder while Obsidian is closed to retain preferences. Keep the original folder as a backup. Saved graph tabs may need reopening with **Open Obsidian Citizen**. The installer does not migrate or delete settings automatically.
+**Plugin identity and settings:** starting with 0.7.2, this independent fork uses the unique `citizen` plugin ID so it cannot overwrite Hunter's plugin. It installs into `<vault>/.obsidian/plugins/citizen/`. Testers moving from the archived `constellation-graph` builds can back up and disable the old plugin, then copy only its `data.json` into the new folder while Obsidian is closed to retain preferences. Keep the original folder as a backup. Saved graph tabs may need reopening with **Open OB Citizen**. The installer does not migrate or delete settings automatically.
 
 Community directory submission is being prepared. GitHub availability does not mean the plugin has been approved or listed in the store.
 
-## Current version: 0.7.3
+## Current version: 0.7.4
 
 - Fly eight spacecraft with cockpit instruments, boost, blasters, sound choices, and a pane-responsive Hangar.
 - Invite up to three friends to optional private rooms with host-authoritative combat, rounds, checkpoints, and host transfer.
@@ -26,9 +26,9 @@ Community directory submission is being prepared. GitHub availability does not m
 - Fight four host-controlled planet bots in solo or multiplayer. They patrol, attack after spotting players, pursue recent attackers briefly, and drop one collectible **+30 health** item when defeated.
 - Recognizable health-cross and shield pickups show their health amount. Player kills alone count toward the **ten-kill** round win; bot kills do not increase score.
 - Rounds pause the fight for the supernova and preserve each pilot’s space position or docked planet position and facing into the next round.
-- Version 0.7.1 strengthened terrain relief and fixed linked-wall steering; **0.7.2** adds shared planet combat, bot health drops, clearer pickups, ten-kill rounds, and pose-preserving round changes. **0.7.3** keeps displayed bot feet on uneven terrain. It uses the same **room protocol 14** and checkpoint format as 0.7.2.
+- Version 0.7.1 strengthened terrain relief and fixed linked-wall steering; **0.7.2** adds shared planet combat, bot health drops, clearer pickups, ten-kill rounds, and pose-preserving round changes. **0.7.4** keeps displayed bot feet on uneven terrain. It uses the same **room protocol 14** and checkpoint format as 0.7.2.
 
-The [changelog](CHANGELOG.md) records the 0.5.x through 0.7.x development milestones. Each published version has its own GitHub entry with update notes and package files. The 0.5.1–0.7.1 tags preserve recovered plugin files because matching historical TypeScript source snapshots were not saved; 0.7.2 and 0.7.3 are built from their tagged source. Automated checks for 0.7.3 are recorded in [its verification notes](docs/verification-0.7.3.md); native rendering, audio, cross-computer gameplay, and large-arena performance acceptance remain separate. Large terrain layouts can take several seconds to prepare.
+The [changelog](CHANGELOG.md) records the 0.5.x through 0.7.x development milestones. Each published version has its own GitHub entry with update notes and package files. The 0.5.1–0.7.1 tags preserve recovered plugin files because matching historical TypeScript source snapshots were not saved; 0.7.2 and 0.7.4 are built from their tagged source. Automated checks for 0.7.4 are recorded in [its verification notes](docs/verification-0.7.4.md); native rendering, audio, cross-computer gameplay, and large-arena performance acceptance remain separate. Large terrain layouts can take several seconds to prepare.
 
 In **Pilot mode**, aim your ship at a main sphere, approach within **12 world units of its surface**, use **X** to brake below speed **10**, and **hold J for 1.5 seconds**. The flight HUD shows range, readiness and hold progress. Only main nodes accept docking. Wait three seconds after damage; the host also enforces arena capacity and safe spawn availability. On the surface, hold **F** for two seconds at either pole to return to your ship.
 
@@ -46,14 +46,14 @@ While docked, the planet and cover now occlude graph stars, links and world effe
 
 These views use a synthetic vault with four fictional notes; no personal vault names or paths are shown.
 
-![Obsidian Citizen graph in a synthetic vault](docs/screenshots/synthetic-graph.png)
+![OB Citizen graph in a synthetic vault](docs/screenshots/synthetic-graph.png)
 
 ![Spacecraft Hangar and audio choices](docs/screenshots/synthetic-hangar.png)
 
 
 ## Use
 
-- Ribbon icon (orbit) or the command **Open Obsidian Citizen**.
+- Ribbon icon (orbit) or the command **Open OB Citizen**.
 - It updates live as you add, remove, rename and link notes. Your selection and any hidden groups are kept.
 
 ### Mouse
@@ -150,7 +150,7 @@ Joining shares anonymous star positions, connections, group colors and a restric
 
 Maps, inputs, flight state, combat and checkpoints travel over WebRTC data channels. ntfy is used for encrypted room discovery and peer setup only. If direct connectivity fails, the hosted Worker can issue short-lived TURN credentials; its free relay allowance is shared by all players and may be unavailable after provider limits are reached. Direct connectivity can continue when TURN is unavailable. Choose **Custom server** to use another compatible ntfy relay. See [server/README.md](server/README.md) for deployment notes and service limits.
 
-Firing at other pilots is optional. The host resolves shields, hull damage, weapon heat and cannon ammunition. Destruction gives a five-second respawn and three seconds of protection; firing ends protection. A discreet kill feed and the leaderboard show kills and deaths. The first pilot to ten confirmed player eliminations wins, then the room pauses for an eight-second shared supernova, regenerates each owner's constellation, waits for maps to synchronize, and starts the next round after a three-second countdown. Manual supernova is disabled in a room. Boost drains at 28% per second, recharges at 8% after 1.5 seconds without boosting, stays empty for three seconds when depleted, and pauses recharge for two seconds after damage. Solo cannon ammunition recovers one round every 0.6 seconds; rooms limit each life to 36 rounds. Leaving Pilot mode or hiding the game view makes you a spectator; returning takes five seconds and preserves health and boost. Public-relay rooms use protocol 14 and checkpoint format 14, supported by 0.7.2 and 0.7.3. Update all clients to 0.7.3 for the patrol-height fix. The hosted Worker continues to serve the historical protocol-4 route.
+Firing at other pilots is optional. The host resolves shields, hull damage, weapon heat and cannon ammunition. Destruction gives a five-second respawn and three seconds of protection; firing ends protection. A discreet kill feed and the leaderboard show kills and deaths. The first pilot to ten confirmed player eliminations wins, then the room pauses for an eight-second shared supernova, regenerates each owner's constellation, waits for maps to synchronize, and starts the next round after a three-second countdown. Manual supernova is disabled in a room. Boost drains at 28% per second, recharges at 8% after 1.5 seconds without boosting, stays empty for three seconds when depleted, and pauses recharge for two seconds after damage. Solo cannon ammunition recovers one round every 0.6 seconds; rooms limit each life to 36 rounds. Leaving Pilot mode or hiding the game view makes you a spectator; returning takes five seconds and preserves health and boost. Public-relay rooms use protocol 14 and checkpoint format 14, supported by 0.7.2 and 0.7.4. Update all clients to 0.7.4 for the patrol-height fix. The hosted Worker continues to serve the historical protocol-4 route.
 
 The Worker keeps temporary TURN credentials and refresh-token sessions in memory, and does not log credentials or gameplay payloads. ntfy can observe room-topic traffic and connection metadata but cannot read room messages without the code. The TURN provider can observe peer IP addresses and traffic volume. Outside an active room, the plugin makes no network connections.
 
@@ -225,7 +225,7 @@ For `/surface-lifecycle.html`, start a dedicated server with `node dev/serve-net
 
 ## Licence and third-party notices
 
-Obsidian Citizen is J117W3's fork of [Constellation Graph by JusVibin](https://github.com/xjusvibin/obsidian-constellation-graph). The original copyright and MIT notices are preserved. Screenshots above are synthetic-vault views; they do not depict the new surface arenas.
+OB Citizen is J117W3's fork of [Constellation Graph by JusVibin](https://github.com/xjusvibin/obsidian-constellation-graph). The original copyright and MIT notices are preserved. Screenshots above are synthetic-vault views; they do not depict the new surface arenas.
 
 MIT, see `LICENSE`. The bundled `main.js` includes:
 

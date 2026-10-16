@@ -63,5 +63,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "$GITHUB_REF_NAME" main.js manifest.json styles.css "citizen-${GITHUB_REF_NAME}.zip" SHA256SUMS.txt \
-            --draft --verify-tag --title "Obsidian Citizen $GITHUB_REF_NAME" \
+            --draft --verify-tag --title "OB Citizen $GITHUB_REF_NAME" \
             --notes-file .github/release-notes.md

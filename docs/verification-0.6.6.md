@@ -1,4 +1,4 @@
-# Obsidian Citizen 0.6.6 verification
+# OB Citizen 0.6.6 verification
 
 Implemented and installed in `<test-vault>`. Plugin ID and J117W3 fork metadata remain intact. The prior plugin folder is backed up at `<checkout>\dist\installed-backups\before-0.6.6-20261016-013845`.
 

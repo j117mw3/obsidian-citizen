@@ -16,8 +16,8 @@ export default class ConstellationPlugin extends Plugin {
     this.settings = sanitizeSettings(saved);
     if (saved && (saved.settingsSchemaVersion ?? 0) < this.settings.settingsSchemaVersion) await this.saveData(this.settings);
     this.registerView(VIEW_TYPE, leaf => new ConstellationView(leaf, this));
-    this.addRibbonIcon("orbit", "Open Obsidian Citizen", () => void this.activate());
-    this.addCommand({ id: "open", name: "Open Obsidian Citizen", callback: () => void this.activate() });
+    this.addRibbonIcon("orbit", "Open OB Citizen", () => void this.activate());
+    this.addCommand({ id: "open", name: "Open OB Citizen", callback: () => void this.activate() });
     this.addSettingTab(new ConstellationSettingTab(this.app, this));
     // wait until the workspace has been restored, otherwise the saved layout would open over it
     this.app.workspace.onLayoutReady(() => { if (this.settings.openOnStartup) void this.activate(); });

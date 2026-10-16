@@ -2,22 +2,26 @@
 
 Each update has its own GitHub release, containing main.js, manifest.json, styles.css, a versioned install ZIP, and SHA256SUMS.txt.
 
+The current project name is **OB Citizen**. Original historical packages, archive filenames, and manifest-name fields in `historical-build-index.json` retain the name used when they were built; their bytes and checksums are unchanged.
+
 | Version | Release |
 |---|---|
-| 0.5.1 | [Obsidian Citizen 0.5.1](https://github.com/j117mw3/obsidian-citizen/releases/tag/0.5.1) |
-| 0.5.2 | [Obsidian Citizen 0.5.2](https://github.com/j117mw3/obsidian-citizen/releases/tag/0.5.2) |
-| 0.6.0 | [Obsidian Citizen 0.6.0](https://github.com/j117mw3/obsidian-citizen/releases/tag/0.6.0) |
-| 0.6.1 | [Obsidian Citizen 0.6.1](https://github.com/j117mw3/obsidian-citizen/releases/tag/0.6.1) |
-| 0.6.2 | [Obsidian Citizen 0.6.2](https://github.com/j117mw3/obsidian-citizen/releases/tag/0.6.2) |
-| 0.6.3 | [Obsidian Citizen 0.6.3](https://github.com/j117mw3/obsidian-citizen/releases/tag/0.6.3) |
-| 0.6.4 | [Obsidian Citizen 0.6.4](https://github.com/j117mw3/obsidian-citizen/releases/tag/0.6.4) |
-| 0.6.5 | [Obsidian Citizen 0.6.5](https://github.com/j117mw3/obsidian-citizen/releases/tag/0.6.5) |
-| 0.6.6 | [Obsidian Citizen 0.6.6](https://github.com/j117mw3/obsidian-citizen/releases/tag/0.6.6) |
-| 0.6.7 | [Obsidian Citizen 0.6.7](https://github.com/j117mw3/obsidian-citizen/releases/tag/0.6.7) |
-| 0.6.8 | [Obsidian Citizen 0.6.8](https://github.com/j117mw3/obsidian-citizen/releases/tag/0.6.8) |
-| 0.7.0 | [Obsidian Citizen 0.7.0](https://github.com/j117mw3/obsidian-citizen/releases/tag/0.7.0) |
-| 0.7.1 | [Obsidian Citizen 0.7.1](https://github.com/j117mw3/obsidian-citizen/releases/tag/0.7.1) |
-| 0.7.2 | [Obsidian Citizen 0.7.2](https://github.com/j117mw3/obsidian-citizen/releases/tag/0.7.2) |
+| 0.5.1 | [OB Citizen 0.5.1](https://github.com/j117mw3/obsidian-citizen/releases/tag/0.5.1) |
+| 0.5.2 | [OB Citizen 0.5.2](https://github.com/j117mw3/obsidian-citizen/releases/tag/0.5.2) |
+| 0.6.0 | [OB Citizen 0.6.0](https://github.com/j117mw3/obsidian-citizen/releases/tag/0.6.0) |
+| 0.6.1 | [OB Citizen 0.6.1](https://github.com/j117mw3/obsidian-citizen/releases/tag/0.6.1) |
+| 0.6.2 | [OB Citizen 0.6.2](https://github.com/j117mw3/obsidian-citizen/releases/tag/0.6.2) |
+| 0.6.3 | [OB Citizen 0.6.3](https://github.com/j117mw3/obsidian-citizen/releases/tag/0.6.3) |
+| 0.6.4 | [OB Citizen 0.6.4](https://github.com/j117mw3/obsidian-citizen/releases/tag/0.6.4) |
+| 0.6.5 | [OB Citizen 0.6.5](https://github.com/j117mw3/obsidian-citizen/releases/tag/0.6.5) |
+| 0.6.6 | [OB Citizen 0.6.6](https://github.com/j117mw3/obsidian-citizen/releases/tag/0.6.6) |
+| 0.6.7 | [OB Citizen 0.6.7](https://github.com/j117mw3/obsidian-citizen/releases/tag/0.6.7) |
+| 0.6.8 | [OB Citizen 0.6.8](https://github.com/j117mw3/obsidian-citizen/releases/tag/0.6.8) |
+| 0.7.0 | [OB Citizen 0.7.0](https://github.com/j117mw3/obsidian-citizen/releases/tag/0.7.0) |
+| 0.7.1 | [OB Citizen 0.7.1](https://github.com/j117mw3/obsidian-citizen/releases/tag/0.7.1) |
+| 0.7.2 | [OB Citizen 0.7.2](https://github.com/j117mw3/obsidian-citizen/releases/tag/0.7.2) |
+| 0.7.3 | [OB Citizen 0.7.3](https://github.com/j117mw3/obsidian-citizen/releases/tag/0.7.3) |
+| 0.7.4 | [OB Citizen 0.7.4](https://github.com/j117mw3/obsidian-citizen/releases/tag/0.7.4) |
 
 The recovered 0.5.1–0.7.1 packages are preserved byte-for-byte and retain the `constellation-graph` plugin ID. Close Obsidian, back up settings, and install their three files into `<vault>/.obsidian/plugins/constellation-graph/`. Version 0.7.2 is built from the tagged source in this repository and uses the independent `citizen` ID; see the README for its settings migration. Every multiplayer participant must use the same version.
 

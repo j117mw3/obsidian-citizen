@@ -2,7 +2,13 @@
 
 ## Publication history
 
-Versions **0.5.1 through 0.7.3** are published as individual [GitHub releases](https://github.com/j117mw3/obsidian-citizen/releases), each with its own version tag, plugin files, ZIP, checksums, and update notes. Those earlier packages retain the `constellation-graph` ID. Their tags preserve recovered release files because matching historical TypeScript source snapshots were not saved. Existing 0.3.x releases and the superseded 0.5.0 draft are retained. Version 0.7.2 begins the independent `citizen` plugin identity; manual settings migration is described in the README. The patrol-grounding fix was initially tested as a local 0.7.2.1 package; its public release is 0.7.3 to use Obsidian's required three-part version format.
+Versions **0.5.1 through 0.7.4** are published as individual [GitHub releases](https://github.com/j117mw3/obsidian-citizen/releases), each with its own version tag, plugin files, ZIP, checksums, and update notes. Recovered 0.5.1–0.7.1 packages retain the `constellation-graph` ID. Their tags preserve recovered release files because matching historical TypeScript source snapshots were not saved. Existing 0.3.x releases and the superseded 0.5.0 draft are retained. Version 0.7.2 begins the independent `citizen` plugin identity; manual settings migration is described in the README. The patrol-grounding fix was initially tested as a local 0.7.2.1 package; its public release is 0.7.3 to use Obsidian's required three-part version format.
+
+## 0.7.4 — OB Citizen name
+
+- Rename the plugin to **OB Citizen** in its manifest, commands, tab title, settings, messages, build banner, documentation, and release workflow.
+- Keep the `citizen` plugin ID, settings format, repository URL, room protocol 14, and checkpoint format 14. Existing Citizen installations update in place.
+- Preserve original historical release archives, checksums, and archived manifest metadata. Earlier releases used the former display name.
 
 ## 0.7.3 — patrol terrain-grounding hotfix
 
@@ -24,7 +30,7 @@ Versions **0.5.1 through 0.7.3** are published as individual [GitHub releases](h
 
 ## 0.7.1
 
-- Prepare independent Obsidian Citizen identity, repository, installation instructions, fork credits, and network disclosures for public distribution.
+- Prepare independent OB Citizen identity, repository, installation instructions, fork credits, and network disclosures for public distribution.
 
 - Strengthen actual terrain relief and shorten pole transition blending while preserving elevation and slope limits.
 - Project linked-wall targets out of protected routes, steer around permanent ruins, and unify placement/motion clearance distances.
@@ -107,7 +113,7 @@ Versions **0.5.1 through 0.7.3** are published as individual [GitHub releases](h
 ## 0.6.0 — spherical node arenas and first-person combat
 
 - Show main-node docking readiness, surface distance, braking guidance and continuous 1.5-second J-hold progress in the flight HUD; expose host rejections there too. Solo ships collide with the actual main sphere instead of entering the opaque planet.
-- Identify this fork as Obsidian Citizen by J117W3 in plugin details/settings, with its own repository and README while preserving upstream attribution and MIT notices.
+- Identify this fork as OB Citizen by J117W3 in plugin details/settings, with its own repository and README while preserving upstream attribution and MIT notices.
 
 - Dock at eligible main nodes and explore their deterministic spherical arenas with radial gravity, surface walking, jumping, crouch, lean, beacons, safe respawns, and two-pole ship return.
 - Add opaque indestructible cover, 10-damage laser bolts, armor and health pickups, a solo training dummy, configurable readable laser colors, and surface audio and HUD feedback.
@@ -144,7 +150,7 @@ Versions **0.5.1 through 0.7.3** are published as individual [GitHub releases](h
 - Remove the redundant Scores toolbar button; hold Tab to show multiplayer standings. Keep the scoreboard bounded, scrollable, and keyboard accessible, and prevent pending clicks from firing during spectator transitions.
 - Keep the 0.5.0 room protocol-5 clients isolated; 0.5.1 rooms use protocol 6 and checkpoint format 6. The Worker’s historical protocol-4 route and TURN credential routes remain unchanged.
 
-## 0.5.0 — Obsidian Citizen
+## 0.5.0 — OB Citizen
 
 This release combines the multiplayer and presentation work from the `feat/multiplayer-and-pilot` history with the upstream 0.4.1 flight, weapon, ship, and audio work. The plugin ID remains `constellation-graph`, so Obsidian keeps the existing plugin settings directory.
 

@@ -1,4 +1,4 @@
-# Obsidian Citizen 0.7.0 verification
+# OB Citizen 0.7.0 verification
 
 Candidate: plugin 0.7.0, room protocol 12, checkpoint format 12, terrain format 1. Plugin ID `constellation-graph`, J117W3 fork identity, and settings schema 5 are retained. No computer-use tools, automatic restart, public release, or Git reset were used.
 

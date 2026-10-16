@@ -1,4 +1,4 @@
-# Obsidian Citizen 0.7.3 verification
+# OB Citizen 0.7.3 verification
 
 This release fixes patrol bot display interpolation over uneven terrain. The authoritative bot positions already followed the terrain; client rendering flattened each interpolated pose to the planet's base radius. The interpolation now follows terrain height from the pole toward the equator. Room protocol and checkpoint format remain 14.
 

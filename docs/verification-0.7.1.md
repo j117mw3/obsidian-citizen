@@ -1,4 +1,4 @@
-# Obsidian Citizen 0.7.1: visible relief and moving-cover correction
+# OB Citizen 0.7.1: visible relief and moving-cover correction
 
 ## Report and findings
 
