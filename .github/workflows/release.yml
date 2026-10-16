@@ -28,8 +28,8 @@ jobs:
       - name: Install
         run: npm ci
 
-      - name: Install signaling test dependency
-        run: npm ci --prefix server --omit=dev
+      - name: Install server test dependencies
+        run: npm ci --prefix server
 
       - name: Check that the tag matches manifest.json
         run: |
