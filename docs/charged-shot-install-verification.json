@@ -1,0 +1,32 @@
+{
+  "pluginVersion": "0.6.6",
+  "roomProtocol": 10,
+  "checkpointFormat": 10,
+  "settingsSchema": 5,
+  "vault": "<test-vault>",
+  "installedPlugin": "<test-vault>\\.obsidian\\plugins\\constellation-graph",
+  "previousVersion": "0.6.5",
+  "backup": "<checkout>\\dist\\installed-backups\\before-0.6.6-20261016-013845",
+  "package": "<checkout>\\dist\\obsidian-citizen-0.6.6-charged-shots\\obsidian-citizen-0.6.6-charged-shots.zip",
+  "checksums": {
+    "main.js": "785353729A5FE4245DC51FB1131C847CF4DE005265F7F3A1CAE3D34C4F0B6D48",
+    "manifest.json": "07D3D40F7687316B8B10649797A54220B5C718F8C74F8BBA99D7676DE0A6AB97",
+    "styles.css": "AB5E69622E55B28F29A7ECE6DB29E723A0A0DC6479C6EFC53582765319960F13",
+    "obsidian-citizen-0.6.6-charged-shots.zip": "0D2F855C0C01714DFC2762DA25585DBA8647C8F454E155B163F091AEC9F59D64"
+  },
+  "settingsUnchangedDuringInstall": true,
+  "settingsHash": "6B1E485D7FD1AFF32A4F6D5835FAD52E3610AEF9AA84EF5A4A845F2F1A32915C",
+  "migrationOnReload": "Crouch mode becomes hold; existing custom keys are retained.",
+  "tests": {
+    "passed": 203,
+    "failed": 0
+  },
+  "typecheck": "passed",
+  "productionBuild": "passed",
+  "privacyMarkerScan": "passed",
+  "zipMemberVerification": "passed",
+  "nativeRestartPerformed": false,
+  "computerUsePerformed": false,
+  "nativeAcceptance": "Pending user reload: hold/release crouch; charge/release visual and timing; two quick charged shots vent.",
+  "verificationLimits": "No fresh cross-computer WebRTC or impaired-network gameplay run; transport ordering tested in process; native rendering and controls not observed."
+}

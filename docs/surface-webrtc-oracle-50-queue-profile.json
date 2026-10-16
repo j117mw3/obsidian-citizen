@@ -1,0 +1,761 @@
+{
+  "scope": "Current strict-queue profile; partial until twenty completed cases",
+  "status": "Running case 2/20; acceptance sample",
+  "records": [
+    {
+      "scope": "Four real room clients in one browser context. Native WebRTC with loopback UDP impairment. Scripted poses and per-tick HP resets isolate hit registration; no WebGL, death/round lifecycle, cross-device clock, or rendered ghost assertions.",
+      "config": {
+        "rttMs": 50,
+        "distance": 5,
+        "stance": "standing",
+        "scenario": "strafe",
+        "shots": 500,
+        "referenceAt": 1792108704862
+      },
+      "eligible": true,
+      "passed": true,
+      "clients": 4,
+      "attempts": 524,
+      "accepted": 500,
+      "dispositions": 524,
+      "oracleHits": 407,
+      "actualHits": 389,
+      "agreement": 0.9236641221374046,
+      "hitRateDeficit": 0.03435114503816794,
+      "dispositionP95Ms": 99,
+      "dispositionP99Ms": 219,
+      "within600Ms": 1,
+      "within1000Ms": 1,
+      "duplicateHits": 0,
+      "blockerViolations": 0,
+      "maxRewindMs": 141,
+      "invalidSnapshots": 0,
+      "modeDivergence": 0,
+      "rejectionReasons": {
+        "view-time": 24
+      },
+      "viewTimeRejections": [
+        {
+          "sequence": 40,
+          "hostAgeMs": 278,
+          "requestDelayMs": 206,
+          "measuredRttMs": 80.64833077065151,
+          "expectedAgeMs": 115.32416538532576,
+          "issuedBeforeMs": 58,
+          "issuedAfterMs": 8,
+          "viewExhausted": false,
+          "snapshotAgeMs": 64,
+          "estimatedOffsetMs": 3.949951171875,
+          "channels": [
+            {
+              "side": "host",
+              "liveBuffered": 0,
+              "reliableBuffered": 0,
+              "pendingStreams": 0
+            },
+            {
+              "side": "shooter",
+              "liveBuffered": 0,
+              "reliableBuffered": 0,
+              "pendingStreams": 0
+            }
+          ]
+        },
+        {
+          "sequence": 45,
+          "hostAgeMs": 260,
+          "requestDelayMs": 182,
+          "measuredRttMs": 57.9366050269271,
+          "expectedAgeMs": 103.96830251346356,
+          "issuedBeforeMs": 0,
+          "issuedAfterMs": 0,
+          "viewExhausted": false,
+          "snapshotAgeMs": 78,
+          "estimatedOffsetMs": -2.17919921875,
+          "channels": [
+            {
+              "side": "host",
+              "liveBuffered": 0,
+              "reliableBuffered": 0,
+              "pendingStreams": 0
+            },
+            {
+              "side": "shooter",
+              "liveBuffered": 0,
+              "reliableBuffered": 0,
+              "pendingStreams": 0
+            }
+          ]
+        },
+        {
+          "sequence": 51,
+          "hostAgeMs": 896,
+          "requestDelayMs": 44,
+          "measuredRttMs": 46.15813551054304,
+          "expectedAgeMs": 98.07906775527152,
+          "issuedBeforeMs": null,
+          "issuedAfterMs": 846,
+          "viewExhausted": true,
+          "snapshotAgeMs": 902,
+          "estimatedOffsetMs": -3.113037109375,
+          "channels": [
+            {
+              "side": "host",
+              "liveBuffered": 0,
+              "reliableBuffered": 0,
+              "pendingStreams": 0
+            },
+            {
+              "side": "shooter",
+              "liveBuffered": 0,
+              "reliableBuffered": 0,
+              "pendingStreams": 0
+            }
+          ]
+        },
+        {
+          "sequence": 52,
+          "hostAgeMs": 1008,
+          "requestDelayMs": 46,
+          "measuredRttMs": 52.52650840843444,
+          "expectedAgeMs": 101.26325420421722,
+          "issuedBeforeMs": null,
+          "issuedAfterMs": 957,
+          "viewExhausted": true,
+          "snapshotAgeMs": 1012,
+          "estimatedOffsetMs": -3.113037109375,
+          "channels": [
+            {
+              "side": "host",
+              "liveBuffered": 0,
+              "reliableBuffered": 0,
+              "pendingStreams": 0
+            },
+            {
+              "side": "shooter",
+              "liveBuffered": 0,
+              "reliableBuffered": 0,
+              "pendingStreams": 0
+            }
+          ]
+        },
+        {
+          "sequence": 53,
+          "hostAgeMs": 950,
+          "requestDelayMs": 3,
+          "measuredRttMs": 57.62120672674755,
+          "expectedAgeMs": 103.81060336337377,
+          "issuedBeforeMs": null,
+          "issuedAfterMs": 942,
+          "viewExhausted": true,
+          "snapshotAgeMs": 997,
+          "estimatedOffsetMs": -1.790283203125,
+          "channels": [
+            {
+              "side": "host",
+              "liveBuffered": 0,
+              "reliableBuffered": 0,
+              "pendingStreams": 0
+            },
+            {
+              "side": "shooter",
+              "liveBuffered": 0,
+              "reliableBuffered": 0,
+              "pendingStreams": 0
+            }
+          ]
+        },
+        {
+          "sequence": 54,
+          "hostAgeMs": 993,
+          "requestDelayMs": 31,
+          "measuredRttMs": 61.696965381398044,
+          "expectedAgeMs": 105.84848269069903,
+          "issuedBeforeMs": null,
+          "issuedAfterMs": 957,
+          "viewExhausted": true,
+          "snapshotAgeMs": 1012,
+          "estimatedOffsetMs": -1.5322265625,
+          "channels": [
+            {
+              "side": "host",
+              "liveBuffered": 0,
+              "reliableBuffered": 0,
+              "pendingStreams": 0
+            },
+            {
+              "side": "shooter",
+              "liveBuffered": 0,
+              "reliableBuffered": 0,
+              "pendingStreams": 0
+            }
+          ]
+        },
+        {
+          "sequence": 55,
+          "hostAgeMs": 962,
+          "requestDelayMs": 15,
+          "measuredRttMs": 61.95757230511844,
+          "expectedAgeMs": 105.97878615255922,
+          "issuedBeforeMs": null,
+          "issuedAfterMs": 943,
+          "viewExhausted": true,
+          "snapshotAgeMs": 997,
+          "estimatedOffsetMs": -2.92578125,
+          "channels": [
+            {
+              "side": "host",
+              "liveBuffered": 0,
+              "reliableBuffered": 0,
+              "pendingStreams": 0
+            },
+            {
+              "side": "shooter",
+              "liveBuffered": 0,
+              "reliableBuffered": 0,
+              "pendingStreams": 0
+            }
+          ]
+        },
+        {
+          "sequence": 56,
+          "hostAgeMs": 1007,
+          "requestDelayMs": 46,
+          "measuredRttMs": 62.16605784409476,
+          "expectedAgeMs": 106.08302892204738,
+          "issuedBeforeMs": null,
+          "issuedAfterMs": 957,
+          "viewExhausted": true,
+          "snapshotAgeMs": 1011,
+          "estimatedOffsetMs": -1.37255859375,
+          "channels": [
+            {
+              "side": "host",
+              "liveBuffered": 0,
+              "reliableBuffered": 0,
+              "pendingStreams": 0
+            },
+            {
+              "side": "shooter",
+              "liveBuffered": 0,
+              "reliableBuffered": 0,
+              "pendingStreams": 0
+            }
+          ]
+        },
+        {
+          "sequence": 57,
+          "hostAgeMs": 997,
+          "requestDelayMs": 50,
+          "measuredRttMs": 59.13284627527581,
+          "expectedAgeMs": 104.56642313763791,
+          "issuedBeforeMs": null,
+          "issuedAfterMs": 942,
+          "viewExhausted": true,
+          "snapshotAgeMs": 997,
+          "estimatedOffsetMs": -1.37255859375,
+          "channels": [
+            {
+              "side": "host",
+              "liveBuffered": 0,
+              "reliableBuffered": 0,
+              "pendingStreams": 0
+            },
+            {
+              "side": "shooter",
+              "liveBuffered": 0,
+              "reliableBuffered": 0,
+              "pendingStreams": 0
+            }
+          ]
+        },
+        {
+          "sequence": 58,
+          "hostAgeMs": 980,
+          "requestDelayMs": 14,
+          "measuredRttMs": 56.70627702022065,
+          "expectedAgeMs": 103.35313851011033,
+          "issuedBeforeMs": null,
+          "issuedAfterMs": 958,
+          "viewExhausted": true,
+          "snapshotAgeMs": 1016,
+          "estimatedOffsetMs": -1.298095703125,
+          "channels": [
+            {
+              "side": "host",
+              "liveBuffered": 0,
+              "reliableBuffered": 0,
+              "pendingStreams": 0
+            },
+            {
+              "side": "shooter",
+              "liveBuffered": 0,
+              "reliableBuffered": 0,
+              "pendingStreams": 0
+            }
+          ]
+        },
+        {
+          "sequence": 59,
+          "hostAgeMs": 1008,
+          "requestDelayMs": 43,
+          "measuredRttMs": 54.76502161617652,
+          "expectedAgeMs": 102.38251080808826,
+          "issuedBeforeMs": null,
+          "issuedAfterMs": 958,
+          "viewExhausted": true,
+          "snapshotAgeMs": 1015,
+          "estimatedOffsetMs": -1.038330078125,
+          "channels": [
+            {
+              "side": "host",
+              "liveBuffered": 0,
+              "reliableBuffered": 0,
+              "pendingStreams": 0
+            },
+            {
+              "side": "shooter",
+              "liveBuffered": 0,
+              "reliableBuffered": 0,
+              "pendingStreams": 0
+            }
+          ]
+        },
+        {
+          "sequence": 60,
+          "hostAgeMs": 976,
+          "requestDelayMs": 27,
+          "measuredRttMs": 56.21201729294122,
+          "expectedAgeMs": 103.10600864647061,
+          "issuedBeforeMs": null,
+          "issuedAfterMs": 941,
+          "viewExhausted": true,
+          "snapshotAgeMs": 999,
+          "estimatedOffsetMs": -3.03076171875,
+          "channels": [
+            {
+              "side": "host",
+              "liveBuffered": 0,
+              "reliableBuffered": 0,
+              "pendingStreams": 0
+            },
+            {
+              "side": "shooter",
+              "liveBuffered": 0,
+              "reliableBuffered": 0,
+              "pendingStreams": 0
+            }
+          ]
+        },
+        {
+          "sequence": 61,
+          "hostAgeMs": 1024,
+          "requestDelayMs": 61,
+          "measuredRttMs": 57.369613834352975,
+          "expectedAgeMs": 103.68480691717649,
+          "issuedBeforeMs": null,
+          "issuedAfterMs": 957,
+          "viewExhausted": true,
+          "snapshotAgeMs": 1013,
+          "estimatedOffsetMs": -2.924560546875,
+          "channels": [
+            {
+              "side": "host",
+              "liveBuffered": 0,
+              "reliableBuffered": 0,
+              "pendingStreams": 0
+            },
+            {
+              "side": "shooter",
+              "liveBuffered": 0,
+              "reliableBuffered": 0,
+              "pendingStreams": 0
+            }
+          ]
+        },
+        {
+          "sequence": 62,
+          "hostAgeMs": 977,
+          "requestDelayMs": 29,
+          "measuredRttMs": 58.29569106748238,
+          "expectedAgeMs": 104.14784553374119,
+          "issuedBeforeMs": null,
+          "issuedAfterMs": 942,
+          "viewExhausted": true,
+          "snapshotAgeMs": 998,
+          "estimatedOffsetMs": -1.539794921875,
+          "channels": [
+            {
+              "side": "host",
+              "liveBuffered": 0,
+              "reliableBuffered": 0,
+              "pendingStreams": 0
+            },
+            {
+              "side": "shooter",
+              "liveBuffered": 0,
+              "reliableBuffered": 0,
+              "pendingStreams": 0
+            }
+          ]
+        },
+        {
+          "sequence": 63,
+          "hostAgeMs": 1008,
+          "requestDelayMs": 45,
+          "measuredRttMs": 62.236552853985906,
+          "expectedAgeMs": 106.11827642699295,
+          "issuedBeforeMs": null,
+          "issuedAfterMs": 958,
+          "viewExhausted": true,
+          "snapshotAgeMs": 1013,
+          "estimatedOffsetMs": 0.068359375,
+          "channels": [
+            {
+              "side": "host",
+              "liveBuffered": 0,
+              "reliableBuffered": 0,
+              "pendingStreams": 0
+            },
+            {
+              "side": "shooter",
+              "liveBuffered": 0,
+              "reliableBuffered": 0,
+              "pendingStreams": 0
+            }
+          ]
+        },
+        {
+          "sequence": 64,
+          "hostAgeMs": 1008,
+          "requestDelayMs": 60,
+          "measuredRttMs": 65.38924228318874,
+          "expectedAgeMs": 107.69462114159437,
+          "issuedBeforeMs": null,
+          "issuedAfterMs": 942,
+          "viewExhausted": true,
+          "snapshotAgeMs": 998,
+          "estimatedOffsetMs": -1.745361328125,
+          "channels": [
+            {
+              "side": "host",
+              "liveBuffered": 0,
+              "reliableBuffered": 0,
+              "pendingStreams": 0
+            },
+            {
+              "side": "shooter",
+              "liveBuffered": 0,
+              "reliableBuffered": 0,
+              "pendingStreams": 0
+            }
+          ]
+        },
+        {
+          "sequence": 65,
+          "hostAgeMs": 992,
+          "requestDelayMs": 29,
+          "measuredRttMs": 77.111393826551,
+          "expectedAgeMs": 113.5556969132755,
+          "issuedBeforeMs": null,
+          "issuedAfterMs": 958,
+          "viewExhausted": true,
+          "snapshotAgeMs": 1013,
+          "estimatedOffsetMs": -0.636962890625,
+          "channels": [
+            {
+              "side": "host",
+              "liveBuffered": 0,
+              "reliableBuffered": 0,
+              "pendingStreams": 0
+            },
+            {
+              "side": "shooter",
+              "liveBuffered": 0,
+              "reliableBuffered": 0,
+              "pendingStreams": 0
+            }
+          ]
+        },
+        {
+          "sequence": 66,
+          "hostAgeMs": 996,
+          "requestDelayMs": 49,
+          "measuredRttMs": 86.4891150612408,
+          "expectedAgeMs": 118.2445575306204,
+          "issuedBeforeMs": null,
+          "issuedAfterMs": 942,
+          "viewExhausted": true,
+          "snapshotAgeMs": 997,
+          "estimatedOffsetMs": -0.636962890625,
+          "channels": [
+            {
+              "side": "host",
+              "liveBuffered": 0,
+              "reliableBuffered": 0,
+              "pendingStreams": 0
+            },
+            {
+              "side": "shooter",
+              "liveBuffered": 0,
+              "reliableBuffered": 0,
+              "pendingStreams": 0
+            }
+          ]
+        },
+        {
+          "sequence": 67,
+          "hostAgeMs": 976,
+          "requestDelayMs": 14,
+          "measuredRttMs": 93.99129204899263,
+          "expectedAgeMs": 121.99564602449632,
+          "issuedBeforeMs": null,
+          "issuedAfterMs": 957,
+          "viewExhausted": true,
+          "snapshotAgeMs": 1012,
+          "estimatedOffsetMs": -2.3095703125,
+          "channels": [
+            {
+              "side": "host",
+              "liveBuffered": 0,
+              "reliableBuffered": 0,
+              "pendingStreams": 0
+            },
+            {
+              "side": "shooter",
+              "liveBuffered": 0,
+              "reliableBuffered": 0,
+              "pendingStreams": 0
+            }
+          ]
+        },
+        {
+          "sequence": 115,
+          "hostAgeMs": 259,
+          "requestDelayMs": 187,
+          "measuredRttMs": 47.473833417520744,
+          "expectedAgeMs": 98.73691670876038,
+          "issuedBeforeMs": 39,
+          "issuedAfterMs": 11,
+          "viewExhausted": false,
+          "snapshotAgeMs": 61,
+          "estimatedOffsetMs": 3.061767578125,
+          "channels": [
+            {
+              "side": "host",
+              "liveBuffered": 0,
+              "reliableBuffered": 0,
+              "pendingStreams": 0
+            },
+            {
+              "side": "shooter",
+              "liveBuffered": 0,
+              "reliableBuffered": 0,
+              "pendingStreams": 0
+            }
+          ]
+        },
+        {
+          "sequence": 207,
+          "hostAgeMs": 159,
+          "requestDelayMs": 52,
+          "measuredRttMs": 50.119846386057716,
+          "expectedAgeMs": 100.05992319302885,
+          "issuedBeforeMs": 50,
+          "issuedAfterMs": 17,
+          "viewExhausted": true,
+          "snapshotAgeMs": 157,
+          "estimatedOffsetMs": -3.28857421875,
+          "channels": [
+            {
+              "side": "host",
+              "liveBuffered": 0,
+              "reliableBuffered": 0,
+              "pendingStreams": 0
+            },
+            {
+              "side": "shooter",
+              "liveBuffered": 0,
+              "reliableBuffered": 0,
+              "pendingStreams": 0
+            }
+          ]
+        },
+        {
+          "sequence": 218,
+          "hostAgeMs": 239,
+          "requestDelayMs": 159,
+          "measuredRttMs": 51.570597907274596,
+          "expectedAgeMs": 100.7852989536373,
+          "issuedBeforeMs": 42,
+          "issuedAfterMs": 8,
+          "viewExhausted": false,
+          "snapshotAgeMs": 72,
+          "estimatedOffsetMs": -4.894775390625,
+          "channels": [
+            {
+              "side": "host",
+              "liveBuffered": 0,
+              "reliableBuffered": 0,
+              "pendingStreams": 0
+            },
+            {
+              "side": "shooter",
+              "liveBuffered": 0,
+              "reliableBuffered": 0,
+              "pendingStreams": 0
+            }
+          ]
+        },
+        {
+          "sequence": 299,
+          "hostAgeMs": 150,
+          "requestDelayMs": 39,
+          "measuredRttMs": 48.811810852560804,
+          "expectedAgeMs": 99.4059054262804,
+          "issuedBeforeMs": 50,
+          "issuedAfterMs": 17,
+          "viewExhausted": true,
+          "snapshotAgeMs": 161,
+          "estimatedOffsetMs": 1.0361328125,
+          "channels": [
+            {
+              "side": "host",
+              "liveBuffered": 0,
+              "reliableBuffered": 0,
+              "pendingStreams": 0
+            },
+            {
+              "side": "shooter",
+              "liveBuffered": 0,
+              "reliableBuffered": 0,
+              "pendingStreams": 0
+            }
+          ]
+        },
+        {
+          "sequence": 440,
+          "hostAgeMs": 223,
+          "requestDelayMs": 149,
+          "measuredRttMs": 53.820671999743155,
+          "expectedAgeMs": 101.91033599987158,
+          "issuedBeforeMs": 42,
+          "issuedAfterMs": 25,
+          "viewExhausted": false,
+          "snapshotAgeMs": 116,
+          "estimatedOffsetMs": 1.749267578125,
+          "channels": [
+            {
+              "side": "host",
+              "liveBuffered": 0,
+              "reliableBuffered": 0,
+              "pendingStreams": 0
+            },
+            {
+              "side": "shooter",
+              "liveBuffered": 0,
+              "reliableBuffered": 0,
+              "pendingStreams": 0
+            }
+          ]
+        }
+      ],
+      "mismatchSequences": [
+        1,
+        14,
+        51,
+        52,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        62
+      ],
+      "spreadSeedPlayerId": "adcc15a7-43f1-4c83-bf03-790e0a75edc8",
+      "transport": [
+        {
+          "state": "connected",
+          "proxy": true,
+          "rttMs": 99
+        },
+        {
+          "state": "connected",
+          "proxy": true,
+          "rttMs": 44
+        },
+        {
+          "state": "connected",
+          "proxy": true,
+          "rttMs": 45
+        },
+        {
+          "state": "connected",
+          "proxy": true,
+          "rttMs": 61
+        },
+        {
+          "state": "connected",
+          "proxy": true,
+          "rttMs": 78
+        },
+        {
+          "state": "connected",
+          "proxy": true,
+          "rttMs": 82
+        },
+        {
+          "state": "connected",
+          "proxy": true,
+          "rttMs": 25
+        },
+        {
+          "state": "connected",
+          "proxy": true,
+          "rttMs": 76
+        },
+        {
+          "state": "connected",
+          "proxy": true,
+          "rttMs": 61
+        },
+        {
+          "state": "connected",
+          "proxy": true,
+          "rttMs": 28
+        },
+        {
+          "state": "connected",
+          "proxy": true,
+          "rttMs": 61
+        },
+        {
+          "state": "connected",
+          "proxy": true,
+          "rttMs": 71
+        }
+      ],
+      "proxy": {
+        "profile": {
+          "rtt": 50,
+          "jitter": 25,
+          "loss": 0.01,
+          "seed": 20261015
+        },
+        "sockets": 12,
+        "pairedSockets": 12,
+        "pending": 51,
+        "received": 990578,
+        "forwarded": 980552,
+        "dropped": 9967,
+        "queued": 18,
+        "invalid": 8,
+        "sendErrors": 0,
+        "delayMax": 78.91700000001583,
+        "meanDelayMs": 27.705197573103245
+      }
+    }
+  ]
+}

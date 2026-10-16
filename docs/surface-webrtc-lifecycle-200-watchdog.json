@@ -1,0 +1,2543 @@
+{
+  "focusedPageEmulation": true,
+  "result": {
+    "passed": false,
+    "reason": "Timed out: new layouts and real countdown",
+    "checks": [
+      "Four ordinary docking requests admitted to one arena",
+      "Approved dark color replicated",
+      "One collection, replicated unavailable pickup",
+      "Real pickup timer restored availability on all peers",
+      "Network blaster damage interrupted a held pole exit",
+      "Pole return and redocking preserve resources",
+      "Confirmed surface elimination 1/5",
+      "Old-life fire request rejected after real respawn",
+      "Confirmed surface elimination 2/5",
+      "Confirmed surface elimination 3/5",
+      "Confirmed surface elimination 4/5",
+      "Confirmed surface elimination 5/5",
+      "All four clients observe five kills and return to ships"
+    ],
+    "elapsedMs": 240019,
+    "invalidSnapshots": 0,
+    "pickupEvents": [
+      {
+        "id": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "at": 1792110118333
+      }
+    ],
+    "fireObservations": [
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 1,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 301,
+        "rttMs": 209.4659939377321
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 2,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 252,
+        "rttMs": 206.3727951501857
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 3,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 260,
+        "rttMs": 206.3727951501857
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 4,
+        "accepted": true,
+        "viewAgeMs": 216,
+        "rttMs": 203.8982361201486
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 5,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 359,
+        "rttMs": 197.61143448309053
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 6,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 230,
+        "rttMs": 201.711318069178
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 7,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 352,
+        "rttMs": 208.93524356427395
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 8,
+        "accepted": true,
+        "viewAgeMs": 173,
+        "rttMs": 213.54819485141917
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 9,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 301,
+        "rttMs": 220.1908447049083
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 10,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 282,
+        "rttMs": 224.44214061114135
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 11,
+        "accepted": true,
+        "viewAgeMs": 195,
+        "rttMs": 229.6829699911305
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 12,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 406,
+        "rttMs": 231.54637599290442
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 13,
+        "accepted": true,
+        "viewAgeMs": 235,
+        "rttMs": 234.22968063545886
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 14,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 282,
+        "rttMs": 224.0669956066937
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 15,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 333,
+        "rttMs": 217.562877188284
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 16,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 260,
+        "rttMs": 215.25030175062722
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 17,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 249,
+        "rttMs": 194.64019312040145
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 18,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 310,
+        "rttMs": 187.31215449632117
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 19,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 423,
+        "rttMs": 176.75977887764554
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 20,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 260,
+        "rttMs": 199.52625848169316
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 21,
+        "accepted": true,
+        "viewAgeMs": 197,
+        "rttMs": 207.62100678535455
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 22,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 441,
+        "rttMs": 219.27744434262695
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 23,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 341,
+        "rttMs": 213.41756437928126
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 24,
+        "accepted": true,
+        "viewAgeMs": 206,
+        "rttMs": 211.334051503425
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 25,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 258,
+        "rttMs": 208.333792962192
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 26,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 360,
+        "rttMs": 210.37362749580294
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 27,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 365,
+        "rttMs": 211.09890199664238
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 28,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 307,
+        "rttMs": 212.14329727785116
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 29,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 306,
+        "rttMs": 209.2117102578248
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 30,
+        "accepted": true,
+        "viewAgeMs": 210,
+        "rttMs": 208.16936820625986
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 31,
+        "accepted": true,
+        "viewAgeMs": 164,
+        "rttMs": 206.66839565200635
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 32,
+        "accepted": true,
+        "viewAgeMs": 165,
+        "rttMs": 202.7347165216051
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 33,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 260,
+        "rttMs": 197.07021857382728
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 34,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 312,
+        "rttMs": 195.05617485906183
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 35,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 225,
+        "rttMs": 198.95595190979958
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 36,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 289,
+        "rttMs": 206.89180922227177
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 37,
+        "accepted": true,
+        "viewAgeMs": 177,
+        "rttMs": 211.97075790225398
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 38,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 304,
+        "rttMs": 206.77660632180317
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 39,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 379,
+        "rttMs": 199.29702804595405
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 40,
+        "accepted": true,
+        "viewAgeMs": 198,
+        "rttMs": 194.51009794941064
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 41,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 268,
+        "rttMs": 207.2080783595285
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 42,
+        "accepted": true,
+        "viewAgeMs": 208,
+        "rttMs": 225.49317015009828
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 43,
+        "accepted": true,
+        "viewAgeMs": 181,
+        "rttMs": 237.1956288960629
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 44,
+        "accepted": true,
+        "viewAgeMs": 197,
+        "rttMs": 227.35650311685035
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 45,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 343,
+        "rttMs": 213.18816199478422
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 46,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 240,
+        "rttMs": 204.12042367666191
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 47,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 269,
+        "rttMs": 212.89633894132953
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 48,
+        "accepted": true,
+        "viewAgeMs": 189,
+        "rttMs": 225.53365692245092
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 49,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 383,
+        "rttMs": 233.6215404303686
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 50,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 282,
+        "rttMs": 236.4972323442949
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 51,
+        "accepted": true,
+        "viewAgeMs": 203,
+        "rttMs": 225.63822870034875
+      },
+      {
+        "player": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "sequence": 1,
+        "accepted": false,
+        "reason": "state",
+        "viewAgeMs": 236,
+        "rttMs": 192.0660304827746
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 52,
+        "accepted": true,
+        "viewAgeMs": 206,
+        "rttMs": 210.12258751941775
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 53,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 290,
+        "rttMs": 212.5984560124274
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 54,
+        "accepted": true,
+        "viewAgeMs": 210,
+        "rttMs": 209.67876480994192
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 55,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 251,
+        "rttMs": 205.47440947836284
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 56,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 375,
+        "rttMs": 202.78362206615222
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 57,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 357,
+        "rttMs": 209.4268976529218
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 58,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 374,
+        "rttMs": 218.99321449786999
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 59,
+        "accepted": true,
+        "viewAgeMs": 217,
+        "rttMs": 225.11565727863683
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 60,
+        "accepted": true,
+        "viewAgeMs": 231,
+        "rttMs": 227.29252582290945
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 61,
+        "accepted": true,
+        "viewAgeMs": 228,
+        "rttMs": 225.22721652666206
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 62,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 236,
+        "rttMs": 219.74541857706373
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 63,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 236,
+        "rttMs": 217.796334861651
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 64,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 335,
+        "rttMs": 219.58965431145666
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 65,
+        "accepted": true,
+        "viewAgeMs": 205,
+        "rttMs": 222.27172344916534
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 66,
+        "accepted": true,
+        "viewAgeMs": 203,
+        "rttMs": 226.13390300746582
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 67,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 254,
+        "rttMs": 228.60569792477813
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 68,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 277,
+        "rttMs": 234.50764667185803
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 69,
+        "accepted": true,
+        "viewAgeMs": 204,
+        "rttMs": 236.60611733748644
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 70,
+        "accepted": true,
+        "viewAgeMs": 215,
+        "rttMs": 239.62791509599134
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 71,
+        "accepted": true,
+        "viewAgeMs": 236,
+        "rttMs": 226.44186566143446
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 72,
+        "accepted": true,
+        "viewAgeMs": 201,
+        "rttMs": 234.5532337641782
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 73,
+        "accepted": true,
+        "viewAgeMs": 219,
+        "rttMs": 230.75406960907407
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 74,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 339,
+        "rttMs": 227.80325568725925
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 75,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 262,
+        "rttMs": 223.55408363984594
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 76,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 304,
+        "rttMs": 222.04326691187674
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 77,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 277,
+        "rttMs": 220.58769082360112
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 78,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 320,
+        "rttMs": 219.65612212710474
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 79,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 411,
+        "rttMs": 219.3248977016838
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 80,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 295,
+        "rttMs": 215.24793452907764
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 81,
+        "accepted": true,
+        "viewAgeMs": 204,
+        "rttMs": 212.6386780986097
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 82,
+        "accepted": true,
+        "viewAgeMs": 166,
+        "rttMs": 211.71094247888774
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 83,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 407,
+        "rttMs": 202.45500318648817
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 84,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 240,
+        "rttMs": 199.16400254919057
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 85,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 278,
+        "rttMs": 194.424961631482
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 86,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 288,
+        "rttMs": 186.7119754441485
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 87,
+        "accepted": true,
+        "viewAgeMs": 196,
+        "rttMs": 181.77566428425501
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 88,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 301,
+        "rttMs": 180.02053142740402
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 89,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 231,
+        "rttMs": 182.17314011353864
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 90,
+        "accepted": true,
+        "viewAgeMs": 212,
+        "rttMs": 182.9385120908309
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 91,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 263,
+        "rttMs": 184.04064773813178
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 92,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 344,
+        "rttMs": 178.62601455240437
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 93,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 304,
+        "rttMs": 176.7008116419235
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 94,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 366,
+        "rttMs": 173.92851945083106
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 95,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 310,
+        "rttMs": 185.1142524485319
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 96,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 227,
+        "rttMs": 189.09140195882551
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 97,
+        "accepted": true,
+        "viewAgeMs": 210,
+        "rttMs": 191.01849725364838
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 98,
+        "accepted": true,
+        "viewAgeMs": 204,
+        "rttMs": 189.21183824233498
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 99,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 269,
+        "rttMs": 188.569470593868
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 100,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 229,
+        "rttMs": 187.64446118007555
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 101,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 293,
+        "rttMs": 197.85245515524838
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 102,
+        "accepted": true,
+        "viewAgeMs": 210,
+        "rttMs": 204.38557129935901
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 103,
+        "accepted": true,
+        "viewAgeMs": 221,
+        "rttMs": 206.7084570394872
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 104,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 261,
+        "rttMs": 197.7971721044754
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 105,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 237,
+        "rttMs": 188.1501901468643
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 106,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 285,
+        "rttMs": 191.33612169399316
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 107,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 257,
+        "rttMs": 192.46889735519454
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 108,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 356,
+        "rttMs": 194.10009430732455
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 109,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 366,
+        "rttMs": 195.08007544585968
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 110,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 250,
+        "rttMs": 196.49124828535022
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 111,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 383,
+        "rttMs": 197.39439890262418
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 112,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 262,
+        "rttMs": 191.5724152976795
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 113,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 397,
+        "rttMs": 186.65793223814362
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 114,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 220,
+        "rttMs": 179.58107663241194
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 115,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 220,
+        "rttMs": 177.06486130592955
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 116,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 341,
+        "rttMs": 182.08151123579495
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 117,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 345,
+        "rttMs": 185.2921671909088
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 118,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 259,
+        "rttMs": 187.43373375272705
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 119,
+        "accepted": true,
+        "viewAgeMs": 214,
+        "rttMs": 190.51758960174533
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 120,
+        "accepted": true,
+        "viewAgeMs": 204,
+        "rttMs": 192.49125734511705
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 121,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 361,
+        "rttMs": 193.19300587609365
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 122,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 236,
+        "rttMs": 205.72352376069995
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 123,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 239,
+        "rttMs": 213.74305520684797
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 124,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 332,
+        "rttMs": 218.07555533238275
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 125,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 439,
+        "rttMs": 219.26044426590622
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 126,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 281,
+        "rttMs": 220.96668433018002
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 127,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 290,
+        "rttMs": 221.57334746414404
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 128,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 298,
+        "rttMs": 209.4869423770522
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 129,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 226,
+        "rttMs": 201.75164312131344
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 130,
+        "accepted": true,
+        "viewAgeMs": 214,
+        "rttMs": 199.00131449705074
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 131,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 299,
+        "rttMs": 186.04084127811248
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 132,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 307,
+        "rttMs": 177.74613841799197
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 133,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 399,
+        "rttMs": 186.9969107343936
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 134,
+        "accepted": true,
+        "viewAgeMs": 208,
+        "rttMs": 200.31802287001193
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 135,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 311,
+        "rttMs": 208.84353463680768
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 136,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 529,
+        "rttMs": 211.87482770944615
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 137,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 304,
+        "rttMs": 218.03988973404557
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 138,
+        "accepted": true,
+        "viewAgeMs": 221,
+        "rttMs": 221.9855294297892
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 139,
+        "accepted": true,
+        "viewAgeMs": 206,
+        "rttMs": 223.38842354383138
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 140,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 246,
+        "rttMs": 213.5285910680521
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 141,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 299,
+        "rttMs": 207.21829828355334
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 142,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 347,
+        "rttMs": 204.9746386268427
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 143,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 248,
+        "rttMs": 215.78376872117934
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 144,
+        "accepted": true,
+        "viewAgeMs": 211,
+        "rttMs": 222.7016119815548
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 145,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 238,
+        "rttMs": 225.16128958524385
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 146,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 264,
+        "rttMs": 208.18322533455608
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 147,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 247,
+        "rttMs": 197.3172642141159
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 148,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 237,
+        "rttMs": 196.16304909703422
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 149,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 262,
+        "rttMs": 198.3304392776274
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 150,
+        "accepted": true,
+        "viewAgeMs": 221,
+        "rttMs": 201.45148113768155
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 151,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 251,
+        "rttMs": 208.84894792811625
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 152,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 369,
+        "rttMs": 217.90332667399443
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 153,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 241,
+        "rttMs": 221.12266133919556
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 154,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 259,
+        "rttMs": 225.7585032570852
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 155,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 310,
+        "rttMs": 215.04544208453456
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 156,
+        "accepted": true,
+        "viewAgeMs": 200,
+        "rttMs": 211.23635366762767
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 157,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 248,
+        "rttMs": 205.75126634728173
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 158,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 310,
+        "rttMs": 209.4010130778254
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 159,
+        "accepted": true,
+        "viewAgeMs": 204,
+        "rttMs": 214.6566483698083
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 160,
+        "accepted": true,
+        "viewAgeMs": 210,
+        "rttMs": 219.41850196336003
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 161,
+        "accepted": true,
+        "viewAgeMs": 232,
+        "rttMs": 220.73480157068803
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 162,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 322,
+        "rttMs": 222.63027300524038
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 163,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 286,
+        "rttMs": 221.64337472335387
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 164,
+        "accepted": true,
+        "viewAgeMs": 227,
+        "rttMs": 219.2517598229465
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 165,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 270,
+        "rttMs": 217.72112628668577
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 166,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 279,
+        "rttMs": 202.70152082347892
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 167,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 298,
+        "rttMs": 197.36121665878312
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 168,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 247,
+        "rttMs": 189.67117866162124
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 169,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 346,
+        "rttMs": 198.42955434343762
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 170,
+        "accepted": true,
+        "viewAgeMs": 210,
+        "rttMs": 204.03491477980012
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 171,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 295,
+        "rttMs": 206.0279318238401
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 172,
+        "accepted": true,
+        "viewAgeMs": 211,
+        "rttMs": 216.45787636725768
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 173,
+        "accepted": true,
+        "viewAgeMs": 204,
+        "rttMs": 223.13304087504494
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 174,
+        "accepted": true,
+        "viewAgeMs": 192,
+        "rttMs": 225.50643270003596
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 175,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 330,
+        "rttMs": 225.52411692802303
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 176,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 396,
+        "rttMs": 224.01929354241844
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 177,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 260,
+        "rttMs": 221.8523478671478
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 178,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 342,
+        "rttMs": 212.90550263497462
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 179,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 313,
+        "rttMs": 209.72440210797973
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 180,
+        "accepted": true,
+        "viewAgeMs": 203,
+        "rttMs": 205.14361734910705
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 181,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 538,
+        "rttMs": 207.21191510342854
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 182,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 282,
+        "rttMs": 212.5356256661943
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 183,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 249,
+        "rttMs": 215.94280042636439
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 184,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 364,
+        "rttMs": 215.55424034109154
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 185,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 394,
+        "rttMs": 214.99471381829864
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 186,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 340,
+        "rttMs": 214.79577105463892
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 187,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 407,
+        "rttMs": 213.10929347496895
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 188,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 307,
+        "rttMs": 211.88743477997517
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 189,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 310,
+        "rttMs": 210.12795825918414
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 190,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 233,
+        "rttMs": 209.50236660734734
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 191,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 331,
+        "rttMs": 209.6815146287023
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 192,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 253,
+        "rttMs": 209.79616936236948
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 193,
+        "accepted": true,
+        "viewAgeMs": 186,
+        "rttMs": 211.0695483919165
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 194,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 316,
+        "rttMs": 212.0556387135332
+      },
+      {
+        "player": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+        "sequence": 195,
+        "accepted": true,
+        "viewAgeMs": 224,
+        "rttMs": 213.47560877666126
+      }
+    ],
+    "damageEvents": [
+      {
+        "target": "6f48e432-b257-4c2c-9142-46f76a6d779b",
+        "applied": 10,
+        "killed": false,
+        "at": 1792110137133,
+        "lifeBefore": 2,
+        "lifeAfter": 2
+      },
+      {
+        "target": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "applied": 10,
+        "killed": false,
+        "at": 1792110147800,
+        "lifeBefore": 2,
+        "lifeAfter": 2
+      },
+      {
+        "target": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "applied": 10,
+        "killed": false,
+        "at": 1792110150467,
+        "lifeBefore": 2,
+        "lifeAfter": 2
+      },
+      {
+        "target": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "applied": 10,
+        "killed": false,
+        "at": 1792110152267,
+        "lifeBefore": 2,
+        "lifeAfter": 2
+      },
+      {
+        "target": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "applied": 10,
+        "killed": false,
+        "at": 1792110159167,
+        "lifeBefore": 2,
+        "lifeAfter": 2
+      },
+      {
+        "target": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "applied": 10,
+        "killed": false,
+        "at": 1792110161833,
+        "lifeBefore": 2,
+        "lifeAfter": 2
+      },
+      {
+        "target": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "applied": 10,
+        "killed": false,
+        "at": 1792110167017,
+        "lifeBefore": 2,
+        "lifeAfter": 2
+      },
+      {
+        "target": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "applied": 10,
+        "killed": false,
+        "at": 1792110167783,
+        "lifeBefore": 2,
+        "lifeAfter": 2
+      },
+      {
+        "target": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "applied": 10,
+        "killed": false,
+        "at": 1792110168583,
+        "lifeBefore": 2,
+        "lifeAfter": 2
+      },
+      {
+        "target": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "applied": 10,
+        "killed": false,
+        "at": 1792110173000,
+        "lifeBefore": 2,
+        "lifeAfter": 2
+      },
+      {
+        "target": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "applied": 10,
+        "killed": false,
+        "at": 1792110175717,
+        "lifeBefore": 2,
+        "lifeAfter": 2
+      },
+      {
+        "target": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "applied": 10,
+        "killed": false,
+        "at": 1792110177483,
+        "lifeBefore": 2,
+        "lifeAfter": 2
+      },
+      {
+        "target": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "applied": 10,
+        "killed": false,
+        "at": 1792110178400,
+        "lifeBefore": 2,
+        "lifeAfter": 2
+      },
+      {
+        "target": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "applied": 10,
+        "killed": false,
+        "at": 1792110179217,
+        "lifeBefore": 2,
+        "lifeAfter": 2
+      },
+      {
+        "target": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "applied": 10,
+        "killed": false,
+        "at": 1792110182733,
+        "lifeBefore": 2,
+        "lifeAfter": 2
+      },
+      {
+        "target": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "applied": 10,
+        "killed": true,
+        "at": 1792110185467,
+        "lifeBefore": 2,
+        "lifeAfter": 3
+      },
+      {
+        "target": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "applied": 10,
+        "killed": false,
+        "at": 1792110194733,
+        "lifeBefore": 4,
+        "lifeAfter": 4
+      },
+      {
+        "target": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "applied": 10,
+        "killed": false,
+        "at": 1792110196383,
+        "lifeBefore": 4,
+        "lifeAfter": 4
+      },
+      {
+        "target": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "applied": 10,
+        "killed": false,
+        "at": 1792110200733,
+        "lifeBefore": 4,
+        "lifeAfter": 4
+      },
+      {
+        "target": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "applied": 10,
+        "killed": false,
+        "at": 1792110201600,
+        "lifeBefore": 4,
+        "lifeAfter": 4
+      },
+      {
+        "target": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "applied": 10,
+        "killed": false,
+        "at": 1792110202450,
+        "lifeBefore": 4,
+        "lifeAfter": 4
+      },
+      {
+        "target": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "applied": 10,
+        "killed": false,
+        "at": 1792110205933,
+        "lifeBefore": 4,
+        "lifeAfter": 4
+      },
+      {
+        "target": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "applied": 10,
+        "killed": false,
+        "at": 1792110206800,
+        "lifeBefore": 4,
+        "lifeAfter": 4
+      },
+      {
+        "target": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "applied": 10,
+        "killed": false,
+        "at": 1792110209383,
+        "lifeBefore": 4,
+        "lifeAfter": 4
+      },
+      {
+        "target": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "applied": 10,
+        "killed": false,
+        "at": 1792110210233,
+        "lifeBefore": 4,
+        "lifeAfter": 4
+      },
+      {
+        "target": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "applied": 10,
+        "killed": true,
+        "at": 1792110211067,
+        "lifeBefore": 4,
+        "lifeAfter": 5
+      },
+      {
+        "target": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "applied": 10,
+        "killed": false,
+        "at": 1792110220317,
+        "lifeBefore": 6,
+        "lifeAfter": 6
+      },
+      {
+        "target": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "applied": 10,
+        "killed": false,
+        "at": 1792110221150,
+        "lifeBefore": 6,
+        "lifeAfter": 6
+      },
+      {
+        "target": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "applied": 10,
+        "killed": false,
+        "at": 1792110228067,
+        "lifeBefore": 6,
+        "lifeAfter": 6
+      },
+      {
+        "target": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "applied": 10,
+        "killed": false,
+        "at": 1792110228883,
+        "lifeBefore": 6,
+        "lifeAfter": 6
+      },
+      {
+        "target": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "applied": 10,
+        "killed": false,
+        "at": 1792110233350,
+        "lifeBefore": 6,
+        "lifeAfter": 6
+      },
+      {
+        "target": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "applied": 10,
+        "killed": false,
+        "at": 1792110235983,
+        "lifeBefore": 6,
+        "lifeAfter": 6
+      },
+      {
+        "target": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "applied": 10,
+        "killed": false,
+        "at": 1792110242183,
+        "lifeBefore": 6,
+        "lifeAfter": 6
+      },
+      {
+        "target": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "applied": 10,
+        "killed": false,
+        "at": 1792110243033,
+        "lifeBefore": 6,
+        "lifeAfter": 6
+      },
+      {
+        "target": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "applied": 10,
+        "killed": false,
+        "at": 1792110246633,
+        "lifeBefore": 6,
+        "lifeAfter": 6
+      },
+      {
+        "target": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "applied": 10,
+        "killed": true,
+        "at": 1792110247450,
+        "lifeBefore": 6,
+        "lifeAfter": 7
+      },
+      {
+        "target": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "applied": 10,
+        "killed": false,
+        "at": 1792110269733,
+        "lifeBefore": 8,
+        "lifeAfter": 8
+      },
+      {
+        "target": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "applied": 10,
+        "killed": false,
+        "at": 1792110270683,
+        "lifeBefore": 8,
+        "lifeAfter": 8
+      },
+      {
+        "target": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "applied": 10,
+        "killed": false,
+        "at": 1792110279633,
+        "lifeBefore": 8,
+        "lifeAfter": 8
+      },
+      {
+        "target": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "applied": 10,
+        "killed": false,
+        "at": 1792110283083,
+        "lifeBefore": 8,
+        "lifeAfter": 8
+      },
+      {
+        "target": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "applied": 10,
+        "killed": false,
+        "at": 1792110286617,
+        "lifeBefore": 8,
+        "lifeAfter": 8
+      },
+      {
+        "target": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "applied": 10,
+        "killed": false,
+        "at": 1792110287433,
+        "lifeBefore": 8,
+        "lifeAfter": 8
+      },
+      {
+        "target": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "applied": 10,
+        "killed": false,
+        "at": 1792110291817,
+        "lifeBefore": 8,
+        "lifeAfter": 8
+      },
+      {
+        "target": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "applied": 10,
+        "killed": false,
+        "at": 1792110297050,
+        "lifeBefore": 8,
+        "lifeAfter": 8
+      },
+      {
+        "target": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "applied": 10,
+        "killed": false,
+        "at": 1792110302217,
+        "lifeBefore": 8,
+        "lifeAfter": 8
+      },
+      {
+        "target": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "applied": 10,
+        "killed": true,
+        "at": 1792110304783,
+        "lifeBefore": 8,
+        "lifeAfter": 9
+      },
+      {
+        "target": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "applied": 10,
+        "killed": false,
+        "at": 1792110314033,
+        "lifeBefore": 10,
+        "lifeAfter": 10
+      },
+      {
+        "target": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "applied": 10,
+        "killed": false,
+        "at": 1792110314900,
+        "lifeBefore": 10,
+        "lifeAfter": 10
+      },
+      {
+        "target": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "applied": 10,
+        "killed": false,
+        "at": 1792110317683,
+        "lifeBefore": 10,
+        "lifeAfter": 10
+      },
+      {
+        "target": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "applied": 10,
+        "killed": false,
+        "at": 1792110323417,
+        "lifeBefore": 10,
+        "lifeAfter": 10
+      },
+      {
+        "target": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "applied": 10,
+        "killed": false,
+        "at": 1792110325183,
+        "lifeBefore": 10,
+        "lifeAfter": 10
+      },
+      {
+        "target": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "applied": 10,
+        "killed": false,
+        "at": 1792110326033,
+        "lifeBefore": 10,
+        "lifeAfter": 10
+      },
+      {
+        "target": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "applied": 10,
+        "killed": false,
+        "at": 1792110326867,
+        "lifeBefore": 10,
+        "lifeAfter": 10
+      },
+      {
+        "target": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "applied": 10,
+        "killed": false,
+        "at": 1792110332017,
+        "lifeBefore": 10,
+        "lifeAfter": 10
+      },
+      {
+        "target": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "applied": 10,
+        "killed": false,
+        "at": 1792110343400,
+        "lifeBefore": 10,
+        "lifeAfter": 10
+      },
+      {
+        "target": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "applied": 10,
+        "killed": true,
+        "at": 1792110345150,
+        "lifeBefore": 10,
+        "lifeAfter": 11
+      }
+    ],
+    "respawns": [
+      {
+        "id": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "at": 1792110190467
+      },
+      {
+        "id": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "at": 1792110216067
+      },
+      {
+        "id": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "at": 1792110252450
+      },
+      {
+        "id": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+        "at": 1792110309783
+      }
+    ],
+    "roundEvents": [
+      {
+        "client": 0,
+        "at": 1792110116010,
+        "state": {
+          "epoch": 1,
+          "roundId": 1,
+          "phase": "combat",
+          "phaseRemainingMs": 0,
+          "winnerId": "",
+          "scores": [
+            {
+              "playerId": "49a1991e-0b8d-47cf-9897-06bef8c456f4",
+              "kills": 0,
+              "deaths": 0
+            }
+          ],
+          "layoutRequirements": []
+        }
+      },
+      {
+        "client": 1,
+        "at": 1792110116592,
+        "state": {
+          "epoch": 1,
+          "roundId": 1,
+          "phase": "combat",
+          "phaseRemainingMs": 0,
+          "winnerId": "",
+          "scores": [
+            {
+              "playerId": "49a1991e-0b8d-47cf-9897-06bef8c456f4",
+              "kills": 0,
+              "deaths": 0
+            },
+            {
+              "playerId": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+              "kills": 0,
+              "deaths": 0
+            },
+            {
+              "playerId": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+              "kills": 0,
+              "deaths": 0
+            },
+            {
+              "playerId": "6f48e432-b257-4c2c-9142-46f76a6d779b",
+              "kills": 0,
+              "deaths": 0
+            }
+          ],
+          "layoutRequirements": []
+        }
+      },
+      {
+        "client": 2,
+        "at": 1792110116693,
+        "state": {
+          "epoch": 1,
+          "roundId": 1,
+          "phase": "combat",
+          "phaseRemainingMs": 0,
+          "winnerId": "",
+          "scores": [
+            {
+              "playerId": "49a1991e-0b8d-47cf-9897-06bef8c456f4",
+              "kills": 0,
+              "deaths": 0
+            },
+            {
+              "playerId": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+              "kills": 0,
+              "deaths": 0
+            },
+            {
+              "playerId": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+              "kills": 0,
+              "deaths": 0
+            },
+            {
+              "playerId": "6f48e432-b257-4c2c-9142-46f76a6d779b",
+              "kills": 0,
+              "deaths": 0
+            }
+          ],
+          "layoutRequirements": []
+        }
+      },
+      {
+        "client": 3,
+        "at": 1792110116715,
+        "state": {
+          "epoch": 1,
+          "roundId": 1,
+          "phase": "combat",
+          "phaseRemainingMs": 0,
+          "winnerId": "",
+          "scores": [
+            {
+              "playerId": "49a1991e-0b8d-47cf-9897-06bef8c456f4",
+              "kills": 0,
+              "deaths": 0
+            },
+            {
+              "playerId": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+              "kills": 0,
+              "deaths": 0
+            },
+            {
+              "playerId": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+              "kills": 0,
+              "deaths": 0
+            },
+            {
+              "playerId": "6f48e432-b257-4c2c-9142-46f76a6d779b",
+              "kills": 0,
+              "deaths": 0
+            }
+          ],
+          "layoutRequirements": []
+        }
+      },
+      {
+        "client": 0,
+        "at": 1792110345154,
+        "state": {
+          "epoch": 1,
+          "roundId": 1,
+          "phase": "supernova",
+          "phaseRemainingMs": 7997,
+          "winnerId": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+          "scores": [
+            {
+              "playerId": "49a1991e-0b8d-47cf-9897-06bef8c456f4",
+              "kills": 0,
+              "deaths": 0
+            },
+            {
+              "playerId": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+              "kills": 5,
+              "deaths": 0
+            },
+            {
+              "playerId": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+              "kills": 0,
+              "deaths": 5
+            },
+            {
+              "playerId": "6f48e432-b257-4c2c-9142-46f76a6d779b",
+              "kills": 0,
+              "deaths": 0
+            }
+          ],
+          "layoutRequirements": [
+            {
+              "playerId": "49a1991e-0b8d-47cf-9897-06bef8c456f4",
+              "revision": 2
+            },
+            {
+              "playerId": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+              "revision": 2
+            },
+            {
+              "playerId": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+              "revision": 2
+            },
+            {
+              "playerId": "6f48e432-b257-4c2c-9142-46f76a6d779b",
+              "revision": 2
+            }
+          ]
+        }
+      },
+      {
+        "client": 2,
+        "at": 1792110345277,
+        "state": {
+          "epoch": 1,
+          "roundId": 1,
+          "phase": "supernova",
+          "phaseRemainingMs": 7997,
+          "winnerId": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+          "scores": [
+            {
+              "playerId": "49a1991e-0b8d-47cf-9897-06bef8c456f4",
+              "kills": 0,
+              "deaths": 0
+            },
+            {
+              "playerId": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+              "kills": 5,
+              "deaths": 0
+            },
+            {
+              "playerId": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+              "kills": 0,
+              "deaths": 5
+            },
+            {
+              "playerId": "6f48e432-b257-4c2c-9142-46f76a6d779b",
+              "kills": 0,
+              "deaths": 0
+            }
+          ],
+          "layoutRequirements": [
+            {
+              "playerId": "49a1991e-0b8d-47cf-9897-06bef8c456f4",
+              "revision": 2
+            },
+            {
+              "playerId": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+              "revision": 2
+            },
+            {
+              "playerId": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+              "revision": 2
+            },
+            {
+              "playerId": "6f48e432-b257-4c2c-9142-46f76a6d779b",
+              "revision": 2
+            }
+          ]
+        }
+      },
+      {
+        "client": 1,
+        "at": 1792110345281,
+        "state": {
+          "epoch": 1,
+          "roundId": 1,
+          "phase": "supernova",
+          "phaseRemainingMs": 7997,
+          "winnerId": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+          "scores": [
+            {
+              "playerId": "49a1991e-0b8d-47cf-9897-06bef8c456f4",
+              "kills": 0,
+              "deaths": 0
+            },
+            {
+              "playerId": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+              "kills": 5,
+              "deaths": 0
+            },
+            {
+              "playerId": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+              "kills": 0,
+              "deaths": 5
+            },
+            {
+              "playerId": "6f48e432-b257-4c2c-9142-46f76a6d779b",
+              "kills": 0,
+              "deaths": 0
+            }
+          ],
+          "layoutRequirements": [
+            {
+              "playerId": "49a1991e-0b8d-47cf-9897-06bef8c456f4",
+              "revision": 2
+            },
+            {
+              "playerId": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+              "revision": 2
+            },
+            {
+              "playerId": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+              "revision": 2
+            },
+            {
+              "playerId": "6f48e432-b257-4c2c-9142-46f76a6d779b",
+              "revision": 2
+            }
+          ]
+        }
+      },
+      {
+        "client": 3,
+        "at": 1792110345375,
+        "state": {
+          "epoch": 1,
+          "roundId": 1,
+          "phase": "supernova",
+          "phaseRemainingMs": 7997,
+          "winnerId": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+          "scores": [
+            {
+              "playerId": "49a1991e-0b8d-47cf-9897-06bef8c456f4",
+              "kills": 0,
+              "deaths": 0
+            },
+            {
+              "playerId": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+              "kills": 5,
+              "deaths": 0
+            },
+            {
+              "playerId": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+              "kills": 0,
+              "deaths": 5
+            },
+            {
+              "playerId": "6f48e432-b257-4c2c-9142-46f76a6d779b",
+              "kills": 0,
+              "deaths": 0
+            }
+          ],
+          "layoutRequirements": [
+            {
+              "playerId": "49a1991e-0b8d-47cf-9897-06bef8c456f4",
+              "revision": 2
+            },
+            {
+              "playerId": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+              "revision": 2
+            },
+            {
+              "playerId": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+              "revision": 2
+            },
+            {
+              "playerId": "6f48e432-b257-4c2c-9142-46f76a6d779b",
+              "revision": 2
+            }
+          ]
+        }
+      },
+      {
+        "client": 0,
+        "at": 1792110353154,
+        "state": {
+          "epoch": 1,
+          "roundId": 1,
+          "phase": "countdown",
+          "phaseRemainingMs": 3000,
+          "winnerId": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+          "scores": [
+            {
+              "playerId": "49a1991e-0b8d-47cf-9897-06bef8c456f4",
+              "kills": 0,
+              "deaths": 0
+            },
+            {
+              "playerId": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+              "kills": 5,
+              "deaths": 0
+            },
+            {
+              "playerId": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+              "kills": 0,
+              "deaths": 5
+            },
+            {
+              "playerId": "6f48e432-b257-4c2c-9142-46f76a6d779b",
+              "kills": 0,
+              "deaths": 0
+            }
+          ],
+          "layoutRequirements": [
+            {
+              "playerId": "49a1991e-0b8d-47cf-9897-06bef8c456f4",
+              "revision": 2
+            },
+            {
+              "playerId": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+              "revision": 2
+            },
+            {
+              "playerId": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+              "revision": 2
+            },
+            {
+              "playerId": "6f48e432-b257-4c2c-9142-46f76a6d779b",
+              "revision": 2
+            }
+          ]
+        }
+      },
+      {
+        "client": 1,
+        "at": 1792110353240,
+        "state": {
+          "epoch": 1,
+          "roundId": 1,
+          "phase": "countdown",
+          "phaseRemainingMs": 3000,
+          "winnerId": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+          "scores": [
+            {
+              "playerId": "49a1991e-0b8d-47cf-9897-06bef8c456f4",
+              "kills": 0,
+              "deaths": 0
+            },
+            {
+              "playerId": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+              "kills": 5,
+              "deaths": 0
+            },
+            {
+              "playerId": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+              "kills": 0,
+              "deaths": 5
+            },
+            {
+              "playerId": "6f48e432-b257-4c2c-9142-46f76a6d779b",
+              "kills": 0,
+              "deaths": 0
+            }
+          ],
+          "layoutRequirements": [
+            {
+              "playerId": "49a1991e-0b8d-47cf-9897-06bef8c456f4",
+              "revision": 2
+            },
+            {
+              "playerId": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+              "revision": 2
+            },
+            {
+              "playerId": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+              "revision": 2
+            },
+            {
+              "playerId": "6f48e432-b257-4c2c-9142-46f76a6d779b",
+              "revision": 2
+            }
+          ]
+        }
+      },
+      {
+        "client": 2,
+        "at": 1792110353284,
+        "state": {
+          "epoch": 1,
+          "roundId": 1,
+          "phase": "countdown",
+          "phaseRemainingMs": 3000,
+          "winnerId": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+          "scores": [
+            {
+              "playerId": "49a1991e-0b8d-47cf-9897-06bef8c456f4",
+              "kills": 0,
+              "deaths": 0
+            },
+            {
+              "playerId": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+              "kills": 5,
+              "deaths": 0
+            },
+            {
+              "playerId": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+              "kills": 0,
+              "deaths": 5
+            },
+            {
+              "playerId": "6f48e432-b257-4c2c-9142-46f76a6d779b",
+              "kills": 0,
+              "deaths": 0
+            }
+          ],
+          "layoutRequirements": [
+            {
+              "playerId": "49a1991e-0b8d-47cf-9897-06bef8c456f4",
+              "revision": 2
+            },
+            {
+              "playerId": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+              "revision": 2
+            },
+            {
+              "playerId": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+              "revision": 2
+            },
+            {
+              "playerId": "6f48e432-b257-4c2c-9142-46f76a6d779b",
+              "revision": 2
+            }
+          ]
+        }
+      },
+      {
+        "client": 3,
+        "at": 1792110353285,
+        "state": {
+          "epoch": 1,
+          "roundId": 1,
+          "phase": "countdown",
+          "phaseRemainingMs": 3000,
+          "winnerId": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+          "scores": [
+            {
+              "playerId": "49a1991e-0b8d-47cf-9897-06bef8c456f4",
+              "kills": 0,
+              "deaths": 0
+            },
+            {
+              "playerId": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+              "kills": 5,
+              "deaths": 0
+            },
+            {
+              "playerId": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+              "kills": 0,
+              "deaths": 5
+            },
+            {
+              "playerId": "6f48e432-b257-4c2c-9142-46f76a6d779b",
+              "kills": 0,
+              "deaths": 0
+            }
+          ],
+          "layoutRequirements": [
+            {
+              "playerId": "49a1991e-0b8d-47cf-9897-06bef8c456f4",
+              "revision": 2
+            },
+            {
+              "playerId": "91a8a70b-ba96-4775-8e50-6587e5f091d1",
+              "revision": 2
+            },
+            {
+              "playerId": "5d617290-fe96-4942-85fe-bc0be74a41c5",
+              "revision": 2
+            },
+            {
+              "playerId": "6f48e432-b257-4c2c-9142-46f76a6d779b",
+              "revision": 2
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

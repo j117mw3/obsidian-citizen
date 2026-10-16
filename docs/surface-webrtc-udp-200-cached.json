@@ -1,0 +1,3011 @@
+{
+  "scope": "Real four-arena WebRTC trial after geometry acknowledgement, before batching ship poses. Host diagnostics observe decisions without changing resources.",
+  "summary": "Complete; 500/500 attempts; 498 dispositions; 1 accepted; 90.0% within 600 ms; 99.6% within 1000 ms; p95 672 ms; p99 878 ms",
+  "samples": {
+    "scope": "Real browser WebRTC fire disposition trial. Ordinary resources, no hit fairness or rendered prediction assertions. Cancellation invalidates the trial.",
+    "epoch": 1,
+    "aborted": null,
+    "samples": [
+      {
+        "sequence": 2,
+        "sentAt": 62022.09999999404,
+        "elapsedMs": 665.1000000238419,
+        "accepted": false
+      },
+      {
+        "sequence": 3,
+        "sentAt": 62245.30000001192,
+        "elapsedMs": 408.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 4,
+        "sentAt": 62461.90000000596,
+        "elapsedMs": 393.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 5,
+        "sentAt": 62685.5,
+        "elapsedMs": 343.80000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 6,
+        "sentAt": 62902.40000000596,
+        "elapsedMs": 313.30000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 7,
+        "sentAt": 63125.90000000596,
+        "elapsedMs": 256.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 8,
+        "sentAt": 63341.70000001788,
+        "elapsedMs": 289,
+        "accepted": false
+      },
+      {
+        "sequence": 9,
+        "sentAt": 63565.80000001192,
+        "elapsedMs": 502.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 10,
+        "sentAt": 63782,
+        "elapsedMs": 285.80000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 11,
+        "sentAt": 64005.70000001788,
+        "elapsedMs": 435.39999997615814,
+        "accepted": false
+      },
+      {
+        "sequence": 12,
+        "sentAt": 64221.90000000596,
+        "elapsedMs": 280,
+        "accepted": false
+      },
+      {
+        "sequence": 13,
+        "sentAt": 64445.90000000596,
+        "elapsedMs": 412.30000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 14,
+        "sentAt": 64669.90000000596,
+        "elapsedMs": 188.5,
+        "accepted": false
+      },
+      {
+        "sequence": 15,
+        "sentAt": 64886.40000000596,
+        "elapsedMs": 307.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 16,
+        "sentAt": 65102.40000000596,
+        "elapsedMs": 352.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 17,
+        "sentAt": 65325.40000000596,
+        "elapsedMs": 896.9000000059605,
+        "accepted": false
+      },
+      {
+        "sequence": 18,
+        "sentAt": 65542.40000000596,
+        "elapsedMs": 680.1999999880791,
+        "accepted": false
+      },
+      {
+        "sequence": 19,
+        "sentAt": 65765.80000001192,
+        "elapsedMs": 456.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 20,
+        "sentAt": 65989.30000001192,
+        "elapsedMs": 233.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 21,
+        "sentAt": 66206.40000000596,
+        "elapsedMs": 416.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 22,
+        "sentAt": 66422.30000001192,
+        "elapsedMs": 200.5,
+        "accepted": false
+      },
+      {
+        "sequence": 23,
+        "sentAt": 66646.40000000596,
+        "elapsedMs": 409.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 24,
+        "sentAt": 66861.90000000596,
+        "elapsedMs": 361.80000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 25,
+        "sentAt": 67085.40000000596,
+        "elapsedMs": 346,
+        "accepted": false
+      },
+      {
+        "sequence": 26,
+        "sentAt": 67301.90000000596,
+        "elapsedMs": 328.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 27,
+        "sentAt": 67525.90000000596,
+        "elapsedMs": 411.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 28,
+        "sentAt": 67741.90000000596,
+        "elapsedMs": 240.80000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 29,
+        "sentAt": 67965.30000001192,
+        "elapsedMs": 256.69999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 30,
+        "sentAt": 68182.40000000596,
+        "elapsedMs": 354,
+        "accepted": false
+      },
+      {
+        "sequence": 31,
+        "sentAt": 68405.90000000596,
+        "elapsedMs": 435.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 32,
+        "sentAt": 68621.90000000596
+      },
+      {
+        "sequence": 33,
+        "sentAt": 68845.80000001192,
+        "elapsedMs": 874,
+        "accepted": false
+      },
+      {
+        "sequence": 34,
+        "sentAt": 69062.40000000596
+      },
+      {
+        "sequence": 35,
+        "sentAt": 69285.90000000596,
+        "elapsedMs": 966.5,
+        "accepted": false
+      },
+      {
+        "sequence": 36,
+        "sentAt": 69501.90000000596,
+        "elapsedMs": 824.5999999940395,
+        "accepted": false
+      },
+      {
+        "sequence": 37,
+        "sentAt": 69725.30000001192,
+        "elapsedMs": 601.1999999880791,
+        "accepted": false
+      },
+      {
+        "sequence": 38,
+        "sentAt": 69942.40000000596,
+        "elapsedMs": 759.4000000059605,
+        "accepted": false
+      },
+      {
+        "sequence": 39,
+        "sentAt": 70166.40000000596,
+        "elapsedMs": 535.1999999880791,
+        "accepted": false
+      },
+      {
+        "sequence": 40,
+        "sentAt": 70382.5,
+        "elapsedMs": 303.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 41,
+        "sentAt": 70605.30000001192,
+        "elapsedMs": 313.5,
+        "accepted": false
+      },
+      {
+        "sequence": 42,
+        "sentAt": 70822.30000001192,
+        "elapsedMs": 280.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 43,
+        "sentAt": 71046.40000000596,
+        "elapsedMs": 272.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 44,
+        "sentAt": 71261.90000000596,
+        "elapsedMs": 246,
+        "accepted": false
+      },
+      {
+        "sequence": 45,
+        "sentAt": 71485.90000000596,
+        "elapsedMs": 672.8000000119209,
+        "accepted": false
+      },
+      {
+        "sequence": 46,
+        "sentAt": 71702.30000001192,
+        "elapsedMs": 456.5,
+        "accepted": false
+      },
+      {
+        "sequence": 47,
+        "sentAt": 71926.5,
+        "elapsedMs": 361.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 48,
+        "sentAt": 72141.80000001192,
+        "elapsedMs": 177.2999999821186,
+        "accepted": false
+      },
+      {
+        "sequence": 49,
+        "sentAt": 72365.80000001192,
+        "elapsedMs": 361.2999999821186,
+        "accepted": false
+      },
+      {
+        "sequence": 50,
+        "sentAt": 72582,
+        "elapsedMs": 336.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 51,
+        "sentAt": 72805.40000000596,
+        "elapsedMs": 313.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 52,
+        "sentAt": 73029.5,
+        "elapsedMs": 273.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 53,
+        "sentAt": 73245.80000001192,
+        "elapsedMs": 257.2999999821186,
+        "accepted": false
+      },
+      {
+        "sequence": 54,
+        "sentAt": 73469.90000000596,
+        "elapsedMs": 312.69999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 55,
+        "sentAt": 73686,
+        "elapsedMs": 317.80000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 56,
+        "sentAt": 73901.80000001192,
+        "elapsedMs": 396.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 57,
+        "sentAt": 74125.90000000596,
+        "elapsedMs": 296.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 58,
+        "sentAt": 74341.80000001192,
+        "elapsedMs": 264.69999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 59,
+        "sentAt": 74566.30000001192,
+        "elapsedMs": 256.7999999821186,
+        "accepted": false
+      },
+      {
+        "sequence": 60,
+        "sentAt": 74781.90000000596,
+        "elapsedMs": 258.59999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 61,
+        "sentAt": 75006.40000000596,
+        "elapsedMs": 376.30000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 62,
+        "sentAt": 75229.80000001192,
+        "elapsedMs": 323.59999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 63,
+        "sentAt": 75446.40000000596,
+        "elapsedMs": 376.80000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 64,
+        "sentAt": 75661.80000001192,
+        "elapsedMs": 356.7999999821186,
+        "accepted": false
+      },
+      {
+        "sequence": 65,
+        "sentAt": 75885.40000000596,
+        "elapsedMs": 379.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 66,
+        "sentAt": 76109.80000001192,
+        "elapsedMs": 389.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 67,
+        "sentAt": 76326.30000001192,
+        "elapsedMs": 337.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 68,
+        "sentAt": 76549.90000000596,
+        "elapsedMs": 272.69999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 69,
+        "sentAt": 76765.80000001192,
+        "elapsedMs": 257.5,
+        "accepted": false
+      },
+      {
+        "sequence": 70,
+        "sentAt": 76981.90000000596,
+        "elapsedMs": 289.80000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 71,
+        "sentAt": 77205.30000001192,
+        "elapsedMs": 456.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 72,
+        "sentAt": 77422.30000001192,
+        "elapsedMs": 239.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 73,
+        "sentAt": 77645.59999999404,
+        "elapsedMs": 403.30000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 74,
+        "sentAt": 77869.90000000596,
+        "elapsedMs": 551.3000000119209,
+        "accepted": false
+      },
+      {
+        "sequence": 75,
+        "sentAt": 78085.70000001788,
+        "elapsedMs": 397.2999999821186,
+        "accepted": false
+      },
+      {
+        "sequence": 76,
+        "sentAt": 78301.80000001192,
+        "elapsedMs": 428.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 77,
+        "sentAt": 78525.90000000596,
+        "elapsedMs": 205.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 78,
+        "sentAt": 78750.09999999404,
+        "elapsedMs": 513.9000000059605,
+        "accepted": false
+      },
+      {
+        "sequence": 79,
+        "sentAt": 78966.30000001192,
+        "elapsedMs": 297.69999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 80,
+        "sentAt": 79182.40000000596,
+        "elapsedMs": 304,
+        "accepted": false
+      },
+      {
+        "sequence": 81,
+        "sentAt": 79405.90000000596,
+        "elapsedMs": 208.69999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 82,
+        "sentAt": 79621.90000000596,
+        "elapsedMs": 409.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 83,
+        "sentAt": 79845.80000001192,
+        "elapsedMs": 194.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 84,
+        "sentAt": 80062,
+        "elapsedMs": 408.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 85,
+        "sentAt": 80285.40000000596,
+        "elapsedMs": 578.5,
+        "accepted": false
+      },
+      {
+        "sequence": 86,
+        "sentAt": 80501.90000000596,
+        "elapsedMs": 362.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 87,
+        "sentAt": 80725.90000000596,
+        "elapsedMs": 497.30000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 88,
+        "sentAt": 80941.80000001192,
+        "elapsedMs": 315.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 89,
+        "sentAt": 81165.30000001192,
+        "elapsedMs": 288.7999999821186,
+        "accepted": false
+      },
+      {
+        "sequence": 90,
+        "sentAt": 81389.90000000596,
+        "elapsedMs": 239.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 91,
+        "sentAt": 81606.40000000596,
+        "elapsedMs": 280,
+        "accepted": false
+      },
+      {
+        "sequence": 92,
+        "sentAt": 81822.40000000596,
+        "elapsedMs": 400.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 93,
+        "sentAt": 82045.80000001192,
+        "elapsedMs": 374.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 94,
+        "sentAt": 82261.90000000596,
+        "elapsedMs": 359.59999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 95,
+        "sentAt": 82485.90000000596,
+        "elapsedMs": 429.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 96,
+        "sentAt": 82702.40000000596,
+        "elapsedMs": 520.9000000059605,
+        "accepted": false
+      },
+      {
+        "sequence": 97,
+        "sentAt": 82925.80000001192,
+        "elapsedMs": 515.2999999821186,
+        "accepted": false
+      },
+      {
+        "sequence": 98,
+        "sentAt": 83141.90000000596,
+        "elapsedMs": 312.30000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 99,
+        "sentAt": 83365.40000000596,
+        "elapsedMs": 602,
+        "accepted": false
+      },
+      {
+        "sequence": 100,
+        "sentAt": 83581.90000000596,
+        "elapsedMs": 385.69999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 101,
+        "sentAt": 83805.30000001192,
+        "elapsedMs": 658,
+        "accepted": false
+      },
+      {
+        "sequence": 102,
+        "sentAt": 84021.90000000596,
+        "elapsedMs": 448.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 103,
+        "sentAt": 84245.40000000596,
+        "elapsedMs": 225.5,
+        "accepted": false
+      },
+      {
+        "sequence": 104,
+        "sentAt": 84462.40000000596,
+        "elapsedMs": 422.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 105,
+        "sentAt": 84686.40000000596,
+        "elapsedMs": 399.59999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 106,
+        "sentAt": 84902.30000001192,
+        "elapsedMs": 328.7999999821186,
+        "accepted": false
+      },
+      {
+        "sequence": 107,
+        "sentAt": 85125.90000000596,
+        "elapsedMs": 497.69999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 108,
+        "sentAt": 85349.40000000596,
+        "elapsedMs": 274.30000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 109,
+        "sentAt": 85565.90000000596,
+        "elapsedMs": 674.6999999880791,
+        "accepted": false
+      },
+      {
+        "sequence": 110,
+        "sentAt": 85781.90000000596,
+        "elapsedMs": 481.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 111,
+        "sentAt": 86005.80000001192,
+        "elapsedMs": 265.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 112,
+        "sentAt": 86221.90000000596,
+        "elapsedMs": 314.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 113,
+        "sentAt": 86445.90000000596,
+        "elapsedMs": 406.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 114,
+        "sentAt": 86661.80000001192,
+        "elapsedMs": 496.7999999821186,
+        "accepted": false
+      },
+      {
+        "sequence": 115,
+        "sentAt": 86886.40000000596,
+        "elapsedMs": 640.0999999940395,
+        "accepted": false
+      },
+      {
+        "sequence": 116,
+        "sentAt": 87102.40000000596,
+        "elapsedMs": 465.80000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 117,
+        "sentAt": 87325.30000001192,
+        "elapsedMs": 243.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 118,
+        "sentAt": 87541.90000000596,
+        "elapsedMs": 498.59999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 119,
+        "sentAt": 87766.40000000596,
+        "elapsedMs": 274.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 120,
+        "sentAt": 87982.40000000596,
+        "elapsedMs": 343.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 121,
+        "sentAt": 88206.30000001192,
+        "elapsedMs": 367.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 122,
+        "sentAt": 88429.40000000596,
+        "elapsedMs": 268.30000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 123,
+        "sentAt": 88646.40000000596,
+        "elapsedMs": 346,
+        "accepted": false
+      },
+      {
+        "sequence": 124,
+        "sentAt": 88862.40000000596,
+        "elapsedMs": 238.69999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 125,
+        "sentAt": 89085.90000000596,
+        "elapsedMs": 520.6999999880791,
+        "accepted": false
+      },
+      {
+        "sequence": 126,
+        "sentAt": 89301.90000000596,
+        "elapsedMs": 304.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 127,
+        "sentAt": 89525.90000000596,
+        "elapsedMs": 440,
+        "accepted": false
+      },
+      {
+        "sequence": 128,
+        "sentAt": 89741.90000000596,
+        "elapsedMs": 246,
+        "accepted": false
+      },
+      {
+        "sequence": 129,
+        "sentAt": 89965.40000000596,
+        "elapsedMs": 297.30000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 130,
+        "sentAt": 90181.90000000596,
+        "elapsedMs": 515.1999999880791,
+        "accepted": false
+      },
+      {
+        "sequence": 131,
+        "sentAt": 90405.90000000596,
+        "elapsedMs": 337.69999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 132,
+        "sentAt": 90621.80000001192,
+        "elapsedMs": 242.7999999821186,
+        "accepted": false
+      },
+      {
+        "sequence": 133,
+        "sentAt": 90846.40000000596,
+        "elapsedMs": 266.5,
+        "accepted": false
+      },
+      {
+        "sequence": 134,
+        "sentAt": 91062.30000001192,
+        "elapsedMs": 248.5,
+        "accepted": false
+      },
+      {
+        "sequence": 135,
+        "sentAt": 91285.90000000596,
+        "elapsedMs": 200.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 136,
+        "sentAt": 91501.90000000596,
+        "elapsedMs": 425.59999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 137,
+        "sentAt": 91725.80000001192,
+        "elapsedMs": 211,
+        "accepted": false
+      },
+      {
+        "sequence": 138,
+        "sentAt": 91942.40000000596,
+        "elapsedMs": 413,
+        "accepted": false
+      },
+      {
+        "sequence": 139,
+        "sentAt": 92165.90000000596,
+        "elapsedMs": 200.80000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 140,
+        "sentAt": 92382,
+        "elapsedMs": 500.2000000178814,
+        "accepted": false
+      },
+      {
+        "sequence": 141,
+        "sentAt": 92606.40000000596,
+        "elapsedMs": 276,
+        "accepted": false
+      },
+      {
+        "sequence": 142,
+        "sentAt": 92821.80000001192,
+        "elapsedMs": 262.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 143,
+        "sentAt": 93046.40000000596,
+        "elapsedMs": 208.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 144,
+        "sentAt": 93269.80000001192,
+        "elapsedMs": 257.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 145,
+        "sentAt": 93485.40000000596,
+        "elapsedMs": 451.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 146,
+        "sentAt": 93701.90000000596,
+        "elapsedMs": 249.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 147,
+        "sentAt": 93925.80000001192,
+        "elapsedMs": 267,
+        "accepted": false
+      },
+      {
+        "sequence": 148,
+        "sentAt": 94142.40000000596,
+        "elapsedMs": 212.59999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 149,
+        "sentAt": 94366.30000001192,
+        "elapsedMs": 190.5,
+        "accepted": false
+      },
+      {
+        "sequence": 150,
+        "sentAt": 94589.90000000596,
+        "elapsedMs": 183.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 151,
+        "sentAt": 94805.30000001192,
+        "elapsedMs": 339.90000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 152,
+        "sentAt": 95029.80000001192,
+        "elapsedMs": 337.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 153,
+        "sentAt": 95245.90000000596,
+        "elapsedMs": 777.0999999940395,
+        "accepted": false
+      },
+      {
+        "sequence": 154,
+        "sentAt": 95462.40000000596,
+        "elapsedMs": 783.3000000119209,
+        "accepted": false
+      },
+      {
+        "sequence": 155,
+        "sentAt": 95685.40000000596,
+        "elapsedMs": 591.4000000059605,
+        "accepted": false
+      },
+      {
+        "sequence": 156,
+        "sentAt": 95901.80000001192,
+        "elapsedMs": 505.2999999821186,
+        "accepted": false
+      },
+      {
+        "sequence": 157,
+        "sentAt": 96125.80000001192,
+        "elapsedMs": 352.5,
+        "accepted": false
+      },
+      {
+        "sequence": 158,
+        "sentAt": 96341.80000001192,
+        "elapsedMs": 802.9000000059605,
+        "accepted": false
+      },
+      {
+        "sequence": 159,
+        "sentAt": 96566.40000000596,
+        "elapsedMs": 671.5,
+        "accepted": false
+      },
+      {
+        "sequence": 160,
+        "sentAt": 96781.90000000596,
+        "elapsedMs": 456.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 161,
+        "sentAt": 97005.30000001192,
+        "elapsedMs": 232.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 162,
+        "sentAt": 97229.80000001192,
+        "elapsedMs": 410.69999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 163,
+        "sentAt": 97445.80000001192,
+        "elapsedMs": 160.7999999821186,
+        "accepted": false
+      },
+      {
+        "sequence": 164,
+        "sentAt": 97661.80000001192,
+        "elapsedMs": 731.6999999880791,
+        "accepted": false
+      },
+      {
+        "sequence": 165,
+        "sentAt": 97886,
+        "elapsedMs": 507.2000000178814,
+        "accepted": false
+      },
+      {
+        "sequence": 166,
+        "sentAt": 98101.90000000596,
+        "elapsedMs": 291.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 167,
+        "sentAt": 98325.80000001192,
+        "elapsedMs": 266.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 168,
+        "sentAt": 98541.90000000596,
+        "elapsedMs": 240.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 169,
+        "sentAt": 98765.30000001192,
+        "elapsedMs": 239.5,
+        "accepted": false
+      },
+      {
+        "sequence": 170,
+        "sentAt": 98981.90000000596,
+        "elapsedMs": 200.80000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 171,
+        "sentAt": 99205.90000000596,
+        "elapsedMs": 618,
+        "accepted": false
+      },
+      {
+        "sequence": 172,
+        "sentAt": 99429.80000001192,
+        "elapsedMs": 394.2999999821186,
+        "accepted": false
+      },
+      {
+        "sequence": 173,
+        "sentAt": 99645.30000001192,
+        "elapsedMs": 367.5,
+        "accepted": false
+      },
+      {
+        "sequence": 174,
+        "sentAt": 99869.90000000596,
+        "elapsedMs": 437.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 175,
+        "sentAt": 100085.90000000596,
+        "elapsedMs": 354.80000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 176,
+        "sentAt": 100309.40000000596,
+        "elapsedMs": 509.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 177,
+        "sentAt": 100525.90000000596,
+        "elapsedMs": 361.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 178,
+        "sentAt": 100741.90000000596,
+        "elapsedMs": 432.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 179,
+        "sentAt": 100965.40000000596,
+        "elapsedMs": 224.80000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 180,
+        "sentAt": 101181.90000000596,
+        "elapsedMs": 349.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 181,
+        "sentAt": 101405.90000000596,
+        "elapsedMs": 342.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 182,
+        "sentAt": 101629.30000001192,
+        "elapsedMs": 473.7999999821186,
+        "accepted": false
+      },
+      {
+        "sequence": 183,
+        "sentAt": 101846.40000000596,
+        "elapsedMs": 280.59999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 184,
+        "sentAt": 102061.80000001192,
+        "elapsedMs": 492.7999999821186,
+        "accepted": false
+      },
+      {
+        "sequence": 185,
+        "sentAt": 102286.40000000596,
+        "elapsedMs": 268.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 186,
+        "sentAt": 102501.90000000596,
+        "elapsedMs": 750.1999999880791,
+        "accepted": false
+      },
+      {
+        "sequence": 187,
+        "sentAt": 102726.40000000596,
+        "elapsedMs": 571.8000000119209,
+        "accepted": false
+      },
+      {
+        "sequence": 188,
+        "sentAt": 102949.90000000596,
+        "elapsedMs": 376.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 189,
+        "sentAt": 103165.30000001192,
+        "elapsedMs": 272.5,
+        "accepted": false
+      },
+      {
+        "sequence": 190,
+        "sentAt": 103389.80000001192,
+        "elapsedMs": 265.69999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 191,
+        "sentAt": 103605.40000000596,
+        "elapsedMs": 344.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 192,
+        "sentAt": 103821.80000001192,
+        "elapsedMs": 233.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 193,
+        "sentAt": 104045.40000000596,
+        "elapsedMs": 385.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 194,
+        "sentAt": 104269.40000000596,
+        "elapsedMs": 330.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 195,
+        "sentAt": 104486.40000000596,
+        "elapsedMs": 585.1999999880791,
+        "accepted": false
+      },
+      {
+        "sequence": 196,
+        "sentAt": 104701.90000000596,
+        "elapsedMs": 369.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 197,
+        "sentAt": 104925.80000001192,
+        "elapsedMs": 528.1999999880791,
+        "accepted": false
+      },
+      {
+        "sequence": 198,
+        "sentAt": 105149.40000000596,
+        "elapsedMs": 304.80000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 199,
+        "sentAt": 105366.30000001192,
+        "elapsedMs": 392.5,
+        "accepted": false
+      },
+      {
+        "sequence": 200,
+        "sentAt": 105581.90000000596,
+        "elapsedMs": 441.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 201,
+        "sentAt": 105805.90000000596,
+        "elapsedMs": 360.30000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 202,
+        "sentAt": 106029.40000000596,
+        "elapsedMs": 353,
+        "accepted": false
+      },
+      {
+        "sequence": 203,
+        "sentAt": 106245.90000000596,
+        "elapsedMs": 273.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 204,
+        "sentAt": 106462.40000000596,
+        "elapsedMs": 529.9000000059605,
+        "accepted": false
+      },
+      {
+        "sequence": 205,
+        "sentAt": 106685.40000000596,
+        "elapsedMs": 317.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 206,
+        "sentAt": 106901.80000001192,
+        "elapsedMs": 434.7999999821186,
+        "accepted": false
+      },
+      {
+        "sequence": 207,
+        "sentAt": 107125.90000000596,
+        "elapsedMs": 419.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 208,
+        "sentAt": 107349.80000001192,
+        "elapsedMs": 377.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 209,
+        "sentAt": 107565.80000001192,
+        "elapsedMs": 367.2999999821186,
+        "accepted": false
+      },
+      {
+        "sequence": 210,
+        "sentAt": 107781.90000000596,
+        "elapsedMs": 352.59999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 211,
+        "sentAt": 108005.30000001192,
+        "elapsedMs": 297.7999999821186,
+        "accepted": false
+      },
+      {
+        "sequence": 212,
+        "sentAt": 108221.90000000596,
+        "elapsedMs": 385.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 213,
+        "sentAt": 108445.40000000596,
+        "elapsedMs": 355.59999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 214,
+        "sentAt": 108662,
+        "elapsedMs": 263.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 215,
+        "sentAt": 108886,
+        "elapsedMs": 302.30000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 216,
+        "sentAt": 109109.30000001192,
+        "elapsedMs": 249.5,
+        "accepted": false
+      },
+      {
+        "sequence": 217,
+        "sentAt": 109326.30000001192,
+        "elapsedMs": 240.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 218,
+        "sentAt": 109542.30000001192,
+        "elapsedMs": 249.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 219,
+        "sentAt": 109765.40000000596,
+        "elapsedMs": 306.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 220,
+        "sentAt": 109982.40000000596,
+        "elapsedMs": 895.8000000119209,
+        "accepted": false
+      },
+      {
+        "sequence": 221,
+        "sentAt": 110205.90000000596,
+        "elapsedMs": 672.6999999880791,
+        "accepted": false
+      },
+      {
+        "sequence": 222,
+        "sentAt": 110429.40000000596,
+        "elapsedMs": 449.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 223,
+        "sentAt": 110645.30000001192,
+        "elapsedMs": 247.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 224,
+        "sentAt": 110861.90000000596,
+        "elapsedMs": 589.6999999880791,
+        "accepted": false
+      },
+      {
+        "sequence": 225,
+        "sentAt": 111085.40000000596,
+        "elapsedMs": 396.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 226,
+        "sentAt": 111302.30000001192,
+        "elapsedMs": 424.59999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 227,
+        "sentAt": 111526.40000000596,
+        "elapsedMs": 362.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 228,
+        "sentAt": 111749.90000000596,
+        "elapsedMs": 228.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 229,
+        "sentAt": 111965.90000000596,
+        "elapsedMs": 226.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 230,
+        "sentAt": 112181.90000000596,
+        "elapsedMs": 304.59999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 231,
+        "sentAt": 112406.40000000596,
+        "elapsedMs": 296.59999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 232,
+        "sentAt": 112621.90000000596,
+        "elapsedMs": 286.69999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 233,
+        "sentAt": 112845.80000001192,
+        "elapsedMs": 441.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 234,
+        "sentAt": 113061.80000001192,
+        "elapsedMs": 248.2999999821186,
+        "accepted": false
+      },
+      {
+        "sequence": 235,
+        "sentAt": 113285.90000000596,
+        "elapsedMs": 304.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 236,
+        "sentAt": 113509.30000001192,
+        "elapsedMs": 313.2999999821186,
+        "accepted": false
+      },
+      {
+        "sequence": 237,
+        "sentAt": 113725.90000000596,
+        "elapsedMs": 281.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 238,
+        "sentAt": 113941.80000001192,
+        "elapsedMs": 281.5,
+        "accepted": false
+      },
+      {
+        "sequence": 239,
+        "sentAt": 114165.90000000596,
+        "elapsedMs": 626.1999999880791,
+        "accepted": false
+      },
+      {
+        "sequence": 240,
+        "sentAt": 114389.40000000596,
+        "elapsedMs": 369.30000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 241,
+        "sentAt": 114606.30000001192,
+        "elapsedMs": 616.4000000059605,
+        "accepted": false
+      },
+      {
+        "sequence": 242,
+        "sentAt": 114822.30000001192,
+        "elapsedMs": 464,
+        "accepted": false
+      },
+      {
+        "sequence": 243,
+        "sentAt": 115045.90000000596,
+        "elapsedMs": 320.5,
+        "accepted": false
+      },
+      {
+        "sequence": 244,
+        "sentAt": 115262.30000001192,
+        "elapsedMs": 360.59999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 245,
+        "sentAt": 115486.40000000596,
+        "elapsedMs": 650.5,
+        "accepted": false
+      },
+      {
+        "sequence": 246,
+        "sentAt": 115701.80000001192,
+        "elapsedMs": 457,
+        "accepted": false
+      },
+      {
+        "sequence": 247,
+        "sentAt": 115926.30000001192,
+        "elapsedMs": 232.69999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 248,
+        "sentAt": 116141.90000000596,
+        "elapsedMs": 577.6999999880791,
+        "accepted": false
+      },
+      {
+        "sequence": 249,
+        "sentAt": 116366.40000000596,
+        "elapsedMs": 353.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 250,
+        "sentAt": 116581.90000000596,
+        "elapsedMs": 259,
+        "accepted": false
+      },
+      {
+        "sequence": 251,
+        "sentAt": 116806.40000000596,
+        "elapsedMs": 349.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 252,
+        "sentAt": 117029.90000000596,
+        "elapsedMs": 288.80000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 253,
+        "sentAt": 117245.80000001192,
+        "elapsedMs": 265.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 254,
+        "sentAt": 117461.90000000596,
+        "elapsedMs": 225.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 255,
+        "sentAt": 117685.90000000596,
+        "elapsedMs": 321.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 256,
+        "sentAt": 117901.80000001192,
+        "elapsedMs": 328.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 257,
+        "sentAt": 118126.40000000596,
+        "elapsedMs": 480.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 258,
+        "sentAt": 118341.90000000596,
+        "elapsedMs": 264.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 259,
+        "sentAt": 118565.90000000596,
+        "elapsedMs": 542.5,
+        "accepted": false
+      },
+      {
+        "sequence": 260,
+        "sentAt": 118781.90000000596,
+        "elapsedMs": 449.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 261,
+        "sentAt": 119005.80000001192,
+        "elapsedMs": 412.69999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 262,
+        "sentAt": 119221.90000000596,
+        "elapsedMs": 413.30000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 263,
+        "sentAt": 119446.40000000596,
+        "elapsedMs": 818,
+        "accepted": false
+      },
+      {
+        "sequence": 264,
+        "sentAt": 119662.30000001192,
+        "elapsedMs": 602.4000000059605,
+        "accepted": false
+      },
+      {
+        "sequence": 265,
+        "sentAt": 119886.40000000596,
+        "elapsedMs": 520.3000000119209,
+        "accepted": false
+      },
+      {
+        "sequence": 266,
+        "sentAt": 120102.40000000596,
+        "elapsedMs": 307.80000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 267,
+        "sentAt": 120326.40000000596,
+        "elapsedMs": 471.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 268,
+        "sentAt": 120541.80000001192,
+        "elapsedMs": 256.69999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 269,
+        "sentAt": 120765.90000000596,
+        "elapsedMs": 295.30000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 270,
+        "sentAt": 120981.90000000596,
+        "elapsedMs": 289.59999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 271,
+        "sentAt": 121206.30000001192,
+        "elapsedMs": 296.2999999821186,
+        "accepted": false
+      },
+      {
+        "sequence": 272,
+        "sentAt": 121429.80000001192,
+        "elapsedMs": 234,
+        "accepted": false
+      },
+      {
+        "sequence": 273,
+        "sentAt": 121646.40000000596,
+        "elapsedMs": 840.4000000059605,
+        "accepted": false
+      },
+      {
+        "sequence": 274,
+        "sentAt": 121861.90000000596,
+        "elapsedMs": 640.6999999880791,
+        "accepted": false
+      },
+      {
+        "sequence": 275,
+        "sentAt": 122086.5,
+        "elapsedMs": 416.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 276,
+        "sentAt": 122301.90000000596,
+        "elapsedMs": 305.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 277,
+        "sentAt": 122525.90000000596,
+        "elapsedMs": 314.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 278,
+        "sentAt": 122741.90000000596,
+        "elapsedMs": 312.69999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 279,
+        "sentAt": 122965.80000001192,
+        "elapsedMs": 296.5,
+        "accepted": false
+      },
+      {
+        "sequence": 280,
+        "sentAt": 123181.80000001192,
+        "elapsedMs": 266.5,
+        "accepted": false
+      },
+      {
+        "sequence": 281,
+        "sentAt": 123406.30000001192,
+        "elapsedMs": 552.4000000059605,
+        "accepted": false
+      },
+      {
+        "sequence": 282,
+        "sentAt": 123629.80000001192,
+        "elapsedMs": 392,
+        "accepted": false
+      },
+      {
+        "sequence": 283,
+        "sentAt": 123845.40000000596,
+        "elapsedMs": 424.30000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 284,
+        "sentAt": 124070.40000000596,
+        "elapsedMs": 289.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 285,
+        "sentAt": 124285.5,
+        "elapsedMs": 354.59999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 286,
+        "sentAt": 124502.30000001192,
+        "elapsedMs": 713.7999999821186,
+        "accepted": false
+      },
+      {
+        "sequence": 287,
+        "sentAt": 124725.90000000596,
+        "elapsedMs": 490.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 288,
+        "sentAt": 124949.90000000596,
+        "elapsedMs": 266.5,
+        "accepted": false
+      },
+      {
+        "sequence": 289,
+        "sentAt": 125165.90000000596,
+        "elapsedMs": 622.8000000119209,
+        "accepted": false
+      },
+      {
+        "sequence": 290,
+        "sentAt": 125381.90000000596,
+        "elapsedMs": 407,
+        "accepted": false
+      },
+      {
+        "sequence": 291,
+        "sentAt": 125605.80000001192,
+        "elapsedMs": 417.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 292,
+        "sentAt": 125829.90000000596,
+        "elapsedMs": 800.8000000119209,
+        "accepted": false
+      },
+      {
+        "sequence": 293,
+        "sentAt": 126045.40000000596,
+        "elapsedMs": 619,
+        "accepted": false
+      },
+      {
+        "sequence": 294,
+        "sentAt": 126262.40000000596,
+        "elapsedMs": 402.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 295,
+        "sentAt": 126485.90000000596,
+        "elapsedMs": 589.5,
+        "accepted": false
+      },
+      {
+        "sequence": 296,
+        "sentAt": 126701.90000000596,
+        "elapsedMs": 373.80000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 297,
+        "sentAt": 126925.40000000596,
+        "elapsedMs": 498.5,
+        "accepted": false
+      },
+      {
+        "sequence": 298,
+        "sentAt": 127142.40000000596,
+        "elapsedMs": 878.3000000119209,
+        "accepted": false
+      },
+      {
+        "sequence": 299,
+        "sentAt": 127365.90000000596,
+        "elapsedMs": 655.1999999880791,
+        "accepted": false
+      },
+      {
+        "sequence": 300,
+        "sentAt": 127582.5,
+        "elapsedMs": 438.7000000178814,
+        "accepted": false
+      },
+      {
+        "sequence": 301,
+        "sentAt": 127806.30000001192,
+        "elapsedMs": 292,
+        "accepted": false
+      },
+      {
+        "sequence": 302,
+        "sentAt": 128022,
+        "elapsedMs": 401.7000000178814,
+        "accepted": false
+      },
+      {
+        "sequence": 303,
+        "sentAt": 128245.80000001192,
+        "elapsedMs": 313,
+        "accepted": false
+      },
+      {
+        "sequence": 304,
+        "sentAt": 128469.90000000596,
+        "elapsedMs": 336.69999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 305,
+        "sentAt": 128685.40000000596,
+        "elapsedMs": 400.69999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 306,
+        "sentAt": 128901.90000000596,
+        "elapsedMs": 204,
+        "accepted": false
+      },
+      {
+        "sequence": 307,
+        "sentAt": 129126.30000001192,
+        "elapsedMs": 345.7999999821186,
+        "accepted": false
+      },
+      {
+        "sequence": 308,
+        "sentAt": 129349.40000000596,
+        "elapsedMs": 498.59999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 309,
+        "sentAt": 129565.30000001192,
+        "elapsedMs": 283,
+        "accepted": false
+      },
+      {
+        "sequence": 310,
+        "sentAt": 129781.90000000596,
+        "elapsedMs": 273.80000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 311,
+        "sentAt": 130005.80000001192,
+        "elapsedMs": 293.69999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 312,
+        "sentAt": 130221.90000000596,
+        "elapsedMs": 232.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 313,
+        "sentAt": 130445.30000001192,
+        "elapsedMs": 594.9000000059605,
+        "accepted": false
+      },
+      {
+        "sequence": 314,
+        "sentAt": 130662.30000001192,
+        "elapsedMs": 378.2999999821186,
+        "accepted": false
+      },
+      {
+        "sequence": 315,
+        "sentAt": 130886.40000000596,
+        "elapsedMs": 219,
+        "accepted": false
+      },
+      {
+        "sequence": 316,
+        "sentAt": 131110.30000001192,
+        "elapsedMs": 496.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 317,
+        "sentAt": 131325.90000000596,
+        "elapsedMs": 305.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 318,
+        "sentAt": 131549.90000000596,
+        "elapsedMs": 454.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 319,
+        "sentAt": 131765.90000000596,
+        "elapsedMs": 239.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 320,
+        "sentAt": 131989.59999999404,
+        "elapsedMs": 216.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 321,
+        "sentAt": 132205.70000001788,
+        "elapsedMs": 372.2999999821186,
+        "accepted": false
+      },
+      {
+        "sequence": 322,
+        "sentAt": 132421.90000000596,
+        "elapsedMs": 342.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 323,
+        "sentAt": 132645.30000001192,
+        "elapsedMs": 521.5,
+        "accepted": false
+      },
+      {
+        "sequence": 324,
+        "sentAt": 132862.40000000596,
+        "elapsedMs": 474,
+        "accepted": false
+      },
+      {
+        "sequence": 325,
+        "sentAt": 133085.90000000596,
+        "elapsedMs": 281.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 326,
+        "sentAt": 133302.40000000596,
+        "elapsedMs": 280,
+        "accepted": false
+      },
+      {
+        "sequence": 327,
+        "sentAt": 133525.40000000596,
+        "elapsedMs": 292.69999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 328,
+        "sentAt": 133749.80000001192,
+        "elapsedMs": 192.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 329,
+        "sentAt": 133966.30000001192,
+        "elapsedMs": 200.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 330,
+        "sentAt": 134189.70000001788,
+        "elapsedMs": 275.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 331,
+        "sentAt": 134405.90000000596,
+        "elapsedMs": 634.4000000059605,
+        "accepted": false
+      },
+      {
+        "sequence": 332,
+        "sentAt": 134629.30000001192,
+        "elapsedMs": 411.5,
+        "accepted": false
+      },
+      {
+        "sequence": 333,
+        "sentAt": 134845.80000001192,
+        "elapsedMs": 241,
+        "accepted": false
+      },
+      {
+        "sequence": 334,
+        "sentAt": 135061.90000000596,
+        "elapsedMs": 240.69999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 335,
+        "sentAt": 135285.40000000596,
+        "elapsedMs": 601.1999999880791,
+        "accepted": false
+      },
+      {
+        "sequence": 336,
+        "sentAt": 135502.40000000596,
+        "elapsedMs": 434.80000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 337,
+        "sentAt": 135726.40000000596,
+        "elapsedMs": 400,
+        "accepted": false
+      },
+      {
+        "sequence": 338,
+        "sentAt": 135949.90000000596,
+        "elapsedMs": 352.80000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 339,
+        "sentAt": 136166.5,
+        "elapsedMs": 320.59999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 340,
+        "sentAt": 136381.90000000596,
+        "elapsedMs": 328.30000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 341,
+        "sentAt": 136605.80000001192,
+        "elapsedMs": 496.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 342,
+        "sentAt": 136829.90000000596,
+        "elapsedMs": 273.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 343,
+        "sentAt": 137045.90000000596,
+        "elapsedMs": 313.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 344,
+        "sentAt": 137269.40000000596,
+        "elapsedMs": 485.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 345,
+        "sentAt": 137485.90000000596,
+        "elapsedMs": 269.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 346,
+        "sentAt": 137702.40000000596,
+        "elapsedMs": 610.6999999880791,
+        "accepted": false
+      },
+      {
+        "sequence": 347,
+        "sentAt": 137925.59999999404,
+        "elapsedMs": 393.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 348,
+        "sentAt": 138141.80000001192,
+        "elapsedMs": 488.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 349,
+        "sentAt": 138366.30000001192,
+        "elapsedMs": 370.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 350,
+        "sentAt": 138582.40000000596,
+        "elapsedMs": 272.59999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 351,
+        "sentAt": 138805.40000000596,
+        "elapsedMs": 375.59999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 352,
+        "sentAt": 139021.80000001192,
+        "elapsedMs": 531.4000000059605,
+        "accepted": false
+      },
+      {
+        "sequence": 353,
+        "sentAt": 139245.90000000596,
+        "elapsedMs": 415.5,
+        "accepted": false
+      },
+      {
+        "sequence": 354,
+        "sentAt": 139461.90000000596,
+        "elapsedMs": 305.80000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 355,
+        "sentAt": 139686,
+        "elapsedMs": 241.7000000178814,
+        "accepted": false
+      },
+      {
+        "sequence": 356,
+        "sentAt": 139902.40000000596,
+        "elapsedMs": 264.80000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 357,
+        "sentAt": 140126.40000000596,
+        "elapsedMs": 263.69999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 358,
+        "sentAt": 140342.40000000596,
+        "elapsedMs": 840.6999999880791,
+        "accepted": false
+      },
+      {
+        "sequence": 359,
+        "sentAt": 140565.40000000596,
+        "elapsedMs": 692.6999999880791,
+        "accepted": false
+      },
+      {
+        "sequence": 360,
+        "sentAt": 140781.90000000596,
+        "elapsedMs": 476.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 361,
+        "sentAt": 141005.80000001192,
+        "elapsedMs": 386.7999999821186,
+        "accepted": false
+      },
+      {
+        "sequence": 362,
+        "sentAt": 141221.90000000596,
+        "elapsedMs": 314.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 363,
+        "sentAt": 141445.30000001192,
+        "elapsedMs": 523,
+        "accepted": false
+      },
+      {
+        "sequence": 364,
+        "sentAt": 141661.80000001192,
+        "elapsedMs": 379.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 365,
+        "sentAt": 141885.40000000596,
+        "elapsedMs": 364.5,
+        "accepted": false
+      },
+      {
+        "sequence": 366,
+        "sentAt": 142102.40000000596,
+        "elapsedMs": 303.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 367,
+        "sentAt": 142326.40000000596,
+        "elapsedMs": 264.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 368,
+        "sentAt": 142541.90000000596,
+        "elapsedMs": 498.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 369,
+        "sentAt": 142766.40000000596,
+        "elapsedMs": 274.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 370,
+        "sentAt": 142981.90000000596,
+        "elapsedMs": 472.80000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 371,
+        "sentAt": 143206.30000001192,
+        "elapsedMs": 248.69999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 372,
+        "sentAt": 143422.40000000596,
+        "elapsedMs": 284.59999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 373,
+        "sentAt": 143645.40000000596,
+        "elapsedMs": 258,
+        "accepted": false
+      },
+      {
+        "sequence": 374,
+        "sentAt": 143861.80000001192,
+        "elapsedMs": 340.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 375,
+        "sentAt": 144085.40000000596,
+        "elapsedMs": 400.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 376,
+        "sentAt": 144301.80000001192,
+        "elapsedMs": 234.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 377,
+        "sentAt": 144526.30000001192,
+        "elapsedMs": 312.2999999821186,
+        "accepted": false
+      },
+      {
+        "sequence": 378,
+        "sentAt": 144742.30000001192,
+        "elapsedMs": 607.5999999940395,
+        "accepted": false
+      },
+      {
+        "sequence": 379,
+        "sentAt": 144966.40000000596,
+        "elapsedMs": 383.80000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 380,
+        "sentAt": 145189.90000000596,
+        "elapsedMs": 402.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 381,
+        "sentAt": 145405.40000000596,
+        "elapsedMs": 435.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 382,
+        "sentAt": 145621.80000001192,
+        "elapsedMs": 219.2999999821186,
+        "accepted": false
+      },
+      {
+        "sequence": 383,
+        "sentAt": 145845.90000000596,
+        "elapsedMs": 224.5,
+        "accepted": false
+      },
+      {
+        "sequence": 384,
+        "sentAt": 146062.30000001192,
+        "elapsedMs": 326.59999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 385,
+        "sentAt": 146286.40000000596,
+        "elapsedMs": 319.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 386,
+        "sentAt": 146502.40000000596,
+        "elapsedMs": 273.30000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 387,
+        "sentAt": 146725.80000001192,
+        "elapsedMs": 205.5,
+        "accepted": false
+      },
+      {
+        "sequence": 388,
+        "sentAt": 146950.30000001192,
+        "elapsedMs": 272.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 389,
+        "sentAt": 147166.40000000596,
+        "elapsedMs": 392.5,
+        "accepted": false
+      },
+      {
+        "sequence": 390,
+        "sentAt": 147389.90000000596,
+        "elapsedMs": 393.69999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 391,
+        "sentAt": 147605.90000000596,
+        "elapsedMs": 282.80000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 392,
+        "sentAt": 147821.80000001192,
+        "elapsedMs": 305.59999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 393,
+        "sentAt": 148045.80000001192,
+        "elapsedMs": 273.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 394,
+        "sentAt": 148261.80000001192,
+        "elapsedMs": 225.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 395,
+        "sentAt": 148485.90000000596,
+        "elapsedMs": 351.30000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 396,
+        "sentAt": 148702.40000000596,
+        "elapsedMs": 504,
+        "accepted": false
+      },
+      {
+        "sequence": 397,
+        "sentAt": 148925.80000001192,
+        "elapsedMs": 329.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 398,
+        "sentAt": 149149.30000001192,
+        "elapsedMs": 536.5,
+        "accepted": false
+      },
+      {
+        "sequence": 399,
+        "sentAt": 149365.40000000596,
+        "elapsedMs": 354.30000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 400,
+        "sentAt": 149589.80000001192,
+        "elapsedMs": 410.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 401,
+        "sentAt": 149805.90000000596,
+        "elapsedMs": 377.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 402,
+        "sentAt": 150021.80000001192,
+        "elapsedMs": 241.5,
+        "accepted": false
+      },
+      {
+        "sequence": 403,
+        "sentAt": 150245.80000001192,
+        "elapsedMs": 358.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 404,
+        "sentAt": 150461.90000000596,
+        "elapsedMs": 544.6999999880791,
+        "accepted": false
+      },
+      {
+        "sequence": 405,
+        "sentAt": 150685.40000000596,
+        "elapsedMs": 522.0999999940395,
+        "accepted": false
+      },
+      {
+        "sequence": 406,
+        "sentAt": 150909.40000000596,
+        "elapsedMs": 322,
+        "accepted": false
+      },
+      {
+        "sequence": 407,
+        "sentAt": 151125.90000000596,
+        "elapsedMs": 480.30000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 408,
+        "sentAt": 151341.90000000596,
+        "elapsedMs": 264.59999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 409,
+        "sentAt": 151565.40000000596,
+        "elapsedMs": 299,
+        "accepted": false
+      },
+      {
+        "sequence": 410,
+        "sentAt": 151781.90000000596,
+        "elapsedMs": 241.30000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 411,
+        "sentAt": 152005.90000000596,
+        "elapsedMs": 552,
+        "accepted": false
+      },
+      {
+        "sequence": 412,
+        "sentAt": 152229.40000000596,
+        "elapsedMs": 328.80000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 413,
+        "sentAt": 152445.30000001192,
+        "elapsedMs": 377.69999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 414,
+        "sentAt": 152661.90000000596,
+        "elapsedMs": 360.59999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 415,
+        "sentAt": 152885.40000000596,
+        "elapsedMs": 337.59999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 416,
+        "sentAt": 153102.30000001192,
+        "elapsedMs": 328.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 417,
+        "sentAt": 153325.90000000596,
+        "elapsedMs": 593.1999999880791,
+        "accepted": false
+      },
+      {
+        "sequence": 418,
+        "sentAt": 153542.40000000596,
+        "elapsedMs": 377.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 419,
+        "sentAt": 153766.30000001192,
+        "elapsedMs": 290.7999999821186,
+        "accepted": false
+      },
+      {
+        "sequence": 420,
+        "sentAt": 153982.40000000596,
+        "elapsedMs": 657.6999999880791,
+        "accepted": false
+      },
+      {
+        "sequence": 421,
+        "sentAt": 154205.30000001192,
+        "elapsedMs": 440.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 422,
+        "sentAt": 154429.80000001192,
+        "elapsedMs": 468,
+        "accepted": false
+      },
+      {
+        "sequence": 423,
+        "sentAt": 154645.30000001192,
+        "elapsedMs": 329.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 424,
+        "sentAt": 154861.90000000596,
+        "elapsedMs": 194.69999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 425,
+        "sentAt": 155085.90000000596,
+        "elapsedMs": 245.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 426,
+        "sentAt": 155301.70000001788,
+        "elapsedMs": 456.2999999821186,
+        "accepted": false
+      },
+      {
+        "sequence": 427,
+        "sentAt": 155526.40000000596,
+        "elapsedMs": 231.80000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 428,
+        "sentAt": 155742.40000000596,
+        "elapsedMs": 240.80000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 429,
+        "sentAt": 155965.80000001192,
+        "elapsedMs": 792.2999999821186,
+        "accepted": false
+      },
+      {
+        "sequence": 430,
+        "sentAt": 156190.30000001192,
+        "elapsedMs": 568.0999999940395,
+        "accepted": false
+      },
+      {
+        "sequence": 431,
+        "sentAt": 156405.90000000596,
+        "elapsedMs": 352.69999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 432,
+        "sentAt": 156621.90000000596,
+        "elapsedMs": 399.5,
+        "accepted": false
+      },
+      {
+        "sequence": 433,
+        "sentAt": 156845.90000000596,
+        "elapsedMs": 299.5,
+        "accepted": false
+      },
+      {
+        "sequence": 434,
+        "sentAt": 157070.30000001192,
+        "elapsedMs": 509.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 435,
+        "sentAt": 157285.90000000596,
+        "elapsedMs": 293.80000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 436,
+        "sentAt": 157501.90000000596,
+        "elapsedMs": 600.6999999880791,
+        "accepted": false
+      },
+      {
+        "sequence": 437,
+        "sentAt": 157726.30000001192,
+        "elapsedMs": 376.69999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 438,
+        "sentAt": 157941.90000000596,
+        "elapsedMs": 224.30000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 439,
+        "sentAt": 158165.30000001192,
+        "elapsedMs": 266.69999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 440,
+        "sentAt": 158382.40000000596,
+        "elapsedMs": 623.0999999940395,
+        "accepted": false
+      },
+      {
+        "sequence": 441,
+        "sentAt": 158605.80000001192,
+        "elapsedMs": 400.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 442,
+        "sentAt": 158829.80000001192,
+        "elapsedMs": 361.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 443,
+        "sentAt": 159045.80000001192,
+        "elapsedMs": 517.9000000059605,
+        "accepted": false
+      },
+      {
+        "sequence": 444,
+        "sentAt": 159261.80000001192,
+        "elapsedMs": 302.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 445,
+        "sentAt": 159485.90000000596,
+        "elapsedMs": 369.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 446,
+        "sentAt": 159709.40000000596,
+        "elapsedMs": 297.69999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 447,
+        "sentAt": 159926.30000001192,
+        "elapsedMs": 295.59999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 448,
+        "sentAt": 160141.90000000596,
+        "elapsedMs": 258.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 449,
+        "sentAt": 160365.5,
+        "elapsedMs": 236.2000000178814,
+        "accepted": false
+      },
+      {
+        "sequence": 450,
+        "sentAt": 160589.90000000596,
+        "elapsedMs": 446.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 451,
+        "sentAt": 160805.40000000596,
+        "elapsedMs": 352.69999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 452,
+        "sentAt": 161029.40000000596,
+        "elapsedMs": 636,
+        "accepted": false
+      },
+      {
+        "sequence": 453,
+        "sentAt": 161245.90000000596,
+        "elapsedMs": 535.8000000119209,
+        "accepted": false
+      },
+      {
+        "sequence": 454,
+        "sentAt": 161469.80000001192,
+        "elapsedMs": 385.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 455,
+        "sentAt": 161685.90000000596,
+        "elapsedMs": 881.1999999880791,
+        "accepted": false
+      },
+      {
+        "sequence": 456,
+        "sentAt": 161909.90000000596,
+        "elapsedMs": 629.4000000059605,
+        "accepted": false
+      },
+      {
+        "sequence": 457,
+        "sentAt": 162125.80000001192,
+        "elapsedMs": 456.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 458,
+        "sentAt": 162341.80000001192,
+        "elapsedMs": 240.59999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 459,
+        "sentAt": 162565.80000001192,
+        "elapsedMs": 416.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 460,
+        "sentAt": 162781.90000000596,
+        "elapsedMs": 269.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 461,
+        "sentAt": 163005.80000001192,
+        "elapsedMs": 386.5,
+        "accepted": false
+      },
+      {
+        "sequence": 462,
+        "sentAt": 163229.40000000596,
+        "elapsedMs": 363.69999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 463,
+        "sentAt": 163445.90000000596,
+        "elapsedMs": 240.59999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 464,
+        "sentAt": 163661.80000001192,
+        "elapsedMs": 319,
+        "accepted": false
+      },
+      {
+        "sequence": 465,
+        "sentAt": 163886.40000000596,
+        "elapsedMs": 384.59999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 466,
+        "sentAt": 164102.30000001192,
+        "elapsedMs": 234.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 467,
+        "sentAt": 164325.90000000596,
+        "elapsedMs": 228.59999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 468,
+        "sentAt": 164541.90000000596,
+        "elapsedMs": 177.69999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 469,
+        "sentAt": 164765.90000000596,
+        "elapsedMs": 353.30000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 470,
+        "sentAt": 164982,
+        "elapsedMs": 185.5,
+        "accepted": false
+      },
+      {
+        "sequence": 471,
+        "sentAt": 165205.90000000596,
+        "elapsedMs": 321.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 472,
+        "sentAt": 165429.30000001192,
+        "elapsedMs": 329.2999999821186,
+        "accepted": false
+      },
+      {
+        "sequence": 473,
+        "sentAt": 165645.30000001192,
+        "elapsedMs": 350.69999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 474,
+        "sentAt": 165869.30000001192,
+        "elapsedMs": 282,
+        "accepted": false
+      },
+      {
+        "sequence": 475,
+        "sentAt": 166086,
+        "elapsedMs": 320.80000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 476,
+        "sentAt": 166302.40000000596,
+        "elapsedMs": 515,
+        "accepted": false
+      },
+      {
+        "sequence": 477,
+        "sentAt": 166525.30000001192,
+        "elapsedMs": 292.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 478,
+        "sentAt": 166741.90000000596,
+        "elapsedMs": 299.30000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 479,
+        "sentAt": 166965.90000000596,
+        "elapsedMs": 317.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 480,
+        "sentAt": 167182.40000000596,
+        "elapsedMs": 282.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 481,
+        "sentAt": 167405.90000000596,
+        "elapsedMs": 248.59999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 482,
+        "sentAt": 167621.90000000596,
+        "elapsedMs": 209.59999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 483,
+        "sentAt": 167846,
+        "elapsedMs": 312.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 484,
+        "sentAt": 168069.40000000596,
+        "elapsedMs": 324.5,
+        "accepted": false
+      },
+      {
+        "sequence": 485,
+        "sentAt": 168286,
+        "elapsedMs": 377,
+        "accepted": false
+      },
+      {
+        "sequence": 486,
+        "sentAt": 168509.80000001192,
+        "elapsedMs": 493.5,
+        "accepted": false
+      },
+      {
+        "sequence": 487,
+        "sentAt": 168725.30000001192,
+        "elapsedMs": 278.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 488,
+        "sentAt": 168942.40000000596,
+        "elapsedMs": 401.80000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 489,
+        "sentAt": 169166.40000000596,
+        "elapsedMs": 348.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 490,
+        "sentAt": 169382.40000000596,
+        "elapsedMs": 309.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 491,
+        "sentAt": 169605.80000001192,
+        "elapsedMs": 343,
+        "accepted": false
+      },
+      {
+        "sequence": 492,
+        "sentAt": 169829.80000001192,
+        "elapsedMs": 489.7999999821186,
+        "accepted": false
+      },
+      {
+        "sequence": 493,
+        "sentAt": 170045.90000000596,
+        "elapsedMs": 289.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 494,
+        "sentAt": 170261.80000001192,
+        "elapsedMs": 297.2999999821186,
+        "accepted": false
+      },
+      {
+        "sequence": 495,
+        "sentAt": 170485.40000000596,
+        "elapsedMs": 385.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 496,
+        "sentAt": 170702.40000000596,
+        "elapsedMs": 548.3000000119209,
+        "accepted": false
+      },
+      {
+        "sequence": 497,
+        "sentAt": 170925.40000000596,
+        "elapsedMs": 325.59999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 498,
+        "sentAt": 171141.80000001192,
+        "elapsedMs": 511.7999999821186,
+        "accepted": false
+      },
+      {
+        "sequence": 499,
+        "sentAt": 171365.90000000596,
+        "elapsedMs": 288.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 500,
+        "sentAt": 171582.40000000596,
+        "elapsedMs": 424.69999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 501,
+        "sentAt": 171805.80000001192,
+        "elapsedMs": 201.59999999403954,
+        "accepted": false
+      }
+    ]
+  },
+  "diagnostics": "Host fire decisions: {\"view-time\":500,\"accepted\":1}; latest represented-view age 394 ms",
+  "guest": "1379 surface snapshots; epoch 1; RTT 375 ms; snapshot age 284 ms\nCached Host: surface; 100 HP; 0 armor; 0.0 heat; #8CECFF; input ack 3149; 0 kills/0 deaths; standing; lean 0.000\nCached One (you): surface; 100 HP; 0 armor; 0.0 heat; #8CECFF; input ack 3132; 0 kills/0 deaths; standing; lean 0.000\nCached Two: surface; 100 HP; 0 armor; 0.0 heat; #8CECFF; input ack 3127; 0 kills/0 deaths; standing; lean 0.000\nCached Three: surface; 100 HP; 0 armor; 0.0 heat; #8CECFF; input ack 3121; 0 kills/0 deaths; standing; lean 0.000\n4 occupied arenas; largest occupancy 1; 0 bolts; 24/24 pickups available",
+  "transport": "connected: prflx -> host; 7220220 bytes sent; RTT 208 ms; proxy route selected\nconnected: prflx -> host; 7328254 bytes sent; RTT 195 ms; proxy route selected\nconnected: prflx -> host; 7196683 bytes sent; RTT 201 ms; proxy route selected\nconstellation-control: 443 bytes queued\nconstellation-live: 5019 bytes queued\nconstellation-control: 3415 bytes queued\nconstellation-live: 5019 bytes queued\nconstellation-control: 443 bytes queued\nconstellation-live: 5159 bytes queued",
+  "proxy": "UDP impairment: 200 ms RTT; ±25 ms one-way jitter; 1% loss\n706287 forwarded; 7220 dropped; 12/12 paired sockets; 0 send errors; mean applied delay 104.1 ms"
+}

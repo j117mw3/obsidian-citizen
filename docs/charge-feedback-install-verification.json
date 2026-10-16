@@ -1,0 +1,32 @@
+{
+  "pluginVersion": "0.6.7",
+  "roomProtocol": 10,
+  "checkpointFormat": 10,
+  "settingsSchema": 5,
+  "vault": "<test-vault>",
+  "installedPlugin": "<test-vault>\\.obsidian\\plugins\\constellation-graph",
+  "previousVersion": "0.6.6",
+  "backup": "<checkout>\\dist\\installed-backups\\before-0.6.7-20261016-014640",
+  "package": "<checkout>\\dist\\obsidian-citizen-0.6.7-charge-feedback\\obsidian-citizen-0.6.7-charge-feedback.zip",
+  "checksums": {
+    "main.js": "EB89D7C596A07F3962C9D955F9DE0CD712429542EF81FFD4C26B7F6C4FEE7380",
+    "manifest.json": "5AFE1C8298D193907DD3ABEF9C3B346965DE3028244A470B6A6A95A606DAA33A",
+    "styles.css": "AB5E69622E55B28F29A7ECE6DB29E723A0A0DC6479C6EFC53582765319960F13",
+    "obsidian-citizen-0.6.7-charge-feedback.zip": "C09EB2A2E83D4C9BB4FCC5BABDBAFE56D97ADDCFDD160EE5D7F501DB7803D4D5"
+  },
+  "settingsUnchangedDuringInstall": true,
+  "settingsHash": "98B6CA22A3F93C7A0BF7D4F4105FEDCDC581976CA7B090AC3F8C7D97A9719650",
+  "settingsMigration": "No new migration; retains schema 5.",
+  "tests": {
+    "passed": 206,
+    "failed": 0
+  },
+  "typecheck": "passed",
+  "productionBuild": "passed",
+  "privacyMarkerScan": "passed",
+  "zipMemberVerification": "passed",
+  "nativeRestartPerformed": false,
+  "computerUsePerformed": false,
+  "nativeAcceptance": "Pending user reload: rising hum, ready chime, animated energy coils/sparks, weapon bracing and cancellation/mute behavior.",
+  "verificationLimits": "No fresh cross-computer WebRTC or impaired-network gameplay run; audio scheduling and animation tested in process; native sound and rendering not observed."
+}

@@ -1,0 +1,143 @@
+{
+  "passed": false,
+  "reason": "Timed out: damage interrupts held pole return",
+  "checks": [
+    "Four ordinary docking requests admitted to one arena",
+    "Approved dark color replicated",
+    "One collection, replicated unavailable pickup",
+    "Real pickup timer restored availability on all peers"
+  ],
+  "elapsedMs": 21709,
+  "invalidSnapshots": 0,
+  "pickupEvents": [
+    {
+      "id": "deca84cc-bc91-4b82-b996-d959aebc3934",
+      "at": 1792109629299
+    }
+  ],
+  "damageEvents": [],
+  "respawns": [],
+  "roundEvents": [
+    {
+      "client": 0,
+      "at": 1792109627041,
+      "state": {
+        "epoch": 1,
+        "roundId": 1,
+        "phase": "combat",
+        "phaseRemainingMs": 0,
+        "winnerId": "",
+        "scores": [
+          {
+            "playerId": "b65c1706-00d4-453f-9182-238ca86b6d76",
+            "kills": 0,
+            "deaths": 0
+          }
+        ],
+        "layoutRequirements": []
+      }
+    },
+    {
+      "client": 1,
+      "at": 1792109627644,
+      "state": {
+        "epoch": 1,
+        "roundId": 1,
+        "phase": "combat",
+        "phaseRemainingMs": 0,
+        "winnerId": "",
+        "scores": [
+          {
+            "playerId": "b65c1706-00d4-453f-9182-238ca86b6d76",
+            "kills": 0,
+            "deaths": 0
+          },
+          {
+            "playerId": "deca84cc-bc91-4b82-b996-d959aebc3934",
+            "kills": 0,
+            "deaths": 0
+          },
+          {
+            "playerId": "f27f6526-a5fb-4187-aa59-eb34d8311aeb",
+            "kills": 0,
+            "deaths": 0
+          },
+          {
+            "playerId": "30890f04-008b-4a86-8cb3-a9c8c9faf18d",
+            "kills": 0,
+            "deaths": 0
+          }
+        ],
+        "layoutRequirements": []
+      }
+    },
+    {
+      "client": 2,
+      "at": 1792109627653,
+      "state": {
+        "epoch": 1,
+        "roundId": 1,
+        "phase": "combat",
+        "phaseRemainingMs": 0,
+        "winnerId": "",
+        "scores": [
+          {
+            "playerId": "b65c1706-00d4-453f-9182-238ca86b6d76",
+            "kills": 0,
+            "deaths": 0
+          },
+          {
+            "playerId": "deca84cc-bc91-4b82-b996-d959aebc3934",
+            "kills": 0,
+            "deaths": 0
+          },
+          {
+            "playerId": "f27f6526-a5fb-4187-aa59-eb34d8311aeb",
+            "kills": 0,
+            "deaths": 0
+          },
+          {
+            "playerId": "30890f04-008b-4a86-8cb3-a9c8c9faf18d",
+            "kills": 0,
+            "deaths": 0
+          }
+        ],
+        "layoutRequirements": []
+      }
+    },
+    {
+      "client": 3,
+      "at": 1792109627839,
+      "state": {
+        "epoch": 1,
+        "roundId": 1,
+        "phase": "combat",
+        "phaseRemainingMs": 0,
+        "winnerId": "",
+        "scores": [
+          {
+            "playerId": "b65c1706-00d4-453f-9182-238ca86b6d76",
+            "kills": 0,
+            "deaths": 0
+          },
+          {
+            "playerId": "deca84cc-bc91-4b82-b996-d959aebc3934",
+            "kills": 0,
+            "deaths": 0
+          },
+          {
+            "playerId": "f27f6526-a5fb-4187-aa59-eb34d8311aeb",
+            "kills": 0,
+            "deaths": 0
+          },
+          {
+            "playerId": "30890f04-008b-4a86-8cb3-a9c8c9faf18d",
+            "kills": 0,
+            "deaths": 0
+          }
+        ],
+        "layoutRequirements": []
+      }
+    }
+  ]
+}

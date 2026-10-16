@@ -1,0 +1,4515 @@
+{
+  "scope": "Four independent tabs, one shared arena, real UDP impairment at 100 ms nominal RTT. Shared production presentation selector supplies firing timestamps. Ordinary resources; no oracle or rendering.",
+  "summary": "Complete; 500/500 attempts; 500 dispositions; 299 accepted; 100.0% within 600 ms; 100.0% within 1000 ms; p95 148 ms; p99 253 ms",
+  "samples": {
+    "scope": "Real browser WebRTC disposition trial using the renderer's shared presentation selector and bounded pose history. Ordinary resources; no WebGL, hit fairness, or rendered prediction assertions. Cancellation invalidates the trial.",
+    "epoch": 1,
+    "aborted": null,
+    "samples": [
+      {
+        "sequence": 1,
+        "sentAt": 60237.69999998808,
+        "viewTime": 1792102873101,
+        "representedLagMs": 75.612548828125,
+        "exhausted": false,
+        "elapsedMs": 82.5,
+        "accepted": true
+      },
+      {
+        "sequence": 2,
+        "sentAt": 60461.29999998212,
+        "viewTime": 1792102873304,
+        "representedLagMs": 96.612548828125,
+        "exhausted": true,
+        "elapsedMs": 108.80000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 3,
+        "sentAt": 60685.19999998808,
+        "viewTime": 1792102873549,
+        "representedLagMs": 75.612548828125,
+        "exhausted": false,
+        "elapsedMs": 95.30000001192093,
+        "accepted": true
+      },
+      {
+        "sequence": 4,
+        "sentAt": 60900.89999997616,
+        "viewTime": 1792102873766,
+        "representedLagMs": 75.18994140625,
+        "exhausted": false,
+        "elapsedMs": 117.40000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 5,
+        "sentAt": 61117.29999998212,
+        "viewTime": 1792102873983,
+        "representedLagMs": 75.18994140625,
+        "exhausted": false,
+        "elapsedMs": 74.80000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 6,
+        "sentAt": 61341.19999998808,
+        "viewTime": 1792102874204,
+        "representedLagMs": 75.4521484375,
+        "exhausted": false,
+        "elapsedMs": 87.69999998807907,
+        "accepted": true
+      },
+      {
+        "sequence": 7,
+        "sentAt": 61557.5,
+        "viewTime": 1792102874420,
+        "representedLagMs": 75.4521484375,
+        "exhausted": false,
+        "elapsedMs": 96.39999997615814,
+        "accepted": true
+      },
+      {
+        "sequence": 8,
+        "sentAt": 61781.69999998808,
+        "viewTime": 1792102874644,
+        "representedLagMs": 75.4521484375,
+        "exhausted": false,
+        "elapsedMs": 102.5,
+        "accepted": true
+      },
+      {
+        "sequence": 9,
+        "sentAt": 61997.79999998212,
+        "viewTime": 1792102874863,
+        "representedLagMs": 75.961669921875,
+        "exhausted": false,
+        "elapsedMs": 83.2000000178814,
+        "accepted": false
+      },
+      {
+        "sequence": 10,
+        "sentAt": 62221.19999998808,
+        "viewTime": 1792102875087,
+        "representedLagMs": 75.961669921875,
+        "exhausted": false,
+        "elapsedMs": 127.90000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 11,
+        "sentAt": 62437.79999998212,
+        "viewTime": 1792102875303,
+        "representedLagMs": 75.961669921875,
+        "exhausted": false,
+        "elapsedMs": 161.7000000178814,
+        "accepted": true
+      },
+      {
+        "sequence": 12,
+        "sentAt": 62660.69999998808,
+        "viewTime": 1792102875487,
+        "representedLagMs": 114.769287109375,
+        "exhausted": true,
+        "elapsedMs": 97.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 13,
+        "sentAt": 62884.89999997616,
+        "viewTime": 1792102875750,
+        "representedLagMs": 75.769287109375,
+        "exhausted": false,
+        "elapsedMs": 63.900000005960464,
+        "accepted": true
+      },
+      {
+        "sequence": 14,
+        "sentAt": 63100.69999998808,
+        "viewTime": 1792102875966,
+        "representedLagMs": 75.769287109375,
+        "exhausted": false,
+        "elapsedMs": 92.5,
+        "accepted": true
+      },
+      {
+        "sequence": 15,
+        "sentAt": 63325.69999998808,
+        "viewTime": 1792102876191,
+        "representedLagMs": 75.515380859375,
+        "exhausted": false,
+        "elapsedMs": 80.40000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 16,
+        "sentAt": 63540.89999997616,
+        "viewTime": 1792102876406,
+        "representedLagMs": 75.515380859375,
+        "exhausted": false,
+        "elapsedMs": 96.30000001192093,
+        "accepted": true
+      },
+      {
+        "sequence": 17,
+        "sentAt": 63757.29999998212,
+        "viewTime": 1792102876604,
+        "representedLagMs": 95.512451171875,
+        "exhausted": true,
+        "elapsedMs": 282.90000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 18,
+        "sentAt": 63981.19999998808,
+        "viewTime": 1792102876848,
+        "representedLagMs": 75.512451171875,
+        "exhausted": false,
+        "elapsedMs": 103.80000001192093,
+        "accepted": true
+      },
+      {
+        "sequence": 19,
+        "sentAt": 64197.79999998212,
+        "viewTime": 1792102877054,
+        "representedLagMs": 85.512451171875,
+        "exhausted": true,
+        "elapsedMs": 82.7000000178814,
+        "accepted": true
+      },
+      {
+        "sequence": 20,
+        "sentAt": 64420.69999998808,
+        "viewTime": 1792102877289,
+        "representedLagMs": 75.509765625,
+        "exhausted": false,
+        "elapsedMs": 146.5,
+        "accepted": true
+      },
+      {
+        "sequence": 21,
+        "sentAt": 64637.69999998808,
+        "viewTime": 1792102877504,
+        "representedLagMs": 77.509765625,
+        "exhausted": true,
+        "elapsedMs": 94.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 22,
+        "sentAt": 64861.59999999404,
+        "viewTime": 1792102877721,
+        "representedLagMs": 84.509765625,
+        "exhausted": true,
+        "elapsedMs": 107.90000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 23,
+        "sentAt": 65077.19999998808,
+        "viewTime": 1792102877947,
+        "representedLagMs": 75.7080078125,
+        "exhausted": false,
+        "elapsedMs": 125.59999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 24,
+        "sentAt": 65301.69999998808,
+        "viewTime": 1792102878171,
+        "representedLagMs": 75.7080078125,
+        "exhausted": true,
+        "elapsedMs": 101.30000001192093,
+        "accepted": true
+      },
+      {
+        "sequence": 25,
+        "sentAt": 65517.19999998808,
+        "viewTime": 1792102878385,
+        "representedLagMs": 75.3662109375,
+        "exhausted": false,
+        "elapsedMs": 102.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 26,
+        "sentAt": 65741.29999998212,
+        "viewTime": 1792102878609,
+        "representedLagMs": 75.3662109375,
+        "exhausted": false,
+        "elapsedMs": 109.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 27,
+        "sentAt": 65957.39999997616,
+        "viewTime": 1792102878825,
+        "representedLagMs": 75.3662109375,
+        "exhausted": false,
+        "elapsedMs": 105,
+        "accepted": false
+      },
+      {
+        "sequence": 28,
+        "sentAt": 66181.19999998808,
+        "viewTime": 1792102879048,
+        "representedLagMs": 75.39306640625,
+        "exhausted": false,
+        "elapsedMs": 122,
+        "accepted": false
+      },
+      {
+        "sequence": 29,
+        "sentAt": 66397.69999998808,
+        "viewTime": 1792102879264,
+        "representedLagMs": 75.39306640625,
+        "exhausted": false,
+        "elapsedMs": 107.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 30,
+        "sentAt": 66621.79999998212,
+        "viewTime": 1792102879488,
+        "representedLagMs": 75.39306640625,
+        "exhausted": false,
+        "elapsedMs": 87.5,
+        "accepted": false
+      },
+      {
+        "sequence": 31,
+        "sentAt": 66837.69999998808,
+        "viewTime": 1792102879705,
+        "representedLagMs": 75.114501953125,
+        "exhausted": false,
+        "elapsedMs": 144,
+        "accepted": false
+      },
+      {
+        "sequence": 32,
+        "sentAt": 67061.19999998808,
+        "viewTime": 1792102879929,
+        "representedLagMs": 75.114501953125,
+        "exhausted": false,
+        "elapsedMs": 94.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 33,
+        "sentAt": 67277.69999998808,
+        "viewTime": 1792102880145,
+        "representedLagMs": 75.114501953125,
+        "exhausted": false,
+        "elapsedMs": 98.69999998807907,
+        "accepted": true
+      },
+      {
+        "sequence": 34,
+        "sentAt": 67501.19999998808,
+        "viewTime": 1792102880354,
+        "representedLagMs": 91.3916015625,
+        "exhausted": true,
+        "elapsedMs": 83.30000001192093,
+        "accepted": true
+      },
+      {
+        "sequence": 35,
+        "sentAt": 67717.19999998808,
+        "viewTime": 1792102880586,
+        "representedLagMs": 75.3916015625,
+        "exhausted": false,
+        "elapsedMs": 73.80000001192093,
+        "accepted": true
+      },
+      {
+        "sequence": 36,
+        "sentAt": 67941.09999999404,
+        "viewTime": 1792102880809,
+        "representedLagMs": 75.913330078125,
+        "exhausted": false,
+        "elapsedMs": 77.7999999821186,
+        "accepted": true
+      },
+      {
+        "sequence": 37,
+        "sentAt": 68157.29999998212,
+        "viewTime": 1792102881025,
+        "representedLagMs": 75.913330078125,
+        "exhausted": false,
+        "elapsedMs": 127.7000000178814,
+        "accepted": true
+      },
+      {
+        "sequence": 38,
+        "sentAt": 68381.19999998808,
+        "viewTime": 1792102881249,
+        "representedLagMs": 75.913330078125,
+        "exhausted": false,
+        "elapsedMs": 100,
+        "accepted": true
+      },
+      {
+        "sequence": 39,
+        "sentAt": 68597.09999999404,
+        "viewTime": 1792102881461,
+        "representedLagMs": 75.730712890625,
+        "exhausted": false,
+        "elapsedMs": 108.5,
+        "accepted": false
+      },
+      {
+        "sequence": 40,
+        "sentAt": 68821.69999998808,
+        "viewTime": 1792102881685,
+        "representedLagMs": 75.730712890625,
+        "exhausted": false,
+        "elapsedMs": 122.69999998807907,
+        "accepted": true
+      },
+      {
+        "sequence": 41,
+        "sentAt": 69037.19999998808,
+        "viewTime": 1792102881901,
+        "representedLagMs": 75.730712890625,
+        "exhausted": false,
+        "elapsedMs": 112.59999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 42,
+        "sentAt": 69261.89999997616,
+        "viewTime": 1792102882124,
+        "representedLagMs": 75.6845703125,
+        "exhausted": false,
+        "elapsedMs": 79.60000002384186,
+        "accepted": true
+      },
+      {
+        "sequence": 43,
+        "sentAt": 69477.19999998808,
+        "viewTime": 1792102882340,
+        "representedLagMs": 75.6845703125,
+        "exhausted": false,
+        "elapsedMs": 94.09999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 44,
+        "sentAt": 69701.19999998808,
+        "viewTime": 1792102882562,
+        "representedLagMs": 75.6474609375,
+        "exhausted": false,
+        "elapsedMs": 70.69999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 45,
+        "sentAt": 69917.69999998808,
+        "viewTime": 1792102882778,
+        "representedLagMs": 75.6474609375,
+        "exhausted": false,
+        "elapsedMs": 144.90000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 46,
+        "sentAt": 70141.69999998808,
+        "viewTime": 1792102883002,
+        "representedLagMs": 75.6474609375,
+        "exhausted": false,
+        "elapsedMs": 126.69999998807907,
+        "accepted": true
+      },
+      {
+        "sequence": 47,
+        "sentAt": 70357.39999997616,
+        "viewTime": 1792102883220,
+        "representedLagMs": 75.51806640625,
+        "exhausted": false,
+        "elapsedMs": 109.60000002384186,
+        "accepted": true
+      },
+      {
+        "sequence": 48,
+        "sentAt": 70581,
+        "viewTime": 1792102883444,
+        "representedLagMs": 75.51806640625,
+        "exhausted": false,
+        "elapsedMs": 145.7999999821186,
+        "accepted": true
+      },
+      {
+        "sequence": 49,
+        "sentAt": 70797.69999998808,
+        "viewTime": 1792102883660,
+        "representedLagMs": 75.51806640625,
+        "exhausted": false,
+        "elapsedMs": 124.40000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 50,
+        "sentAt": 71021.19999998808,
+        "viewTime": 1792102883883,
+        "representedLagMs": 75.91455078125,
+        "exhausted": false,
+        "elapsedMs": 86.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 51,
+        "sentAt": 71237.19999998808,
+        "viewTime": 1792102884099,
+        "representedLagMs": 75.91455078125,
+        "exhausted": false,
+        "elapsedMs": 134.09999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 52,
+        "sentAt": 71461.69999998808,
+        "viewTime": 1792102884321,
+        "representedLagMs": 77.91455078125,
+        "exhausted": true,
+        "elapsedMs": 107,
+        "accepted": true
+      },
+      {
+        "sequence": 53,
+        "sentAt": 71677.79999998212,
+        "viewTime": 1792102884540,
+        "representedLagMs": 75.631591796875,
+        "exhausted": false,
+        "elapsedMs": 66.30000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 54,
+        "sentAt": 71900.69999998808,
+        "viewTime": 1792102884763,
+        "representedLagMs": 75.631591796875,
+        "exhausted": false,
+        "elapsedMs": 101.59999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 55,
+        "sentAt": 72117.69999998808,
+        "viewTime": 1792102884981,
+        "representedLagMs": 75.105224609375,
+        "exhausted": false,
+        "elapsedMs": 111.59999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 56,
+        "sentAt": 72341.69999998808,
+        "viewTime": 1792102885205,
+        "representedLagMs": 75.105224609375,
+        "exhausted": false,
+        "elapsedMs": 99.5,
+        "accepted": false
+      },
+      {
+        "sequence": 57,
+        "sentAt": 72557.29999998212,
+        "viewTime": 1792102885421,
+        "representedLagMs": 75.105224609375,
+        "exhausted": false,
+        "elapsedMs": 69.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 58,
+        "sentAt": 72781.19999998808,
+        "viewTime": 1792102885646,
+        "representedLagMs": 75.984130859375,
+        "exhausted": false,
+        "elapsedMs": 125,
+        "accepted": false
+      },
+      {
+        "sequence": 59,
+        "sentAt": 73004.69999998808,
+        "viewTime": 1792102885869,
+        "representedLagMs": 75.984130859375,
+        "exhausted": false,
+        "elapsedMs": 76.30000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 60,
+        "sentAt": 73221.19999998808,
+        "viewTime": 1792102886086,
+        "representedLagMs": 75.984130859375,
+        "exhausted": false,
+        "elapsedMs": 112.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 61,
+        "sentAt": 73437.89999997616,
+        "viewTime": 1792102886303,
+        "representedLagMs": 75.387451171875,
+        "exhausted": false,
+        "elapsedMs": 76.5,
+        "accepted": false
+      },
+      {
+        "sequence": 62,
+        "sentAt": 73661.19999998808,
+        "viewTime": 1792102886504,
+        "representedLagMs": 98.387451171875,
+        "exhausted": true,
+        "elapsedMs": 110.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 63,
+        "sentAt": 73885.19999998808,
+        "viewTime": 1792102886756,
+        "representedLagMs": 75.809814453125,
+        "exhausted": false,
+        "elapsedMs": 95,
+        "accepted": false
+      },
+      {
+        "sequence": 64,
+        "sentAt": 74100.69999998808,
+        "viewTime": 1792102886971,
+        "representedLagMs": 75.809814453125,
+        "exhausted": false,
+        "elapsedMs": 92.09999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 65,
+        "sentAt": 74317.79999998212,
+        "viewTime": 1792102887188,
+        "representedLagMs": 75.809814453125,
+        "exhausted": false,
+        "elapsedMs": 148.7000000178814,
+        "accepted": true
+      },
+      {
+        "sequence": 66,
+        "sentAt": 74540.69999998808,
+        "viewTime": 1792102887404,
+        "representedLagMs": 79.447998046875,
+        "exhausted": true,
+        "elapsedMs": 121.69999998807907,
+        "accepted": true
+      },
+      {
+        "sequence": 67,
+        "sentAt": 74757.29999998212,
+        "viewTime": 1792102887625,
+        "representedLagMs": 75.447998046875,
+        "exhausted": false,
+        "elapsedMs": 123.09999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 68,
+        "sentAt": 74980.89999997616,
+        "viewTime": 1792102887848,
+        "representedLagMs": 75.447998046875,
+        "exhausted": false,
+        "elapsedMs": 110.7000000178814,
+        "accepted": true
+      },
+      {
+        "sequence": 69,
+        "sentAt": 75197.19999998808,
+        "viewTime": 1792102888064,
+        "representedLagMs": 75.3583984375,
+        "exhausted": false,
+        "elapsedMs": 110.30000001192093,
+        "accepted": true
+      },
+      {
+        "sequence": 70,
+        "sentAt": 75421.69999998808,
+        "viewTime": 1792102888254,
+        "representedLagMs": 109.3583984375,
+        "exhausted": true,
+        "elapsedMs": 88.30000001192093,
+        "accepted": true
+      },
+      {
+        "sequence": 71,
+        "sentAt": 75637.19999998808,
+        "viewTime": 1792102888504,
+        "representedLagMs": 75.3583984375,
+        "exhausted": false,
+        "elapsedMs": 120.90000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 72,
+        "sentAt": 75861.29999998212,
+        "viewTime": 1792102888728,
+        "representedLagMs": 75.086669921875,
+        "exhausted": false,
+        "elapsedMs": 110,
+        "accepted": true
+      },
+      {
+        "sequence": 73,
+        "sentAt": 76077.19999998808,
+        "viewTime": 1792102888944,
+        "representedLagMs": 75.086669921875,
+        "exhausted": false,
+        "elapsedMs": 104,
+        "accepted": false
+      },
+      {
+        "sequence": 74,
+        "sentAt": 76300.69999998808,
+        "viewTime": 1792102889167,
+        "representedLagMs": 75.16943359375,
+        "exhausted": false,
+        "elapsedMs": 151.59999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 75,
+        "sentAt": 76517.69999998808,
+        "viewTime": 1792102889384,
+        "representedLagMs": 75.16943359375,
+        "exhausted": false,
+        "elapsedMs": 101.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 76,
+        "sentAt": 76740.69999998808,
+        "viewTime": 1792102889607,
+        "representedLagMs": 75.16943359375,
+        "exhausted": false,
+        "elapsedMs": 125.90000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 77,
+        "sentAt": 76957.89999997616,
+        "viewTime": 1792102889823,
+        "representedLagMs": 75.535400390625,
+        "exhausted": false,
+        "elapsedMs": 86.80000001192093,
+        "accepted": true
+      },
+      {
+        "sequence": 78,
+        "sentAt": 77181.19999998808,
+        "viewTime": 1792102890037,
+        "representedLagMs": 85.535400390625,
+        "exhausted": true,
+        "elapsedMs": 104.19999998807907,
+        "accepted": true
+      },
+      {
+        "sequence": 79,
+        "sentAt": 77404.69999998808,
+        "viewTime": 1792102890270,
+        "representedLagMs": 75.535400390625,
+        "exhausted": false,
+        "elapsedMs": 89.5,
+        "accepted": true
+      },
+      {
+        "sequence": 80,
+        "sentAt": 77621.19999998808,
+        "viewTime": 1792102890487,
+        "representedLagMs": 76.328369140625,
+        "exhausted": true,
+        "elapsedMs": 85.40000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 81,
+        "sentAt": 77837.19999998808,
+        "viewTime": 1792102890704,
+        "representedLagMs": 75.328369140625,
+        "exhausted": false,
+        "elapsedMs": 91,
+        "accepted": true
+      },
+      {
+        "sequence": 82,
+        "sentAt": 78060.69999998808,
+        "viewTime": 1792102890927,
+        "representedLagMs": 75.328369140625,
+        "exhausted": false,
+        "elapsedMs": 110.69999998807907,
+        "accepted": true
+      },
+      {
+        "sequence": 83,
+        "sentAt": 78285.79999998212,
+        "viewTime": 1792102891150,
+        "representedLagMs": 75.562744140625,
+        "exhausted": false,
+        "elapsedMs": 154.09999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 84,
+        "sentAt": 78501.29999998212,
+        "viewTime": 1792102891366,
+        "representedLagMs": 75.562744140625,
+        "exhausted": false,
+        "elapsedMs": 140,
+        "accepted": false
+      },
+      {
+        "sequence": 85,
+        "sentAt": 78725.29999998212,
+        "viewTime": 1792102891589,
+        "representedLagMs": 75.550048828125,
+        "exhausted": false,
+        "elapsedMs": 117.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 86,
+        "sentAt": 78941.29999998212,
+        "viewTime": 1792102891805,
+        "representedLagMs": 75.550048828125,
+        "exhausted": false,
+        "elapsedMs": 111.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 87,
+        "sentAt": 79158,
+        "viewTime": 1792102892021,
+        "representedLagMs": 75.550048828125,
+        "exhausted": false,
+        "elapsedMs": 108.89999997615814,
+        "accepted": false
+      },
+      {
+        "sequence": 88,
+        "sentAt": 79381.19999998808,
+        "viewTime": 1792102892245,
+        "representedLagMs": 75.0400390625,
+        "exhausted": false,
+        "elapsedMs": 140.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 89,
+        "sentAt": 79597.19999998808,
+        "viewTime": 1792102892461,
+        "representedLagMs": 75.0400390625,
+        "exhausted": false,
+        "elapsedMs": 97.80000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 90,
+        "sentAt": 79821.19999998808,
+        "viewTime": 1792102892671,
+        "representedLagMs": 89.0400390625,
+        "exhausted": true,
+        "elapsedMs": 86.59999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 91,
+        "sentAt": 80037.69999998808,
+        "viewTime": 1792102892901,
+        "representedLagMs": 75.83203125,
+        "exhausted": false,
+        "elapsedMs": 133.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 92,
+        "sentAt": 80261.19999998808,
+        "viewTime": 1792102893071,
+        "representedLagMs": 129.83203125,
+        "exhausted": true,
+        "elapsedMs": 85.30000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 93,
+        "sentAt": 80477.69999998808,
+        "viewTime": 1792102893337,
+        "representedLagMs": 81.265625,
+        "exhausted": true,
+        "elapsedMs": 151.59999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 94,
+        "sentAt": 80700.79999998212,
+        "viewTime": 1792102893566,
+        "representedLagMs": 75.265625,
+        "exhausted": false,
+        "elapsedMs": 94.80000001192093,
+        "accepted": true
+      },
+      {
+        "sequence": 95,
+        "sentAt": 80917.19999998808,
+        "viewTime": 1792102893783,
+        "representedLagMs": 75.265625,
+        "exhausted": false,
+        "elapsedMs": 126.5,
+        "accepted": true
+      },
+      {
+        "sequence": 96,
+        "sentAt": 81141.69999998808,
+        "viewTime": 1792102894008,
+        "representedLagMs": 75.3125,
+        "exhausted": false,
+        "elapsedMs": 87.59999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 97,
+        "sentAt": 81357.39999997616,
+        "viewTime": 1792102894224,
+        "representedLagMs": 75.3125,
+        "exhausted": false,
+        "elapsedMs": 96.80000001192093,
+        "accepted": true
+      },
+      {
+        "sequence": 98,
+        "sentAt": 81581.19999998808,
+        "viewTime": 1792102894448,
+        "representedLagMs": 75.3125,
+        "exhausted": false,
+        "elapsedMs": 98,
+        "accepted": true
+      },
+      {
+        "sequence": 99,
+        "sentAt": 81804.79999998212,
+        "viewTime": 1792102894671,
+        "representedLagMs": 75.35009765625,
+        "exhausted": false,
+        "elapsedMs": 91.40000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 100,
+        "sentAt": 82020.59999999404,
+        "viewTime": 1792102894887,
+        "representedLagMs": 75.35009765625,
+        "exhausted": false,
+        "elapsedMs": 76.09999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 101,
+        "sentAt": 82237.19999998808,
+        "viewTime": 1792102895104,
+        "representedLagMs": 75.35009765625,
+        "exhausted": false,
+        "elapsedMs": 108.5,
+        "accepted": true
+      },
+      {
+        "sequence": 102,
+        "sentAt": 82461.19999998808,
+        "viewTime": 1792102895330,
+        "representedLagMs": 75.580078125,
+        "exhausted": false,
+        "elapsedMs": 132.59999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 103,
+        "sentAt": 82677.19999998808,
+        "viewTime": 1792102895546,
+        "representedLagMs": 75.580078125,
+        "exhausted": false,
+        "elapsedMs": 117.90000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 104,
+        "sentAt": 82901.69999998808,
+        "viewTime": 1792102895768,
+        "representedLagMs": 75.56396484375,
+        "exhausted": false,
+        "elapsedMs": 79.59999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 105,
+        "sentAt": 83117.19999998808,
+        "viewTime": 1792102895984,
+        "representedLagMs": 75.56396484375,
+        "exhausted": false,
+        "elapsedMs": 112,
+        "accepted": true
+      },
+      {
+        "sequence": 106,
+        "sentAt": 83341.19999998808,
+        "viewTime": 1792102896208,
+        "representedLagMs": 75.56396484375,
+        "exhausted": false,
+        "elapsedMs": 111.59999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 107,
+        "sentAt": 83557.5,
+        "viewTime": 1792102896421,
+        "representedLagMs": 80.651123046875,
+        "exhausted": true,
+        "elapsedMs": 104.39999997615814,
+        "accepted": true
+      },
+      {
+        "sequence": 108,
+        "sentAt": 83780.79999998212,
+        "viewTime": 1792102896649,
+        "representedLagMs": 75.651123046875,
+        "exhausted": false,
+        "elapsedMs": 115.90000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 109,
+        "sentAt": 83997.79999998212,
+        "viewTime": 1792102896866,
+        "representedLagMs": 75.651123046875,
+        "exhausted": false,
+        "elapsedMs": 117,
+        "accepted": true
+      },
+      {
+        "sequence": 110,
+        "sentAt": 84221.19999998808,
+        "viewTime": 1792102897090,
+        "representedLagMs": 75.720947265625,
+        "exhausted": false,
+        "elapsedMs": 86.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 111,
+        "sentAt": 84437.29999998212,
+        "viewTime": 1792102897306,
+        "representedLagMs": 75.720947265625,
+        "exhausted": false,
+        "elapsedMs": 109.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 112,
+        "sentAt": 84661.69999998808,
+        "viewTime": 1792102897530,
+        "representedLagMs": 75.720947265625,
+        "exhausted": false,
+        "elapsedMs": 288.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 113,
+        "sentAt": 84877.29999998212,
+        "viewTime": 1792102897746,
+        "representedLagMs": 75.720947265625,
+        "exhausted": false,
+        "elapsedMs": 118.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 114,
+        "sentAt": 85101.19999998808,
+        "viewTime": 1792102897970,
+        "representedLagMs": 75.720947265625,
+        "exhausted": false,
+        "elapsedMs": 65.5,
+        "accepted": false
+      },
+      {
+        "sequence": 115,
+        "sentAt": 85317.59999999404,
+        "viewTime": 1792102898185,
+        "representedLagMs": 75.07666015625,
+        "exhausted": false,
+        "elapsedMs": 97.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 116,
+        "sentAt": 85541.69999998808,
+        "viewTime": 1792102898409,
+        "representedLagMs": 75.07666015625,
+        "exhausted": false,
+        "elapsedMs": 105.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 117,
+        "sentAt": 85765.19999998808,
+        "viewTime": 1792102898633,
+        "representedLagMs": 75.07666015625,
+        "exhausted": false,
+        "elapsedMs": 114.5,
+        "accepted": false
+      },
+      {
+        "sequence": 118,
+        "sentAt": 85981.19999998808,
+        "viewTime": 1792102898852,
+        "representedLagMs": 75.0615234375,
+        "exhausted": false,
+        "elapsedMs": 151.30000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 119,
+        "sentAt": 86197.29999998212,
+        "viewTime": 1792102899068,
+        "representedLagMs": 75.0615234375,
+        "exhausted": false,
+        "elapsedMs": 131.90000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 120,
+        "sentAt": 86420.89999997616,
+        "viewTime": 1792102899291,
+        "representedLagMs": 75.0615234375,
+        "exhausted": false,
+        "elapsedMs": 85.90000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 121,
+        "sentAt": 86637.19999998808,
+        "viewTime": 1792102899437,
+        "representedLagMs": 147.049072265625,
+        "exhausted": true,
+        "elapsedMs": 133.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 122,
+        "sentAt": 86861.29999998212,
+        "viewTime": 1792102899733,
+        "representedLagMs": 75.049072265625,
+        "exhausted": false,
+        "elapsedMs": 142.2000000178814,
+        "accepted": true
+      },
+      {
+        "sequence": 123,
+        "sentAt": 87077.29999998212,
+        "viewTime": 1792102899937,
+        "representedLagMs": 87.049072265625,
+        "exhausted": true,
+        "elapsedMs": 81.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 124,
+        "sentAt": 87301.69999998808,
+        "viewTime": 1792102900169,
+        "representedLagMs": 75.639404296875,
+        "exhausted": false,
+        "elapsedMs": 127.80000001192093,
+        "accepted": true
+      },
+      {
+        "sequence": 125,
+        "sentAt": 87517.19999998808,
+        "viewTime": 1792102900385,
+        "representedLagMs": 75.639404296875,
+        "exhausted": false,
+        "elapsedMs": 129.5,
+        "accepted": true
+      },
+      {
+        "sequence": 126,
+        "sentAt": 87741.19999998808,
+        "viewTime": 1792102900609,
+        "representedLagMs": 75.639404296875,
+        "exhausted": false,
+        "elapsedMs": 138.09999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 127,
+        "sentAt": 87957.89999997616,
+        "viewTime": 1792102900825,
+        "representedLagMs": 75.011474609375,
+        "exhausted": false,
+        "elapsedMs": 107.2000000178814,
+        "accepted": false
+      },
+      {
+        "sequence": 128,
+        "sentAt": 88181.29999998212,
+        "viewTime": 1792102901049,
+        "representedLagMs": 75.011474609375,
+        "exhausted": false,
+        "elapsedMs": 101.2000000178814,
+        "accepted": true
+      },
+      {
+        "sequence": 129,
+        "sentAt": 88397.19999998808,
+        "viewTime": 1792102901237,
+        "representedLagMs": 104.9091796875,
+        "exhausted": true,
+        "elapsedMs": 69.90000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 130,
+        "sentAt": 88621.29999998212,
+        "viewTime": 1792102901454,
+        "representedLagMs": 111.9091796875,
+        "exhausted": true,
+        "elapsedMs": 126,
+        "accepted": true
+      },
+      {
+        "sequence": 131,
+        "sentAt": 88837.19999998808,
+        "viewTime": 1792102901687,
+        "representedLagMs": 94.9091796875,
+        "exhausted": true,
+        "elapsedMs": 111.59999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 132,
+        "sentAt": 89061.69999998808,
+        "viewTime": 1792102901930,
+        "representedLagMs": 75.327392578125,
+        "exhausted": false,
+        "elapsedMs": 71.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 133,
+        "sentAt": 89277.69999998808,
+        "viewTime": 1792102902146,
+        "representedLagMs": 75.327392578125,
+        "exhausted": false,
+        "elapsedMs": 121.09999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 134,
+        "sentAt": 89501.19999998808,
+        "viewTime": 1792102902354,
+        "representedLagMs": 91.327392578125,
+        "exhausted": true,
+        "elapsedMs": 91.19999998807907,
+        "accepted": true
+      },
+      {
+        "sequence": 135,
+        "sentAt": 89717.19999998808,
+        "viewTime": 1792102902584,
+        "representedLagMs": 75.661865234375,
+        "exhausted": false,
+        "elapsedMs": 99.5,
+        "accepted": true
+      },
+      {
+        "sequence": 136,
+        "sentAt": 89940.69999998808,
+        "viewTime": 1792102902804,
+        "representedLagMs": 78.661865234375,
+        "exhausted": true,
+        "elapsedMs": 112.5,
+        "accepted": true
+      },
+      {
+        "sequence": 137,
+        "sentAt": 90157.5,
+        "viewTime": 1792102903024,
+        "representedLagMs": 75.32958984375,
+        "exhausted": false,
+        "elapsedMs": 111.09999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 138,
+        "sentAt": 90381.69999998808,
+        "viewTime": 1792102903248,
+        "representedLagMs": 75.32958984375,
+        "exhausted": false,
+        "elapsedMs": 105.5,
+        "accepted": true
+      },
+      {
+        "sequence": 139,
+        "sentAt": 90597.29999998212,
+        "viewTime": 1792102903464,
+        "representedLagMs": 75.32958984375,
+        "exhausted": false,
+        "elapsedMs": 134.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 140,
+        "sentAt": 90821.79999998212,
+        "viewTime": 1792102903688,
+        "representedLagMs": 75.5634765625,
+        "exhausted": false,
+        "elapsedMs": 111.2000000178814,
+        "accepted": true
+      },
+      {
+        "sequence": 141,
+        "sentAt": 91037.19999998808,
+        "viewTime": 1792102903904,
+        "representedLagMs": 75.5634765625,
+        "exhausted": false,
+        "elapsedMs": 96.30000001192093,
+        "accepted": true
+      },
+      {
+        "sequence": 142,
+        "sentAt": 91261.79999998212,
+        "viewTime": 1792102904128,
+        "representedLagMs": 75.5634765625,
+        "exhausted": false,
+        "elapsedMs": 96.5,
+        "accepted": true
+      },
+      {
+        "sequence": 143,
+        "sentAt": 91477.79999998212,
+        "viewTime": 1792102904348,
+        "representedLagMs": 75.55078125,
+        "exhausted": false,
+        "elapsedMs": 103.5,
+        "accepted": false
+      },
+      {
+        "sequence": 144,
+        "sentAt": 91700.79999998212,
+        "viewTime": 1792102904571,
+        "representedLagMs": 75.55078125,
+        "exhausted": false,
+        "elapsedMs": 128.7000000178814,
+        "accepted": false
+      },
+      {
+        "sequence": 145,
+        "sentAt": 91917.69999998808,
+        "viewTime": 1792102904792,
+        "representedLagMs": 75.640625,
+        "exhausted": false,
+        "elapsedMs": 139.59999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 146,
+        "sentAt": 92140.69999998808,
+        "viewTime": 1792102905015,
+        "representedLagMs": 75.640625,
+        "exhausted": false,
+        "elapsedMs": 156.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 147,
+        "sentAt": 92358,
+        "viewTime": 1792102905232,
+        "representedLagMs": 75.640625,
+        "exhausted": false,
+        "elapsedMs": 145.89999997615814,
+        "accepted": false
+      },
+      {
+        "sequence": 148,
+        "sentAt": 92581.19999998808,
+        "viewTime": 1792102905458,
+        "representedLagMs": 75.41259765625,
+        "exhausted": false,
+        "elapsedMs": 102.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 149,
+        "sentAt": 92797.79999998212,
+        "viewTime": 1792102905674,
+        "representedLagMs": 75.41259765625,
+        "exhausted": false,
+        "elapsedMs": 103.2000000178814,
+        "accepted": false
+      },
+      {
+        "sequence": 150,
+        "sentAt": 93020.69999998808,
+        "viewTime": 1792102905897,
+        "representedLagMs": 75.41259765625,
+        "exhausted": false,
+        "elapsedMs": 144.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 151,
+        "sentAt": 93237.19999998808,
+        "viewTime": 1792102906114,
+        "representedLagMs": 75.429931640625,
+        "exhausted": false,
+        "elapsedMs": 112.40000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 152,
+        "sentAt": 93461.39999997616,
+        "viewTime": 1792102906338,
+        "representedLagMs": 75.429931640625,
+        "exhausted": false,
+        "elapsedMs": 119.60000002384186,
+        "accepted": true
+      },
+      {
+        "sequence": 153,
+        "sentAt": 93685.69999998808,
+        "viewTime": 1792102906563,
+        "representedLagMs": 75.244140625,
+        "exhausted": false,
+        "elapsedMs": 120.09999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 154,
+        "sentAt": 93901.19999998808,
+        "viewTime": 1792102906779,
+        "representedLagMs": 75.244140625,
+        "exhausted": false,
+        "elapsedMs": 147.09999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 155,
+        "sentAt": 94125.19999998808,
+        "viewTime": 1792102907003,
+        "representedLagMs": 75.244140625,
+        "exhausted": false,
+        "elapsedMs": 108.90000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 156,
+        "sentAt": 94340.69999998808,
+        "viewTime": 1792102907214,
+        "representedLagMs": 75.59521484375,
+        "exhausted": false,
+        "elapsedMs": 124.40000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 157,
+        "sentAt": 94558,
+        "viewTime": 1792102907431,
+        "representedLagMs": 76.59521484375,
+        "exhausted": false,
+        "elapsedMs": 94.59999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 158,
+        "sentAt": 94780.69999998808,
+        "viewTime": 1792102907654,
+        "representedLagMs": 75.59521484375,
+        "exhausted": false,
+        "elapsedMs": 120,
+        "accepted": true
+      },
+      {
+        "sequence": 159,
+        "sentAt": 94997.19999998808,
+        "viewTime": 1792102907837,
+        "representedLagMs": 105.576171875,
+        "exhausted": true,
+        "elapsedMs": 110,
+        "accepted": true
+      },
+      {
+        "sequence": 160,
+        "sentAt": 95221.19999998808,
+        "viewTime": 1792102908091,
+        "representedLagMs": 75.576171875,
+        "exhausted": false,
+        "elapsedMs": 144.80000001192093,
+        "accepted": true
+      },
+      {
+        "sequence": 161,
+        "sentAt": 95437.19999998808,
+        "viewTime": 1792102908287,
+        "representedLagMs": 95.576171875,
+        "exhausted": true,
+        "elapsedMs": 95.59999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 162,
+        "sentAt": 95660.69999998808,
+        "viewTime": 1792102908529,
+        "representedLagMs": 75.160888671875,
+        "exhausted": false,
+        "elapsedMs": 120.90000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 163,
+        "sentAt": 95877.19999998808,
+        "viewTime": 1792102908746,
+        "representedLagMs": 75.160888671875,
+        "exhausted": false,
+        "elapsedMs": 93.59999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 164,
+        "sentAt": 96101.19999998808,
+        "viewTime": 1792102908967,
+        "representedLagMs": 75.9287109375,
+        "exhausted": false,
+        "elapsedMs": 99.09999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 165,
+        "sentAt": 96317.19999998808,
+        "viewTime": 1792102909183,
+        "representedLagMs": 75.9287109375,
+        "exhausted": false,
+        "elapsedMs": 55.900000005960464,
+        "accepted": true
+      },
+      {
+        "sequence": 166,
+        "sentAt": 96540.69999998808,
+        "viewTime": 1792102909404,
+        "representedLagMs": 77.9287109375,
+        "exhausted": true,
+        "elapsedMs": 139.90000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 167,
+        "sentAt": 96757.89999997616,
+        "viewTime": 1792102909625,
+        "representedLagMs": 75.742919921875,
+        "exhausted": false,
+        "elapsedMs": 71.30000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 168,
+        "sentAt": 96980.69999998808,
+        "viewTime": 1792102909848,
+        "representedLagMs": 75.742919921875,
+        "exhausted": false,
+        "elapsedMs": 126.59999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 169,
+        "sentAt": 97197.19999998808,
+        "viewTime": 1792102910021,
+        "representedLagMs": 119.742919921875,
+        "exhausted": true,
+        "elapsedMs": 121.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 170,
+        "sentAt": 97421.89999997616,
+        "viewTime": 1792102910288,
+        "representedLagMs": 75.594482421875,
+        "exhausted": false,
+        "elapsedMs": 111.5,
+        "accepted": true
+      },
+      {
+        "sequence": 171,
+        "sentAt": 97637.69999998808,
+        "viewTime": 1792102910504,
+        "representedLagMs": 75.594482421875,
+        "exhausted": false,
+        "elapsedMs": 99.30000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 172,
+        "sentAt": 97861.19999998808,
+        "viewTime": 1792102910728,
+        "representedLagMs": 75.594482421875,
+        "exhausted": false,
+        "elapsedMs": 119.80000001192093,
+        "accepted": true
+      },
+      {
+        "sequence": 173,
+        "sentAt": 98077.19999998808,
+        "viewTime": 1792102910943,
+        "representedLagMs": 75.37548828125,
+        "exhausted": false,
+        "elapsedMs": 104.30000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 174,
+        "sentAt": 98301.19999998808,
+        "viewTime": 1792102911167,
+        "representedLagMs": 75.37548828125,
+        "exhausted": false,
+        "elapsedMs": 139.30000001192093,
+        "accepted": true
+      },
+      {
+        "sequence": 175,
+        "sentAt": 98516.89999997616,
+        "viewTime": 1792102911381,
+        "representedLagMs": 75.00048828125,
+        "exhausted": false,
+        "elapsedMs": 102.5,
+        "accepted": false
+      },
+      {
+        "sequence": 176,
+        "sentAt": 98741.69999998808,
+        "viewTime": 1792102911587,
+        "representedLagMs": 94.00048828125,
+        "exhausted": true,
+        "elapsedMs": 96,
+        "accepted": false
+      },
+      {
+        "sequence": 177,
+        "sentAt": 98957.29999998212,
+        "viewTime": 1792102911822,
+        "representedLagMs": 75.00048828125,
+        "exhausted": false,
+        "elapsedMs": 113,
+        "accepted": false
+      },
+      {
+        "sequence": 178,
+        "sentAt": 99181.19999998808,
+        "viewTime": 1792102912048,
+        "representedLagMs": 75.000244140625,
+        "exhausted": false,
+        "elapsedMs": 71.69999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 179,
+        "sentAt": 99398.39999997616,
+        "viewTime": 1792102912265,
+        "representedLagMs": 75.000244140625,
+        "exhausted": false,
+        "elapsedMs": 121.5,
+        "accepted": false
+      },
+      {
+        "sequence": 180,
+        "sentAt": 99621,
+        "viewTime": 1792102912487,
+        "representedLagMs": 76.000244140625,
+        "exhausted": false,
+        "elapsedMs": 84.59999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 181,
+        "sentAt": 99837.69999998808,
+        "viewTime": 1792102912704,
+        "representedLagMs": 77.600341796875,
+        "exhausted": true,
+        "elapsedMs": 77.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 182,
+        "sentAt": 100061.89999997616,
+        "viewTime": 1792102912930,
+        "representedLagMs": 75.600341796875,
+        "exhausted": false,
+        "elapsedMs": 93.2000000178814,
+        "accepted": false
+      },
+      {
+        "sequence": 183,
+        "sentAt": 100277.79999998212,
+        "viewTime": 1792102913146,
+        "representedLagMs": 75.600341796875,
+        "exhausted": false,
+        "elapsedMs": 93.59999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 184,
+        "sentAt": 100501.19999998808,
+        "viewTime": 1792102913371,
+        "representedLagMs": 76.7802734375,
+        "exhausted": true,
+        "elapsedMs": 102.5,
+        "accepted": true
+      },
+      {
+        "sequence": 185,
+        "sentAt": 100725.19999998808,
+        "viewTime": 1792102913596,
+        "representedLagMs": 75.7802734375,
+        "exhausted": false,
+        "elapsedMs": 112,
+        "accepted": true
+      },
+      {
+        "sequence": 186,
+        "sentAt": 100941.19999998808,
+        "viewTime": 1792102913771,
+        "representedLagMs": 119.624267578125,
+        "exhausted": true,
+        "elapsedMs": 144.30000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 187,
+        "sentAt": 101157.39999997616,
+        "viewTime": 1792102914031,
+        "representedLagMs": 75.624267578125,
+        "exhausted": false,
+        "elapsedMs": 82.7000000178814,
+        "accepted": true
+      },
+      {
+        "sequence": 188,
+        "sentAt": 101380.69999998808,
+        "viewTime": 1792102914254,
+        "representedLagMs": 75.624267578125,
+        "exhausted": false,
+        "elapsedMs": 131.09999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 189,
+        "sentAt": 101605.09999999404,
+        "viewTime": 1792102914477,
+        "representedLagMs": 75.8994140625,
+        "exhausted": false,
+        "elapsedMs": 144.19999998807907,
+        "accepted": true
+      },
+      {
+        "sequence": 190,
+        "sentAt": 101821.69999998808,
+        "viewTime": 1792102914693,
+        "representedLagMs": 75.8994140625,
+        "exhausted": false,
+        "elapsedMs": 100.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 191,
+        "sentAt": 102037.79999998212,
+        "viewTime": 1792102914887,
+        "representedLagMs": 97.8994140625,
+        "exhausted": true,
+        "elapsedMs": 132.30000001192093,
+        "accepted": true
+      },
+      {
+        "sequence": 192,
+        "sentAt": 102261.19999998808,
+        "viewTime": 1792102915133,
+        "representedLagMs": 75.619384765625,
+        "exhausted": false,
+        "elapsedMs": 319.5,
+        "accepted": false
+      },
+      {
+        "sequence": 193,
+        "sentAt": 102477.69999998808,
+        "viewTime": 1792102915349,
+        "representedLagMs": 75.619384765625,
+        "exhausted": false,
+        "elapsedMs": 106.59999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 194,
+        "sentAt": 102701.29999998212,
+        "viewTime": 1792102915572,
+        "representedLagMs": 75.595458984375,
+        "exhausted": false,
+        "elapsedMs": 78.80000001192093,
+        "accepted": true
+      },
+      {
+        "sequence": 195,
+        "sentAt": 102917.79999998212,
+        "viewTime": 1792102915787,
+        "representedLagMs": 76.595458984375,
+        "exhausted": true,
+        "elapsedMs": 84.7000000178814,
+        "accepted": true
+      },
+      {
+        "sequence": 196,
+        "sentAt": 103141.79999998212,
+        "viewTime": 1792102916004,
+        "representedLagMs": 83.595458984375,
+        "exhausted": true,
+        "elapsedMs": 125.5,
+        "accepted": true
+      },
+      {
+        "sequence": 197,
+        "sentAt": 103357.29999998212,
+        "viewTime": 1792102916227,
+        "representedLagMs": 75.87646484375,
+        "exhausted": false,
+        "elapsedMs": 152.90000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 198,
+        "sentAt": 103581.69999998808,
+        "viewTime": 1792102916451,
+        "representedLagMs": 75.87646484375,
+        "exhausted": false,
+        "elapsedMs": 107.30000001192093,
+        "accepted": true
+      },
+      {
+        "sequence": 199,
+        "sentAt": 103805.19999998808,
+        "viewTime": 1792102916675,
+        "representedLagMs": 75.87646484375,
+        "exhausted": false,
+        "elapsedMs": 115.09999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 200,
+        "sentAt": 104020.69999998808,
+        "viewTime": 1792102916887,
+        "representedLagMs": 75.901123046875,
+        "exhausted": false,
+        "elapsedMs": 102.30000001192093,
+        "accepted": true
+      },
+      {
+        "sequence": 201,
+        "sentAt": 104245.19999998808,
+        "viewTime": 1792102917112,
+        "representedLagMs": 75.901123046875,
+        "exhausted": false,
+        "elapsedMs": 110.5,
+        "accepted": true
+      },
+      {
+        "sequence": 202,
+        "sentAt": 104461.19999998808,
+        "viewTime": 1792102917328,
+        "representedLagMs": 75.901123046875,
+        "exhausted": false,
+        "elapsedMs": 119.80000001192093,
+        "accepted": true
+      },
+      {
+        "sequence": 203,
+        "sentAt": 104677.69999998808,
+        "viewTime": 1792102917521,
+        "representedLagMs": 99.52099609375,
+        "exhausted": true,
+        "elapsedMs": 102.59999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 204,
+        "sentAt": 104900.69999998808,
+        "viewTime": 1792102917768,
+        "representedLagMs": 75.52099609375,
+        "exhausted": false,
+        "elapsedMs": 102.40000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 205,
+        "sentAt": 105117.09999999404,
+        "viewTime": 1792102917986,
+        "representedLagMs": 75.11669921875,
+        "exhausted": false,
+        "elapsedMs": 115.2999999821186,
+        "accepted": false
+      },
+      {
+        "sequence": 206,
+        "sentAt": 105341.19999998808,
+        "viewTime": 1792102918187,
+        "representedLagMs": 98.11669921875,
+        "exhausted": true,
+        "elapsedMs": 99.5,
+        "accepted": false
+      },
+      {
+        "sequence": 207,
+        "sentAt": 105557.39999997616,
+        "viewTime": 1792102918426,
+        "representedLagMs": 75.11669921875,
+        "exhausted": false,
+        "elapsedMs": 109.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 208,
+        "sentAt": 105781.5,
+        "viewTime": 1792102918649,
+        "representedLagMs": 75.193359375,
+        "exhausted": false,
+        "elapsedMs": 124.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 209,
+        "sentAt": 106005.29999998212,
+        "viewTime": 1792102918873,
+        "representedLagMs": 75.193359375,
+        "exhausted": false,
+        "elapsedMs": 79.5,
+        "accepted": false
+      },
+      {
+        "sequence": 210,
+        "sentAt": 106221.19999998808,
+        "viewTime": 1792102919089,
+        "representedLagMs": 75.193359375,
+        "exhausted": false,
+        "elapsedMs": 88,
+        "accepted": false
+      },
+      {
+        "sequence": 211,
+        "sentAt": 106445.19999998808,
+        "viewTime": 1792102919310,
+        "representedLagMs": 75.854736328125,
+        "exhausted": false,
+        "elapsedMs": 136.30000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 212,
+        "sentAt": 106661.69999998808,
+        "viewTime": 1792102919526,
+        "representedLagMs": 75.854736328125,
+        "exhausted": false,
+        "elapsedMs": 108.69999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 213,
+        "sentAt": 106877.29999998212,
+        "viewTime": 1792102919742,
+        "representedLagMs": 75.854736328125,
+        "exhausted": false,
+        "elapsedMs": 97.80000001192093,
+        "accepted": true
+      },
+      {
+        "sequence": 214,
+        "sentAt": 107101.19999998808,
+        "viewTime": 1792102919967,
+        "representedLagMs": 75.28369140625,
+        "exhausted": false,
+        "elapsedMs": 118.40000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 215,
+        "sentAt": 107324.69999998808,
+        "viewTime": 1792102920190,
+        "representedLagMs": 75.28369140625,
+        "exhausted": false,
+        "elapsedMs": 146.5,
+        "accepted": true
+      },
+      {
+        "sequence": 216,
+        "sentAt": 107541.69999998808,
+        "viewTime": 1792102920412,
+        "representedLagMs": 75.826904296875,
+        "exhausted": false,
+        "elapsedMs": 215.5,
+        "accepted": false
+      },
+      {
+        "sequence": 217,
+        "sentAt": 107764.79999998212,
+        "viewTime": 1792102920635,
+        "representedLagMs": 75.826904296875,
+        "exhausted": false,
+        "elapsedMs": 145.09999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 218,
+        "sentAt": 107981.5,
+        "viewTime": 1792102920852,
+        "representedLagMs": 75.826904296875,
+        "exhausted": false,
+        "elapsedMs": 103.39999997615814,
+        "accepted": false
+      },
+      {
+        "sequence": 219,
+        "sentAt": 108197.79999998212,
+        "viewTime": 1792102921054,
+        "representedLagMs": 89.961669921875,
+        "exhausted": true,
+        "elapsedMs": 109.2000000178814,
+        "accepted": true
+      },
+      {
+        "sequence": 220,
+        "sentAt": 108421.69999998808,
+        "viewTime": 1792102921292,
+        "representedLagMs": 75.961669921875,
+        "exhausted": false,
+        "elapsedMs": 118.90000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 221,
+        "sentAt": 108645.19999998808,
+        "viewTime": 1792102921516,
+        "representedLagMs": 75.961669921875,
+        "exhausted": false,
+        "elapsedMs": 97.09999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 222,
+        "sentAt": 108861.19999998808,
+        "viewTime": 1792102921732,
+        "representedLagMs": 75.669189453125,
+        "exhausted": false,
+        "elapsedMs": 97,
+        "accepted": true
+      },
+      {
+        "sequence": 223,
+        "sentAt": 109085.19999998808,
+        "viewTime": 1792102921956,
+        "representedLagMs": 75.669189453125,
+        "exhausted": false,
+        "elapsedMs": 91,
+        "accepted": true
+      },
+      {
+        "sequence": 224,
+        "sentAt": 109300.79999998212,
+        "viewTime": 1792102922172,
+        "representedLagMs": 75.135498046875,
+        "exhausted": false,
+        "elapsedMs": 102.59999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 225,
+        "sentAt": 109517.19999998808,
+        "viewTime": 1792102922387,
+        "representedLagMs": 77.135498046875,
+        "exhausted": true,
+        "elapsedMs": 135.90000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 226,
+        "sentAt": 109740.79999998212,
+        "viewTime": 1792102922612,
+        "representedLagMs": 75.135498046875,
+        "exhausted": false,
+        "elapsedMs": 117.7000000178814,
+        "accepted": true
+      },
+      {
+        "sequence": 227,
+        "sentAt": 109958,
+        "viewTime": 1792102922830,
+        "representedLagMs": 75.308349609375,
+        "exhausted": false,
+        "elapsedMs": 151.2999999821186,
+        "accepted": true
+      },
+      {
+        "sequence": 228,
+        "sentAt": 110181.29999998212,
+        "viewTime": 1792102923054,
+        "representedLagMs": 75.308349609375,
+        "exhausted": false,
+        "elapsedMs": 127.90000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 229,
+        "sentAt": 110397.19999998808,
+        "viewTime": 1792102923270,
+        "representedLagMs": 75.308349609375,
+        "exhausted": false,
+        "elapsedMs": 127.80000001192093,
+        "accepted": true
+      },
+      {
+        "sequence": 230,
+        "sentAt": 110620.69999998808,
+        "viewTime": 1792102923492,
+        "representedLagMs": 75.546630859375,
+        "exhausted": false,
+        "elapsedMs": 94.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 231,
+        "sentAt": 110837.19999998808,
+        "viewTime": 1792102923687,
+        "representedLagMs": 97.546630859375,
+        "exhausted": true,
+        "elapsedMs": 72.5,
+        "accepted": true
+      },
+      {
+        "sequence": 232,
+        "sentAt": 111061.89999997616,
+        "viewTime": 1792102923933,
+        "representedLagMs": 75.546630859375,
+        "exhausted": false,
+        "elapsedMs": 377.5,
+        "accepted": true
+      },
+      {
+        "sequence": 233,
+        "sentAt": 111284.69999998808,
+        "viewTime": 1792102924121,
+        "representedLagMs": 107.7373046875,
+        "exhausted": true,
+        "elapsedMs": 154.90000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 234,
+        "sentAt": 111501.39999997616,
+        "viewTime": 1792102924304,
+        "representedLagMs": 141.7373046875,
+        "exhausted": true,
+        "elapsedMs": 147.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 235,
+        "sentAt": 111717.29999998212,
+        "viewTime": 1792102924584,
+        "representedLagMs": 75.08984375,
+        "exhausted": false,
+        "elapsedMs": 149.5,
+        "accepted": false
+      },
+      {
+        "sequence": 236,
+        "sentAt": 111941.69999998808,
+        "viewTime": 1792102924808,
+        "representedLagMs": 75.08984375,
+        "exhausted": false,
+        "elapsedMs": 113.59999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 237,
+        "sentAt": 112157.39999997616,
+        "viewTime": 1792102925021,
+        "representedLagMs": 78.08984375,
+        "exhausted": true,
+        "elapsedMs": 134.2000000178814,
+        "accepted": false
+      },
+      {
+        "sequence": 238,
+        "sentAt": 112381.19999998808,
+        "viewTime": 1792102925252,
+        "representedLagMs": 75.371826171875,
+        "exhausted": false,
+        "elapsedMs": 96.30000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 239,
+        "sentAt": 112597.29999998212,
+        "viewTime": 1792102925468,
+        "representedLagMs": 75.371826171875,
+        "exhausted": false,
+        "elapsedMs": 81.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 240,
+        "sentAt": 112821.19999998808,
+        "viewTime": 1792102925692,
+        "representedLagMs": 75.371826171875,
+        "exhausted": false,
+        "elapsedMs": 115.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 241,
+        "sentAt": 113037.79999998212,
+        "viewTime": 1792102925908,
+        "representedLagMs": 75.697509765625,
+        "exhausted": false,
+        "elapsedMs": 106.5,
+        "accepted": false
+      },
+      {
+        "sequence": 242,
+        "sentAt": 113261.39999997616,
+        "viewTime": 1792102926132,
+        "representedLagMs": 75.697509765625,
+        "exhausted": false,
+        "elapsedMs": 109.2000000178814,
+        "accepted": false
+      },
+      {
+        "sequence": 243,
+        "sentAt": 113477.79999998212,
+        "viewTime": 1792102926348,
+        "representedLagMs": 75.697509765625,
+        "exhausted": false,
+        "elapsedMs": 100.5,
+        "accepted": true
+      },
+      {
+        "sequence": 244,
+        "sentAt": 113700.69999998808,
+        "viewTime": 1792102926574,
+        "representedLagMs": 75.55810546875,
+        "exhausted": false,
+        "elapsedMs": 117.5,
+        "accepted": true
+      },
+      {
+        "sequence": 245,
+        "sentAt": 113917.79999998212,
+        "viewTime": 1792102926791,
+        "representedLagMs": 75.55810546875,
+        "exhausted": false,
+        "elapsedMs": 109.90000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 246,
+        "sentAt": 114141.69999998808,
+        "viewTime": 1792102927015,
+        "representedLagMs": 75.55810546875,
+        "exhausted": false,
+        "elapsedMs": 111.90000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 247,
+        "sentAt": 114357.19999998808,
+        "viewTime": 1792102927231,
+        "representedLagMs": 75.55810546875,
+        "exhausted": false,
+        "elapsedMs": 147.80000001192093,
+        "accepted": true
+      },
+      {
+        "sequence": 248,
+        "sentAt": 114581.09999999404,
+        "viewTime": 1792102927437,
+        "representedLagMs": 93.55810546875,
+        "exhausted": true,
+        "elapsedMs": 114.59999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 249,
+        "sentAt": 114804.69999998808,
+        "viewTime": 1792102927676,
+        "representedLagMs": 75.54638671875,
+        "exhausted": false,
+        "elapsedMs": 110.59999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 250,
+        "sentAt": 115020.69999998808,
+        "viewTime": 1792102927887,
+        "representedLagMs": 80.54638671875,
+        "exhausted": true,
+        "elapsedMs": 208.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 251,
+        "sentAt": 115237.69999998808,
+        "viewTime": 1792102928109,
+        "representedLagMs": 75.54638671875,
+        "exhausted": false,
+        "elapsedMs": 132.59999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 252,
+        "sentAt": 115461.69999998808,
+        "viewTime": 1792102928321,
+        "representedLagMs": 84.837158203125,
+        "exhausted": true,
+        "elapsedMs": 106.59999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 253,
+        "sentAt": 115677.19999998808,
+        "viewTime": 1792102928546,
+        "representedLagMs": 75.837158203125,
+        "exhausted": false,
+        "elapsedMs": 93.80000001192093,
+        "accepted": true
+      },
+      {
+        "sequence": 254,
+        "sentAt": 115901.79999998212,
+        "viewTime": 1792102928770,
+        "representedLagMs": 75.837158203125,
+        "exhausted": false,
+        "elapsedMs": 104.40000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 255,
+        "sentAt": 116117.19999998808,
+        "viewTime": 1792102928982,
+        "representedLagMs": 75.56982421875,
+        "exhausted": false,
+        "elapsedMs": 75.5,
+        "accepted": false
+      },
+      {
+        "sequence": 256,
+        "sentAt": 116341.29999998212,
+        "viewTime": 1792102929206,
+        "representedLagMs": 75.56982421875,
+        "exhausted": false,
+        "elapsedMs": 135.2000000178814,
+        "accepted": true
+      },
+      {
+        "sequence": 257,
+        "sentAt": 116557.39999997616,
+        "viewTime": 1792102929421,
+        "representedLagMs": 75.0556640625,
+        "exhausted": false,
+        "elapsedMs": 95.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 258,
+        "sentAt": 116781.19999998808,
+        "viewTime": 1792102929645,
+        "representedLagMs": 75.0556640625,
+        "exhausted": false,
+        "elapsedMs": 98.59999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 259,
+        "sentAt": 117004.69999998808,
+        "viewTime": 1792102929868,
+        "representedLagMs": 75.0556640625,
+        "exhausted": false,
+        "elapsedMs": 128.19999998807907,
+        "accepted": true
+      },
+      {
+        "sequence": 260,
+        "sentAt": 117221.69999998808,
+        "viewTime": 1792102930084,
+        "representedLagMs": 75.64453125,
+        "exhausted": false,
+        "elapsedMs": 127,
+        "accepted": false
+      },
+      {
+        "sequence": 261,
+        "sentAt": 117437.79999998212,
+        "viewTime": 1792102930300,
+        "representedLagMs": 75.64453125,
+        "exhausted": false,
+        "elapsedMs": 90.2000000178814,
+        "accepted": true
+      },
+      {
+        "sequence": 262,
+        "sentAt": 117661.19999998808,
+        "viewTime": 1792102930504,
+        "representedLagMs": 95.64453125,
+        "exhausted": true,
+        "elapsedMs": 110.19999998807907,
+        "accepted": true
+      },
+      {
+        "sequence": 263,
+        "sentAt": 117877.19999998808,
+        "viewTime": 1792102930741,
+        "representedLagMs": 75.11572265625,
+        "exhausted": false,
+        "elapsedMs": 129,
+        "accepted": true
+      },
+      {
+        "sequence": 264,
+        "sentAt": 118101.19999998808,
+        "viewTime": 1792102930965,
+        "representedLagMs": 75.11572265625,
+        "exhausted": false,
+        "elapsedMs": 57.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 265,
+        "sentAt": 118317.69999998808,
+        "viewTime": 1792102931181,
+        "representedLagMs": 75.11572265625,
+        "exhausted": false,
+        "elapsedMs": 127.69999998807907,
+        "accepted": true
+      },
+      {
+        "sequence": 266,
+        "sentAt": 118541.69999998808,
+        "viewTime": 1792102931405,
+        "representedLagMs": 75.79248046875,
+        "exhausted": false,
+        "elapsedMs": 111.5,
+        "accepted": true
+      },
+      {
+        "sequence": 267,
+        "sentAt": 118765.19999998808,
+        "viewTime": 1792102931629,
+        "representedLagMs": 75.79248046875,
+        "exhausted": false,
+        "elapsedMs": 106.69999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 268,
+        "sentAt": 118980.89999997616,
+        "viewTime": 1792102931849,
+        "representedLagMs": 75.333984375,
+        "exhausted": false,
+        "elapsedMs": 133.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 269,
+        "sentAt": 119197.89999997616,
+        "viewTime": 1792102932066,
+        "representedLagMs": 75.333984375,
+        "exhausted": false,
+        "elapsedMs": 111.30000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 270,
+        "sentAt": 119420.69999998808,
+        "viewTime": 1792102932289,
+        "representedLagMs": 75.333984375,
+        "exhausted": false,
+        "elapsedMs": 111.69999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 271,
+        "sentAt": 119645.69999998808,
+        "viewTime": 1792102932515,
+        "representedLagMs": 75.567138671875,
+        "exhausted": false,
+        "elapsedMs": 86.5,
+        "accepted": false
+      },
+      {
+        "sequence": 272,
+        "sentAt": 119861.69999998808,
+        "viewTime": 1792102932731,
+        "representedLagMs": 75.567138671875,
+        "exhausted": false,
+        "elapsedMs": 117.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 273,
+        "sentAt": 120077.19999998808,
+        "viewTime": 1792102932947,
+        "representedLagMs": 75.567138671875,
+        "exhausted": false,
+        "elapsedMs": 107.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 274,
+        "sentAt": 120301.19999998808,
+        "viewTime": 1792102933137,
+        "representedLagMs": 111.25390625,
+        "exhausted": true,
+        "elapsedMs": 104.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 275,
+        "sentAt": 120517.19999998808,
+        "viewTime": 1792102933389,
+        "representedLagMs": 75.25390625,
+        "exhausted": false,
+        "elapsedMs": 82.30000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 276,
+        "sentAt": 120741.69999998808,
+        "viewTime": 1792102933612,
+        "representedLagMs": 75.703125,
+        "exhausted": false,
+        "elapsedMs": 137,
+        "accepted": true
+      },
+      {
+        "sequence": 277,
+        "sentAt": 120957.39999997616,
+        "viewTime": 1792102933828,
+        "representedLagMs": 75.703125,
+        "exhausted": false,
+        "elapsedMs": 122.7000000178814,
+        "accepted": false
+      },
+      {
+        "sequence": 278,
+        "sentAt": 121181.69999998808,
+        "viewTime": 1792102934052,
+        "representedLagMs": 75.703125,
+        "exhausted": false,
+        "elapsedMs": 99,
+        "accepted": true
+      },
+      {
+        "sequence": 279,
+        "sentAt": 121397.19999998808,
+        "viewTime": 1792102934269,
+        "representedLagMs": 75.0625,
+        "exhausted": false,
+        "elapsedMs": 101.5,
+        "accepted": true
+      },
+      {
+        "sequence": 280,
+        "sentAt": 121621.09999999404,
+        "viewTime": 1792102934493,
+        "representedLagMs": 75.0625,
+        "exhausted": false,
+        "elapsedMs": 79,
+        "accepted": true
+      },
+      {
+        "sequence": 281,
+        "sentAt": 121837.29999998212,
+        "viewTime": 1792102934704,
+        "representedLagMs": 80.0625,
+        "exhausted": true,
+        "elapsedMs": 111.40000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 282,
+        "sentAt": 122061.39999997616,
+        "viewTime": 1792102934933,
+        "representedLagMs": 75.64990234375,
+        "exhausted": false,
+        "elapsedMs": 114.5,
+        "accepted": true
+      },
+      {
+        "sequence": 283,
+        "sentAt": 122277.29999998212,
+        "viewTime": 1792102935149,
+        "representedLagMs": 75.64990234375,
+        "exhausted": false,
+        "elapsedMs": 103.2000000178814,
+        "accepted": false
+      },
+      {
+        "sequence": 284,
+        "sentAt": 122501.79999998212,
+        "viewTime": 1792102935374,
+        "representedLagMs": 75.619873046875,
+        "exhausted": false,
+        "elapsedMs": 127.7000000178814,
+        "accepted": true
+      },
+      {
+        "sequence": 285,
+        "sentAt": 122724.69999998808,
+        "viewTime": 1792102935597,
+        "representedLagMs": 75.619873046875,
+        "exhausted": false,
+        "elapsedMs": 141.59999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 286,
+        "sentAt": 122941.69999998808,
+        "viewTime": 1792102935814,
+        "representedLagMs": 75.619873046875,
+        "exhausted": false,
+        "elapsedMs": 76.5,
+        "accepted": false
+      },
+      {
+        "sequence": 287,
+        "sentAt": 123157.29999998212,
+        "viewTime": 1792102936029,
+        "representedLagMs": 75.2958984375,
+        "exhausted": false,
+        "elapsedMs": 77.30000001192093,
+        "accepted": true
+      },
+      {
+        "sequence": 288,
+        "sentAt": 123381.69999998808,
+        "viewTime": 1792102936253,
+        "representedLagMs": 75.2958984375,
+        "exhausted": false,
+        "elapsedMs": 147.59999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 289,
+        "sentAt": 123597.19999998808,
+        "viewTime": 1792102936454,
+        "representedLagMs": 90.2958984375,
+        "exhausted": true,
+        "elapsedMs": 133.69999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 290,
+        "sentAt": 123821.59999999404,
+        "viewTime": 1792102936695,
+        "representedLagMs": 75.036865234375,
+        "exhausted": false,
+        "elapsedMs": 142.2999999821186,
+        "accepted": true
+      },
+      {
+        "sequence": 291,
+        "sentAt": 124045.19999998808,
+        "viewTime": 1792102936919,
+        "representedLagMs": 75.036865234375,
+        "exhausted": false,
+        "elapsedMs": 103.59999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 292,
+        "sentAt": 124261.19999998808,
+        "viewTime": 1792102937135,
+        "representedLagMs": 75.036865234375,
+        "exhausted": false,
+        "elapsedMs": 97.09999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 293,
+        "sentAt": 124477.19999998808,
+        "viewTime": 1792102937347,
+        "representedLagMs": 75.029296875,
+        "exhausted": false,
+        "elapsedMs": 116.09999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 294,
+        "sentAt": 124701.19999998808,
+        "viewTime": 1792102937571,
+        "representedLagMs": 75.029296875,
+        "exhausted": true,
+        "elapsedMs": 145.5,
+        "accepted": true
+      },
+      {
+        "sequence": 295,
+        "sentAt": 124917.19999998808,
+        "viewTime": 1792102937790,
+        "representedLagMs": 75.12353515625,
+        "exhausted": false,
+        "elapsedMs": 111.69999998807907,
+        "accepted": true
+      },
+      {
+        "sequence": 296,
+        "sentAt": 125141.69999998808,
+        "viewTime": 1792102938014,
+        "representedLagMs": 75.12353515625,
+        "exhausted": false,
+        "elapsedMs": 77,
+        "accepted": false
+      },
+      {
+        "sequence": 297,
+        "sentAt": 125357.29999998212,
+        "viewTime": 1792102938230,
+        "representedLagMs": 75.12353515625,
+        "exhausted": false,
+        "elapsedMs": 104.80000001192093,
+        "accepted": true
+      },
+      {
+        "sequence": 298,
+        "sentAt": 125581.19999998808,
+        "viewTime": 1792102938404,
+        "representedLagMs": 125.12353515625,
+        "exhausted": true,
+        "elapsedMs": 99.90000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 299,
+        "sentAt": 125797.69999998808,
+        "viewTime": 1792102938669,
+        "representedLagMs": 75.498779296875,
+        "exhausted": false,
+        "elapsedMs": 130.40000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 300,
+        "sentAt": 126020.69999998808,
+        "viewTime": 1792102938854,
+        "representedLagMs": 113.498779296875,
+        "exhausted": true,
+        "elapsedMs": 76.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 301,
+        "sentAt": 126237.19999998808,
+        "viewTime": 1792102939110,
+        "representedLagMs": 75.09912109375,
+        "exhausted": false,
+        "elapsedMs": 66.59999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 302,
+        "sentAt": 126461.39999997616,
+        "viewTime": 1792102939334,
+        "representedLagMs": 75.09912109375,
+        "exhausted": false,
+        "elapsedMs": 119.60000002384186,
+        "accepted": false
+      },
+      {
+        "sequence": 303,
+        "sentAt": 126677.69999998808,
+        "viewTime": 1792102939546,
+        "representedLagMs": 75.479248046875,
+        "exhausted": false,
+        "elapsedMs": 141.30000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 304,
+        "sentAt": 126901.19999998808,
+        "viewTime": 1792102939770,
+        "representedLagMs": 75.479248046875,
+        "exhausted": false,
+        "elapsedMs": 146.59999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 305,
+        "sentAt": 127117.69999998808,
+        "viewTime": 1792102939971,
+        "representedLagMs": 90.479248046875,
+        "exhausted": true,
+        "elapsedMs": 262.59999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 306,
+        "sentAt": 127341.69999998808,
+        "viewTime": 1792102940209,
+        "representedLagMs": 75.58349609375,
+        "exhausted": false,
+        "elapsedMs": 99.30000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 307,
+        "sentAt": 127558,
+        "viewTime": 1792102940425,
+        "representedLagMs": 75.58349609375,
+        "exhausted": false,
+        "elapsedMs": 95.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 308,
+        "sentAt": 127781.29999998212,
+        "viewTime": 1792102940649,
+        "representedLagMs": 75.58349609375,
+        "exhausted": false,
+        "elapsedMs": 88,
+        "accepted": false
+      },
+      {
+        "sequence": 309,
+        "sentAt": 127997.69999998808,
+        "viewTime": 1792102940866,
+        "representedLagMs": 75.566650390625,
+        "exhausted": false,
+        "elapsedMs": 104.19999998807907,
+        "accepted": true
+      },
+      {
+        "sequence": 310,
+        "sentAt": 128220.69999998808,
+        "viewTime": 1792102941089,
+        "representedLagMs": 75.566650390625,
+        "exhausted": false,
+        "elapsedMs": 86.5,
+        "accepted": false
+      },
+      {
+        "sequence": 311,
+        "sentAt": 128437.69999998808,
+        "viewTime": 1792102941306,
+        "representedLagMs": 75.566650390625,
+        "exhausted": false,
+        "elapsedMs": 113.69999998807907,
+        "accepted": true
+      },
+      {
+        "sequence": 312,
+        "sentAt": 128661.39999997616,
+        "viewTime": 1792102941531,
+        "representedLagMs": 75.053466796875,
+        "exhausted": false,
+        "elapsedMs": 137.80000001192093,
+        "accepted": true
+      },
+      {
+        "sequence": 313,
+        "sentAt": 128877.69999998808,
+        "viewTime": 1792102941747,
+        "representedLagMs": 75.053466796875,
+        "exhausted": false,
+        "elapsedMs": 103.5,
+        "accepted": true
+      },
+      {
+        "sequence": 314,
+        "sentAt": 129100.79999998212,
+        "viewTime": 1792102941969,
+        "representedLagMs": 75.24267578125,
+        "exhausted": false,
+        "elapsedMs": 131.5,
+        "accepted": true
+      },
+      {
+        "sequence": 315,
+        "sentAt": 129317.29999998212,
+        "viewTime": 1792102942186,
+        "representedLagMs": 75.24267578125,
+        "exhausted": false,
+        "elapsedMs": 101.80000001192093,
+        "accepted": true
+      },
+      {
+        "sequence": 316,
+        "sentAt": 129541.69999998808,
+        "viewTime": 1792102942410,
+        "representedLagMs": 75.24267578125,
+        "exhausted": false,
+        "elapsedMs": 120.59999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 317,
+        "sentAt": 129765.19999998808,
+        "viewTime": 1792102942633,
+        "representedLagMs": 75.59423828125,
+        "exhausted": false,
+        "elapsedMs": 139.69999998807907,
+        "accepted": true
+      },
+      {
+        "sequence": 318,
+        "sentAt": 129981.19999998808,
+        "viewTime": 1792102942849,
+        "representedLagMs": 75.59423828125,
+        "exhausted": false,
+        "elapsedMs": 120,
+        "accepted": true
+      },
+      {
+        "sequence": 319,
+        "sentAt": 130197.19999998808,
+        "viewTime": 1792102943065,
+        "representedLagMs": 75.59423828125,
+        "exhausted": false,
+        "elapsedMs": 105.30000001192093,
+        "accepted": true
+      },
+      {
+        "sequence": 320,
+        "sentAt": 130420.69999998808,
+        "viewTime": 1792102943287,
+        "representedLagMs": 76.17529296875,
+        "exhausted": true,
+        "elapsedMs": 67.69999998807907,
+        "accepted": true
+      },
+      {
+        "sequence": 321,
+        "sentAt": 130637.69999998808,
+        "viewTime": 1792102943505,
+        "representedLagMs": 75.17529296875,
+        "exhausted": false,
+        "elapsedMs": 130.59999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 322,
+        "sentAt": 130861.69999998808,
+        "viewTime": 1792102943721,
+        "representedLagMs": 83.17529296875,
+        "exhausted": true,
+        "elapsedMs": 119.40000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 323,
+        "sentAt": 131077.29999998212,
+        "viewTime": 1792102943947,
+        "representedLagMs": 75.740234375,
+        "exhausted": false,
+        "elapsedMs": 152.2000000178814,
+        "accepted": true
+      },
+      {
+        "sequence": 324,
+        "sentAt": 131300.69999998808,
+        "viewTime": 1792102944170,
+        "representedLagMs": 75.740234375,
+        "exhausted": false,
+        "elapsedMs": 149.40000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 325,
+        "sentAt": 131517.19999998808,
+        "viewTime": 1792102944385,
+        "representedLagMs": 75.4921875,
+        "exhausted": false,
+        "elapsedMs": 115.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 326,
+        "sentAt": 131741.29999998212,
+        "viewTime": 1792102944609,
+        "representedLagMs": 75.4921875,
+        "exhausted": false,
+        "elapsedMs": 78.09999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 327,
+        "sentAt": 131957.39999997616,
+        "viewTime": 1792102944825,
+        "representedLagMs": 75.4921875,
+        "exhausted": false,
+        "elapsedMs": 96.80000001192093,
+        "accepted": true
+      },
+      {
+        "sequence": 328,
+        "sentAt": 132181.19999998808,
+        "viewTime": 1792102945049,
+        "representedLagMs": 75.69384765625,
+        "exhausted": false,
+        "elapsedMs": 121.59999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 329,
+        "sentAt": 132396.89999997616,
+        "viewTime": 1792102945264,
+        "representedLagMs": 75.69384765625,
+        "exhausted": false,
+        "elapsedMs": 126.30000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 330,
+        "sentAt": 132620.69999998808,
+        "viewTime": 1792102945488,
+        "representedLagMs": 75.69384765625,
+        "exhausted": false,
+        "elapsedMs": 84.5,
+        "accepted": false
+      },
+      {
+        "sequence": 331,
+        "sentAt": 132837.19999998808,
+        "viewTime": 1792102945705,
+        "representedLagMs": 75.655029296875,
+        "exhausted": false,
+        "elapsedMs": 120.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 332,
+        "sentAt": 133061.89999997616,
+        "viewTime": 1792102945929,
+        "representedLagMs": 75.655029296875,
+        "exhausted": false,
+        "elapsedMs": 86.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 333,
+        "sentAt": 133277.19999998808,
+        "viewTime": 1792102946147,
+        "representedLagMs": 75.1240234375,
+        "exhausted": false,
+        "elapsedMs": 99.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 334,
+        "sentAt": 133501.29999998212,
+        "viewTime": 1792102946371,
+        "representedLagMs": 75.1240234375,
+        "exhausted": false,
+        "elapsedMs": 128,
+        "accepted": false
+      },
+      {
+        "sequence": 335,
+        "sentAt": 133717.19999998808,
+        "viewTime": 1792102946587,
+        "representedLagMs": 75.1240234375,
+        "exhausted": false,
+        "elapsedMs": 135.30000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 336,
+        "sentAt": 133941.29999998212,
+        "viewTime": 1792102946810,
+        "representedLagMs": 75.499267578125,
+        "exhausted": false,
+        "elapsedMs": 77.80000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 337,
+        "sentAt": 134157.39999997616,
+        "viewTime": 1792102947026,
+        "representedLagMs": 75.499267578125,
+        "exhausted": false,
+        "elapsedMs": 144.5,
+        "accepted": false
+      },
+      {
+        "sequence": 338,
+        "sentAt": 134381.09999999404,
+        "viewTime": 1792102947250,
+        "representedLagMs": 75.499267578125,
+        "exhausted": false,
+        "elapsedMs": 103.19999998807907,
+        "accepted": true
+      },
+      {
+        "sequence": 339,
+        "sentAt": 134597.29999998212,
+        "viewTime": 1792102947466,
+        "representedLagMs": 75.3994140625,
+        "exhausted": false,
+        "elapsedMs": 76.30000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 340,
+        "sentAt": 134821.69999998808,
+        "viewTime": 1792102947690,
+        "representedLagMs": 75.3994140625,
+        "exhausted": false,
+        "elapsedMs": 110.90000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 341,
+        "sentAt": 135037.69999998808,
+        "viewTime": 1792102947906,
+        "representedLagMs": 75.3994140625,
+        "exhausted": false,
+        "elapsedMs": 111.30000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 342,
+        "sentAt": 135260.69999998808,
+        "viewTime": 1792102948128,
+        "representedLagMs": 75.41943359375,
+        "exhausted": false,
+        "elapsedMs": 64,
+        "accepted": true
+      },
+      {
+        "sequence": 343,
+        "sentAt": 135477.19999998808,
+        "viewTime": 1792102948345,
+        "representedLagMs": 75.41943359375,
+        "exhausted": false,
+        "elapsedMs": 116.19999998807907,
+        "accepted": true
+      },
+      {
+        "sequence": 344,
+        "sentAt": 135701.29999998212,
+        "viewTime": 1792102948569,
+        "representedLagMs": 75.41943359375,
+        "exhausted": false,
+        "elapsedMs": 119.30000001192093,
+        "accepted": true
+      },
+      {
+        "sequence": 345,
+        "sentAt": 135917.19999998808,
+        "viewTime": 1792102948787,
+        "representedLagMs": 75.03564453125,
+        "exhausted": false,
+        "elapsedMs": 135.90000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 346,
+        "sentAt": 136141.69999998808,
+        "viewTime": 1792102949011,
+        "representedLagMs": 75.03564453125,
+        "exhausted": false,
+        "elapsedMs": 142.69999998807907,
+        "accepted": true
+      },
+      {
+        "sequence": 347,
+        "sentAt": 136357.39999997616,
+        "viewTime": 1792102949221,
+        "representedLagMs": 81.03564453125,
+        "exhausted": true,
+        "elapsedMs": 96,
+        "accepted": false
+      },
+      {
+        "sequence": 348,
+        "sentAt": 136581.69999998808,
+        "viewTime": 1792102949453,
+        "representedLagMs": 75.328369140625,
+        "exhausted": false,
+        "elapsedMs": 137.90000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 349,
+        "sentAt": 136797.09999999404,
+        "viewTime": 1792102949669,
+        "representedLagMs": 75.328369140625,
+        "exhausted": false,
+        "elapsedMs": 136.59999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 350,
+        "sentAt": 137021.19999998808,
+        "viewTime": 1792102949887,
+        "representedLagMs": 81.462890625,
+        "exhausted": true,
+        "elapsedMs": 101.5,
+        "accepted": true
+      },
+      {
+        "sequence": 351,
+        "sentAt": 137237.79999998212,
+        "viewTime": 1792102950104,
+        "representedLagMs": 80.462890625,
+        "exhausted": true,
+        "elapsedMs": 55.5,
+        "accepted": false
+      },
+      {
+        "sequence": 352,
+        "sentAt": 137461.29999998212,
+        "viewTime": 1792102950333,
+        "representedLagMs": 75.462890625,
+        "exhausted": false,
+        "elapsedMs": 109.59999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 353,
+        "sentAt": 137677.69999998808,
+        "viewTime": 1792102950546,
+        "representedLagMs": 75.8701171875,
+        "exhausted": false,
+        "elapsedMs": 123.40000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 354,
+        "sentAt": 137901.19999998808,
+        "viewTime": 1792102950770,
+        "representedLagMs": 75.8701171875,
+        "exhausted": false,
+        "elapsedMs": 67.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 355,
+        "sentAt": 138124.69999998808,
+        "viewTime": 1792102950993,
+        "representedLagMs": 75.09619140625,
+        "exhausted": false,
+        "elapsedMs": 104.19999998807907,
+        "accepted": true
+      },
+      {
+        "sequence": 356,
+        "sentAt": 138341.79999998212,
+        "viewTime": 1792102951210,
+        "representedLagMs": 75.09619140625,
+        "exhausted": false,
+        "elapsedMs": 64.59999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 357,
+        "sentAt": 138557.29999998212,
+        "viewTime": 1792102951426,
+        "representedLagMs": 75.09619140625,
+        "exhausted": false,
+        "elapsedMs": 95.7000000178814,
+        "accepted": true
+      },
+      {
+        "sequence": 358,
+        "sentAt": 138781.19999998808,
+        "viewTime": 1792102951649,
+        "representedLagMs": 75.576904296875,
+        "exhausted": false,
+        "elapsedMs": 108.40000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 359,
+        "sentAt": 138997.79999998212,
+        "viewTime": 1792102951865,
+        "representedLagMs": 75.576904296875,
+        "exhausted": false,
+        "elapsedMs": 83.2000000178814,
+        "accepted": false
+      },
+      {
+        "sequence": 360,
+        "sentAt": 139221.69999998808,
+        "viewTime": 1792102952089,
+        "representedLagMs": 75.576904296875,
+        "exhausted": false,
+        "elapsedMs": 64.09999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 361,
+        "sentAt": 139437.69999998808,
+        "viewTime": 1792102952304,
+        "representedLagMs": 75.861572265625,
+        "exhausted": false,
+        "elapsedMs": 87.30000001192093,
+        "accepted": true
+      },
+      {
+        "sequence": 362,
+        "sentAt": 139661.19999998808,
+        "viewTime": 1792102952521,
+        "representedLagMs": 82.861572265625,
+        "exhausted": true,
+        "elapsedMs": 145.09999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 363,
+        "sentAt": 139884.79999998212,
+        "viewTime": 1792102952747,
+        "representedLagMs": 75.189208984375,
+        "exhausted": false,
+        "elapsedMs": 118.5,
+        "accepted": false
+      },
+      {
+        "sequence": 364,
+        "sentAt": 140101.79999998212,
+        "viewTime": 1792102952964,
+        "representedLagMs": 75.189208984375,
+        "exhausted": false,
+        "elapsedMs": 116.80000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 365,
+        "sentAt": 140325.29999998212,
+        "viewTime": 1792102953188,
+        "representedLagMs": 75.189208984375,
+        "exhausted": false,
+        "elapsedMs": 103.5,
+        "accepted": false
+      },
+      {
+        "sequence": 366,
+        "sentAt": 140541.19999998808,
+        "viewTime": 1792102953407,
+        "representedLagMs": 75.25146484375,
+        "exhausted": false,
+        "elapsedMs": 100,
+        "accepted": false
+      },
+      {
+        "sequence": 367,
+        "sentAt": 140765.5,
+        "viewTime": 1792102953631,
+        "representedLagMs": 75.25146484375,
+        "exhausted": false,
+        "elapsedMs": 84.7999999821186,
+        "accepted": false
+      },
+      {
+        "sequence": 368,
+        "sentAt": 140981,
+        "viewTime": 1792102953846,
+        "representedLagMs": 75.25146484375,
+        "exhausted": false,
+        "elapsedMs": 86.39999997615814,
+        "accepted": false
+      },
+      {
+        "sequence": 369,
+        "sentAt": 141205.19999998808,
+        "viewTime": 1792102954070,
+        "representedLagMs": 75.801025390625,
+        "exhausted": false,
+        "elapsedMs": 87,
+        "accepted": false
+      },
+      {
+        "sequence": 370,
+        "sentAt": 141421.19999998808,
+        "viewTime": 1792102954286,
+        "representedLagMs": 75.801025390625,
+        "exhausted": false,
+        "elapsedMs": 74.59999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 371,
+        "sentAt": 141637.79999998212,
+        "viewTime": 1792102954502,
+        "representedLagMs": 75.801025390625,
+        "exhausted": false,
+        "elapsedMs": 134.80000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 372,
+        "sentAt": 141861.69999998808,
+        "viewTime": 1792102954704,
+        "representedLagMs": 97.94091796875,
+        "exhausted": true,
+        "elapsedMs": 109.69999998807907,
+        "accepted": true
+      },
+      {
+        "sequence": 373,
+        "sentAt": 142077.79999998212,
+        "viewTime": 1792102954921,
+        "representedLagMs": 96.94091796875,
+        "exhausted": true,
+        "elapsedMs": 98.7000000178814,
+        "accepted": true
+      },
+      {
+        "sequence": 374,
+        "sentAt": 142300.59999999404,
+        "viewTime": 1792102955165,
+        "representedLagMs": 75.94091796875,
+        "exhausted": false,
+        "elapsedMs": 139,
+        "accepted": true
+      },
+      {
+        "sequence": 375,
+        "sentAt": 142525.19999998808,
+        "viewTime": 1792102955390,
+        "representedLagMs": 75.752685546875,
+        "exhausted": false,
+        "elapsedMs": 139.80000001192093,
+        "accepted": true
+      },
+      {
+        "sequence": 376,
+        "sentAt": 142740.69999998808,
+        "viewTime": 1792102955587,
+        "representedLagMs": 93.752685546875,
+        "exhausted": true,
+        "elapsedMs": 126.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 377,
+        "sentAt": 142957.29999998212,
+        "viewTime": 1792102955819,
+        "representedLagMs": 75.402099609375,
+        "exhausted": false,
+        "elapsedMs": 109.90000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 378,
+        "sentAt": 143181.19999998808,
+        "viewTime": 1792102956037,
+        "representedLagMs": 81.402099609375,
+        "exhausted": true,
+        "elapsedMs": 100.09999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 379,
+        "sentAt": 143397.19999998808,
+        "viewTime": 1792102956259,
+        "representedLagMs": 75.402099609375,
+        "exhausted": false,
+        "elapsedMs": 142.5,
+        "accepted": true
+      },
+      {
+        "sequence": 380,
+        "sentAt": 143622.29999998212,
+        "viewTime": 1792102956485,
+        "representedLagMs": 75.521728515625,
+        "exhausted": false,
+        "elapsedMs": 111.30000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 381,
+        "sentAt": 143837.79999998212,
+        "viewTime": 1792102956700,
+        "representedLagMs": 75.521728515625,
+        "exhausted": false,
+        "elapsedMs": 119.80000001192093,
+        "accepted": true
+      },
+      {
+        "sequence": 382,
+        "sentAt": 144061.19999998808,
+        "viewTime": 1792102956921,
+        "representedLagMs": 78.521728515625,
+        "exhausted": true,
+        "elapsedMs": 96.30000001192093,
+        "accepted": true
+      },
+      {
+        "sequence": 383,
+        "sentAt": 144277.19999998808,
+        "viewTime": 1792102957144,
+        "representedLagMs": 75.517333984375,
+        "exhausted": false,
+        "elapsedMs": 126.40000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 384,
+        "sentAt": 144501.39999997616,
+        "viewTime": 1792102957368,
+        "representedLagMs": 75.517333984375,
+        "exhausted": false,
+        "elapsedMs": 124.40000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 385,
+        "sentAt": 144717.89999997616,
+        "viewTime": 1792102957584,
+        "representedLagMs": 75.913818359375,
+        "exhausted": false,
+        "elapsedMs": 122.30000001192093,
+        "accepted": true
+      },
+      {
+        "sequence": 386,
+        "sentAt": 144940.79999998212,
+        "viewTime": 1792102957807,
+        "representedLagMs": 75.913818359375,
+        "exhausted": false,
+        "elapsedMs": 87.59999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 387,
+        "sentAt": 145157.29999998212,
+        "viewTime": 1792102958024,
+        "representedLagMs": 75.913818359375,
+        "exhausted": false,
+        "elapsedMs": 95.5,
+        "accepted": true
+      },
+      {
+        "sequence": 388,
+        "sentAt": 145380.69999998808,
+        "viewTime": 1792102958247,
+        "representedLagMs": 75.8310546875,
+        "exhausted": false,
+        "elapsedMs": 112.09999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 389,
+        "sentAt": 145597.29999998212,
+        "viewTime": 1792102958437,
+        "representedLagMs": 102.8310546875,
+        "exhausted": true,
+        "elapsedMs": 97,
+        "accepted": false
+      },
+      {
+        "sequence": 390,
+        "sentAt": 145821.19999998808,
+        "viewTime": 1792102958688,
+        "representedLagMs": 75.8310546875,
+        "exhausted": false,
+        "elapsedMs": 121,
+        "accepted": true
+      },
+      {
+        "sequence": 391,
+        "sentAt": 146037.79999998212,
+        "viewTime": 1792102958887,
+        "representedLagMs": 92.364990234375,
+        "exhausted": true,
+        "elapsedMs": 132.7000000178814,
+        "accepted": true
+      },
+      {
+        "sequence": 392,
+        "sentAt": 146261.69999998808,
+        "viewTime": 1792102959128,
+        "representedLagMs": 75.364990234375,
+        "exhausted": false,
+        "elapsedMs": 114.40000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 393,
+        "sentAt": 146477.19999998808,
+        "viewTime": 1792102959344,
+        "representedLagMs": 75.364990234375,
+        "exhausted": false,
+        "elapsedMs": 71.5,
+        "accepted": false
+      },
+      {
+        "sequence": 394,
+        "sentAt": 146701.19999998808,
+        "viewTime": 1792102959568,
+        "representedLagMs": 75.592041015625,
+        "exhausted": false,
+        "elapsedMs": 93.5,
+        "accepted": true
+      },
+      {
+        "sequence": 395,
+        "sentAt": 146925.19999998808,
+        "viewTime": 1792102959787,
+        "representedLagMs": 80.592041015625,
+        "exhausted": true,
+        "elapsedMs": 127.90000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 396,
+        "sentAt": 147141.19999998808,
+        "viewTime": 1792102960004,
+        "representedLagMs": 78.173583984375,
+        "exhausted": true,
+        "elapsedMs": 103,
+        "accepted": false
+      },
+      {
+        "sequence": 397,
+        "sentAt": 147358,
+        "viewTime": 1792102960224,
+        "representedLagMs": 75.173583984375,
+        "exhausted": false,
+        "elapsedMs": 87.7999999821186,
+        "accepted": false
+      },
+      {
+        "sequence": 398,
+        "sentAt": 147580.59999999404,
+        "viewTime": 1792102960447,
+        "representedLagMs": 75.173583984375,
+        "exhausted": false,
+        "elapsedMs": 97.69999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 399,
+        "sentAt": 147797.19999998808,
+        "viewTime": 1792102960664,
+        "representedLagMs": 75.3388671875,
+        "exhausted": false,
+        "elapsedMs": 123.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 400,
+        "sentAt": 148021.19999998808,
+        "viewTime": 1792102960888,
+        "representedLagMs": 75.3388671875,
+        "exhausted": false,
+        "elapsedMs": 90.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 401,
+        "sentAt": 148237.19999998808,
+        "viewTime": 1792102961104,
+        "representedLagMs": 75.3388671875,
+        "exhausted": false,
+        "elapsedMs": 92.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 402,
+        "sentAt": 148461.29999998212,
+        "viewTime": 1792102961330,
+        "representedLagMs": 75.77099609375,
+        "exhausted": false,
+        "elapsedMs": 131.30000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 403,
+        "sentAt": 148677.19999998808,
+        "viewTime": 1792102961546,
+        "representedLagMs": 75.77099609375,
+        "exhausted": false,
+        "elapsedMs": 116.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 404,
+        "sentAt": 148900.69999998808,
+        "viewTime": 1792102961767,
+        "representedLagMs": 75.616943359375,
+        "exhausted": false,
+        "elapsedMs": 104.5,
+        "accepted": false
+      },
+      {
+        "sequence": 405,
+        "sentAt": 149117.09999999404,
+        "viewTime": 1792102961971,
+        "representedLagMs": 88.616943359375,
+        "exhausted": true,
+        "elapsedMs": 111.19999998807907,
+        "accepted": true
+      },
+      {
+        "sequence": 406,
+        "sentAt": 149341.69999998808,
+        "viewTime": 1792102962208,
+        "representedLagMs": 75.616943359375,
+        "exhausted": false,
+        "elapsedMs": 77.69999998807907,
+        "accepted": true
+      },
+      {
+        "sequence": 407,
+        "sentAt": 149557.29999998212,
+        "viewTime": 1792102962421,
+        "representedLagMs": 76.3935546875,
+        "exhausted": true,
+        "elapsedMs": 120.90000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 408,
+        "sentAt": 149780.69999998808,
+        "viewTime": 1792102962645,
+        "representedLagMs": 75.3935546875,
+        "exhausted": false,
+        "elapsedMs": 107.90000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 409,
+        "sentAt": 149997.19999998808,
+        "viewTime": 1792102962862,
+        "representedLagMs": 75.3935546875,
+        "exhausted": false,
+        "elapsedMs": 146.09999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 410,
+        "sentAt": 150221.19999998808,
+        "viewTime": 1792102963083,
+        "representedLagMs": 75.11474609375,
+        "exhausted": false,
+        "elapsedMs": 74.80000001192093,
+        "accepted": true
+      },
+      {
+        "sequence": 411,
+        "sentAt": 150437.19999998808,
+        "viewTime": 1792102963299,
+        "representedLagMs": 75.11474609375,
+        "exhausted": false,
+        "elapsedMs": 59.5,
+        "accepted": true
+      },
+      {
+        "sequence": 412,
+        "sentAt": 150661.79999998212,
+        "viewTime": 1792102963520,
+        "representedLagMs": 75.19189453125,
+        "exhausted": false,
+        "elapsedMs": 116.40000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 413,
+        "sentAt": 150877.29999998212,
+        "viewTime": 1792102963736,
+        "representedLagMs": 75.19189453125,
+        "exhausted": false,
+        "elapsedMs": 68,
+        "accepted": false
+      },
+      {
+        "sequence": 414,
+        "sentAt": 151101.29999998212,
+        "viewTime": 1792102963960,
+        "representedLagMs": 75.19189453125,
+        "exhausted": false,
+        "elapsedMs": 92.2000000178814,
+        "accepted": true
+      },
+      {
+        "sequence": 415,
+        "sentAt": 151317.19999998808,
+        "viewTime": 1792102964176,
+        "representedLagMs": 75.19189453125,
+        "exhausted": false,
+        "elapsedMs": 112.09999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 416,
+        "sentAt": 151540.69999998808,
+        "viewTime": 1792102964400,
+        "representedLagMs": 75.25341796875,
+        "exhausted": false,
+        "elapsedMs": 139.80000001192093,
+        "accepted": true
+      },
+      {
+        "sequence": 417,
+        "sentAt": 151757.89999997616,
+        "viewTime": 1792102964617,
+        "representedLagMs": 75.25341796875,
+        "exhausted": false,
+        "elapsedMs": 121.60000002384186,
+        "accepted": false
+      },
+      {
+        "sequence": 418,
+        "sentAt": 151981.5,
+        "viewTime": 1792102964844,
+        "representedLagMs": 75.502685546875,
+        "exhausted": false,
+        "elapsedMs": 114.09999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 419,
+        "sentAt": 152197.19999998808,
+        "viewTime": 1792102965060,
+        "representedLagMs": 75.502685546875,
+        "exhausted": false,
+        "elapsedMs": 109.69999998807907,
+        "accepted": true
+      },
+      {
+        "sequence": 420,
+        "sentAt": 152420.79999998212,
+        "viewTime": 1792102965283,
+        "representedLagMs": 75.502685546875,
+        "exhausted": false,
+        "elapsedMs": 109.59999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 421,
+        "sentAt": 152645.09999999404,
+        "viewTime": 1792102965508,
+        "representedLagMs": 75.7021484375,
+        "exhausted": false,
+        "elapsedMs": 148.09999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 422,
+        "sentAt": 152861.69999998808,
+        "viewTime": 1792102965724,
+        "representedLagMs": 75.7021484375,
+        "exhausted": false,
+        "elapsedMs": 122.19999998807907,
+        "accepted": true
+      },
+      {
+        "sequence": 423,
+        "sentAt": 153077.09999999404,
+        "viewTime": 1792102965937,
+        "representedLagMs": 78.7021484375,
+        "exhausted": true,
+        "elapsedMs": 142.40000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 424,
+        "sentAt": 153300.89999997616,
+        "viewTime": 1792102966164,
+        "representedLagMs": 75.561767578125,
+        "exhausted": false,
+        "elapsedMs": 143.30000001192093,
+        "accepted": true
+      },
+      {
+        "sequence": 425,
+        "sentAt": 153524.69999998808,
+        "viewTime": 1792102966387,
+        "representedLagMs": 76.561767578125,
+        "exhausted": true,
+        "elapsedMs": 136.59999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 426,
+        "sentAt": 153741.69999998808,
+        "viewTime": 1792102966607,
+        "representedLagMs": 75.24951171875,
+        "exhausted": false,
+        "elapsedMs": 124.59999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 427,
+        "sentAt": 153957.39999997616,
+        "viewTime": 1792102966823,
+        "representedLagMs": 75.24951171875,
+        "exhausted": false,
+        "elapsedMs": 104.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 428,
+        "sentAt": 154180.69999998808,
+        "viewTime": 1792102967046,
+        "representedLagMs": 75.24951171875,
+        "exhausted": false,
+        "elapsedMs": 128.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 429,
+        "sentAt": 154397.19999998808,
+        "viewTime": 1792102967262,
+        "representedLagMs": 75.099609375,
+        "exhausted": false,
+        "elapsedMs": 147.5,
+        "accepted": false
+      },
+      {
+        "sequence": 430,
+        "sentAt": 154621.69999998808,
+        "viewTime": 1792102967486,
+        "representedLagMs": 75.099609375,
+        "exhausted": false,
+        "elapsedMs": 62.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 431,
+        "sentAt": 154837.19999998808,
+        "viewTime": 1792102967702,
+        "representedLagMs": 75.099609375,
+        "exhausted": false,
+        "elapsedMs": 121.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 432,
+        "sentAt": 155061.79999998212,
+        "viewTime": 1792102967924,
+        "representedLagMs": 75.879638671875,
+        "exhausted": false,
+        "elapsedMs": 118.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 433,
+        "sentAt": 155277.19999998808,
+        "viewTime": 1792102968140,
+        "representedLagMs": 75.879638671875,
+        "exhausted": false,
+        "elapsedMs": 89,
+        "accepted": false
+      },
+      {
+        "sequence": 434,
+        "sentAt": 155501.19999998808,
+        "viewTime": 1792102968360,
+        "representedLagMs": 75.8037109375,
+        "exhausted": false,
+        "elapsedMs": 117.69999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 435,
+        "sentAt": 155717.19999998808,
+        "viewTime": 1792102968577,
+        "representedLagMs": 75.8037109375,
+        "exhausted": false,
+        "elapsedMs": 129.5,
+        "accepted": true
+      },
+      {
+        "sequence": 436,
+        "sentAt": 155941.29999998212,
+        "viewTime": 1792102968801,
+        "representedLagMs": 75.8037109375,
+        "exhausted": false,
+        "elapsedMs": 153.7000000178814,
+        "accepted": true
+      },
+      {
+        "sequence": 437,
+        "sentAt": 156165.19999998808,
+        "viewTime": 1792102969029,
+        "representedLagMs": 75.44287109375,
+        "exhausted": false,
+        "elapsedMs": 115.30000001192093,
+        "accepted": true
+      },
+      {
+        "sequence": 438,
+        "sentAt": 156381.19999998808,
+        "viewTime": 1792102969245,
+        "representedLagMs": 75.44287109375,
+        "exhausted": false,
+        "elapsedMs": 99.69999998807907,
+        "accepted": true
+      },
+      {
+        "sequence": 439,
+        "sentAt": 156597.29999998212,
+        "viewTime": 1792102969461,
+        "representedLagMs": 75.44287109375,
+        "exhausted": false,
+        "elapsedMs": 112.40000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 440,
+        "sentAt": 156821.69999998808,
+        "viewTime": 1792102969683,
+        "representedLagMs": 75.354248046875,
+        "exhausted": false,
+        "elapsedMs": 125.5,
+        "accepted": true
+      },
+      {
+        "sequence": 441,
+        "sentAt": 157037.69999998808,
+        "viewTime": 1792102969899,
+        "representedLagMs": 75.354248046875,
+        "exhausted": false,
+        "elapsedMs": 111.5,
+        "accepted": true
+      },
+      {
+        "sequence": 442,
+        "sentAt": 157260.79999998212,
+        "viewTime": 1792102970122,
+        "representedLagMs": 75.354248046875,
+        "exhausted": false,
+        "elapsedMs": 104.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 443,
+        "sentAt": 157477.29999998212,
+        "viewTime": 1792102970340,
+        "representedLagMs": 75.08349609375,
+        "exhausted": false,
+        "elapsedMs": 142.5,
+        "accepted": true
+      },
+      {
+        "sequence": 444,
+        "sentAt": 157701.29999998212,
+        "viewTime": 1792102970564,
+        "representedLagMs": 75.08349609375,
+        "exhausted": false,
+        "elapsedMs": 131,
+        "accepted": true
+      },
+      {
+        "sequence": 445,
+        "sentAt": 157924.69999998808,
+        "viewTime": 1792102970787,
+        "representedLagMs": 75.08349609375,
+        "exhausted": false,
+        "elapsedMs": 104.30000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 446,
+        "sentAt": 158141.19999998808,
+        "viewTime": 1792102971006,
+        "representedLagMs": 75.466796875,
+        "exhausted": false,
+        "elapsedMs": 230.40000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 447,
+        "sentAt": 158358,
+        "viewTime": 1792102971222,
+        "representedLagMs": 75.466796875,
+        "exhausted": false,
+        "elapsedMs": 96.09999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 448,
+        "sentAt": 158580.69999998808,
+        "viewTime": 1792102971437,
+        "representedLagMs": 82.2734375,
+        "exhausted": true,
+        "elapsedMs": 100.40000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 449,
+        "sentAt": 158797.59999999404,
+        "viewTime": 1792102971654,
+        "representedLagMs": 82.2734375,
+        "exhausted": true,
+        "elapsedMs": 133.69999998807907,
+        "accepted": true
+      },
+      {
+        "sequence": 450,
+        "sentAt": 159021.19999998808,
+        "viewTime": 1792102971885,
+        "representedLagMs": 75.2734375,
+        "exhausted": false,
+        "elapsedMs": 111.40000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 451,
+        "sentAt": 159237.19999998808,
+        "viewTime": 1792102972102,
+        "representedLagMs": 75.918701171875,
+        "exhausted": false,
+        "elapsedMs": 96.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 452,
+        "sentAt": 159460.69999998808,
+        "viewTime": 1792102972325,
+        "representedLagMs": 75.918701171875,
+        "exhausted": false,
+        "elapsedMs": 106.30000001192093,
+        "accepted": true
+      },
+      {
+        "sequence": 453,
+        "sentAt": 159685.19999998808,
+        "viewTime": 1792102972550,
+        "representedLagMs": 75.735107421875,
+        "exhausted": false,
+        "elapsedMs": 129.5,
+        "accepted": true
+      },
+      {
+        "sequence": 454,
+        "sentAt": 159901.19999998808,
+        "viewTime": 1792102972766,
+        "representedLagMs": 75.735107421875,
+        "exhausted": false,
+        "elapsedMs": 127.30000001192093,
+        "accepted": true
+      },
+      {
+        "sequence": 455,
+        "sentAt": 160117.79999998212,
+        "viewTime": 1792102972982,
+        "representedLagMs": 75.735107421875,
+        "exhausted": false,
+        "elapsedMs": 253.2000000178814,
+        "accepted": true
+      },
+      {
+        "sequence": 456,
+        "sentAt": 160340.69999998808,
+        "viewTime": 1792102973204,
+        "representedLagMs": 75.087890625,
+        "exhausted": false,
+        "elapsedMs": 156,
+        "accepted": false
+      },
+      {
+        "sequence": 457,
+        "sentAt": 160557.39999997616,
+        "viewTime": 1792102973421,
+        "representedLagMs": 75.087890625,
+        "exhausted": false,
+        "elapsedMs": 109.7000000178814,
+        "accepted": false
+      },
+      {
+        "sequence": 458,
+        "sentAt": 160780.69999998808,
+        "viewTime": 1792102973644,
+        "representedLagMs": 75.087890625,
+        "exhausted": false,
+        "elapsedMs": 88.19999998807907,
+        "accepted": false
+      },
+      {
+        "sequence": 459,
+        "sentAt": 160997.69999998808,
+        "viewTime": 1792102973859,
+        "representedLagMs": 75.17041015625,
+        "exhausted": false,
+        "elapsedMs": 131.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 460,
+        "sentAt": 161221.19999998808,
+        "viewTime": 1792102974083,
+        "representedLagMs": 75.17041015625,
+        "exhausted": false,
+        "elapsedMs": 128,
+        "accepted": false
+      },
+      {
+        "sequence": 461,
+        "sentAt": 161437.79999998212,
+        "viewTime": 1792102974299,
+        "representedLagMs": 75.17041015625,
+        "exhausted": false,
+        "elapsedMs": 95.5,
+        "accepted": false
+      },
+      {
+        "sequence": 462,
+        "sentAt": 161661.19999998808,
+        "viewTime": 1792102974522,
+        "representedLagMs": 75.33642578125,
+        "exhausted": false,
+        "elapsedMs": 137.5,
+        "accepted": false
+      },
+      {
+        "sequence": 463,
+        "sentAt": 161877.09999999404,
+        "viewTime": 1792102974738,
+        "representedLagMs": 75.33642578125,
+        "exhausted": false,
+        "elapsedMs": 142.2999999821186,
+        "accepted": false
+      },
+      {
+        "sequence": 464,
+        "sentAt": 162101.19999998808,
+        "viewTime": 1792102974962,
+        "representedLagMs": 75.33642578125,
+        "exhausted": false,
+        "elapsedMs": 146.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 465,
+        "sentAt": 162317.19999998808,
+        "viewTime": 1792102975179,
+        "representedLagMs": 75.569091796875,
+        "exhausted": false,
+        "elapsedMs": 132.59999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 466,
+        "sentAt": 162541.19999998808,
+        "viewTime": 1792102975403,
+        "representedLagMs": 75.569091796875,
+        "exhausted": false,
+        "elapsedMs": 77.90000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 467,
+        "sentAt": 162757.29999998212,
+        "viewTime": 1792102975622,
+        "representedLagMs": 75.6552734375,
+        "exhausted": false,
+        "elapsedMs": 124.09999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 468,
+        "sentAt": 162981.19999998808,
+        "viewTime": 1792102975846,
+        "representedLagMs": 75.6552734375,
+        "exhausted": false,
+        "elapsedMs": 75.19999998807907,
+        "accepted": true
+      },
+      {
+        "sequence": 469,
+        "sentAt": 163205.69999998808,
+        "viewTime": 1792102976070,
+        "representedLagMs": 75.6552734375,
+        "exhausted": false,
+        "elapsedMs": 143.59999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 470,
+        "sentAt": 163420.69999998808,
+        "viewTime": 1792102976291,
+        "representedLagMs": 75.72412109375,
+        "exhausted": false,
+        "elapsedMs": 128.40000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 471,
+        "sentAt": 163637.19999998808,
+        "viewTime": 1792102976508,
+        "representedLagMs": 75.72412109375,
+        "exhausted": false,
+        "elapsedMs": 112.30000001192093,
+        "accepted": true
+      },
+      {
+        "sequence": 472,
+        "sentAt": 163861.69999998808,
+        "viewTime": 1792102976732,
+        "representedLagMs": 75.72412109375,
+        "exhausted": false,
+        "elapsedMs": 119.40000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 473,
+        "sentAt": 164077.5,
+        "viewTime": 1792102976947,
+        "representedLagMs": 75.479248046875,
+        "exhausted": false,
+        "elapsedMs": 124.09999999403954,
+        "accepted": false
+      },
+      {
+        "sequence": 474,
+        "sentAt": 164301.19999998808,
+        "viewTime": 1792102977171,
+        "representedLagMs": 75.479248046875,
+        "exhausted": false,
+        "elapsedMs": 148.19999998807907,
+        "accepted": true
+      },
+      {
+        "sequence": 475,
+        "sentAt": 164517.69999998808,
+        "viewTime": 1792102977387,
+        "representedLagMs": 75.4833984375,
+        "exhausted": false,
+        "elapsedMs": 133.30000001192093,
+        "accepted": true
+      },
+      {
+        "sequence": 476,
+        "sentAt": 164740.69999998808,
+        "viewTime": 1792102977587,
+        "representedLagMs": 98.4833984375,
+        "exhausted": true,
+        "elapsedMs": 109.5,
+        "accepted": true
+      },
+      {
+        "sequence": 477,
+        "sentAt": 164957.89999997616,
+        "viewTime": 1792102977827,
+        "representedLagMs": 75.4833984375,
+        "exhausted": false,
+        "elapsedMs": 90.90000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 478,
+        "sentAt": 165181.69999998808,
+        "viewTime": 1792102978050,
+        "representedLagMs": 75.686767578125,
+        "exhausted": false,
+        "elapsedMs": 115.19999998807907,
+        "accepted": true
+      },
+      {
+        "sequence": 479,
+        "sentAt": 165397.19999998808,
+        "viewTime": 1792102978254,
+        "representedLagMs": 87.686767578125,
+        "exhausted": true,
+        "elapsedMs": 121.19999998807907,
+        "accepted": true
+      },
+      {
+        "sequence": 480,
+        "sentAt": 165620.69999998808,
+        "viewTime": 1792102978489,
+        "representedLagMs": 75.686767578125,
+        "exhausted": false,
+        "elapsedMs": 128.59999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 481,
+        "sentAt": 165837.19999998808,
+        "viewTime": 1792102978709,
+        "representedLagMs": 75.04931640625,
+        "exhausted": false,
+        "elapsedMs": 144.5,
+        "accepted": true
+      },
+      {
+        "sequence": 482,
+        "sentAt": 166060.69999998808,
+        "viewTime": 1792102978921,
+        "representedLagMs": 86.04931640625,
+        "exhausted": true,
+        "elapsedMs": 140.80000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 483,
+        "sentAt": 166277.29999998212,
+        "viewTime": 1792102979137,
+        "representedLagMs": 87.04931640625,
+        "exhausted": true,
+        "elapsedMs": 55.70000001788139,
+        "accepted": true
+      },
+      {
+        "sequence": 484,
+        "sentAt": 166501.29999998212,
+        "viewTime": 1792102979369,
+        "representedLagMs": 75.939453125,
+        "exhausted": false,
+        "elapsedMs": 148.90000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 485,
+        "sentAt": 166717.19999998808,
+        "viewTime": 1792102979585,
+        "representedLagMs": 75.939453125,
+        "exhausted": false,
+        "elapsedMs": 67.80000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 486,
+        "sentAt": 166941.19999998808,
+        "viewTime": 1792102979811,
+        "representedLagMs": 75.251708984375,
+        "exhausted": false,
+        "elapsedMs": 65.40000000596046,
+        "accepted": true
+      },
+      {
+        "sequence": 487,
+        "sentAt": 167157.39999997616,
+        "viewTime": 1792102980027,
+        "representedLagMs": 75.251708984375,
+        "exhausted": false,
+        "elapsedMs": 144.30000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 488,
+        "sentAt": 167381.29999998212,
+        "viewTime": 1792102980251,
+        "representedLagMs": 75.251708984375,
+        "exhausted": false,
+        "elapsedMs": 121.5,
+        "accepted": false
+      },
+      {
+        "sequence": 489,
+        "sentAt": 167597.79999998212,
+        "viewTime": 1792102980465,
+        "representedLagMs": 75.201416015625,
+        "exhausted": false,
+        "elapsedMs": 121.7000000178814,
+        "accepted": false
+      },
+      {
+        "sequence": 490,
+        "sentAt": 167821.19999998808,
+        "viewTime": 1792102980689,
+        "representedLagMs": 75.201416015625,
+        "exhausted": false,
+        "elapsedMs": 84.80000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 491,
+        "sentAt": 168037.69999998808,
+        "viewTime": 1792102980905,
+        "representedLagMs": 75.201416015625,
+        "exhausted": false,
+        "elapsedMs": 95.80000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 492,
+        "sentAt": 168261.69999998808,
+        "viewTime": 1792102981129,
+        "representedLagMs": 75.6611328125,
+        "exhausted": false,
+        "elapsedMs": 110,
+        "accepted": false
+      },
+      {
+        "sequence": 493,
+        "sentAt": 168477.69999998808,
+        "viewTime": 1792102981345,
+        "representedLagMs": 75.6611328125,
+        "exhausted": false,
+        "elapsedMs": 125.5,
+        "accepted": false
+      },
+      {
+        "sequence": 494,
+        "sentAt": 168700.69999998808,
+        "viewTime": 1792102981565,
+        "representedLagMs": 75.428955078125,
+        "exhausted": false,
+        "elapsedMs": 118.40000000596046,
+        "accepted": false
+      },
+      {
+        "sequence": 495,
+        "sentAt": 168917.59999999404,
+        "viewTime": 1792102981782,
+        "representedLagMs": 75.428955078125,
+        "exhausted": false,
+        "elapsedMs": 99.59999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 496,
+        "sentAt": 169141.19999998808,
+        "viewTime": 1792102982006,
+        "representedLagMs": 75.428955078125,
+        "exhausted": false,
+        "elapsedMs": 97.5,
+        "accepted": false
+      },
+      {
+        "sequence": 497,
+        "sentAt": 169357.39999997616,
+        "viewTime": 1792102982221,
+        "representedLagMs": 76.54296875,
+        "exhausted": true,
+        "elapsedMs": 95.80000001192093,
+        "accepted": true
+      },
+      {
+        "sequence": 498,
+        "sentAt": 169580.69999998808,
+        "viewTime": 1792102982445,
+        "representedLagMs": 75.54296875,
+        "exhausted": false,
+        "elapsedMs": 128.59999999403954,
+        "accepted": true
+      },
+      {
+        "sequence": 499,
+        "sentAt": 169797.19999998808,
+        "viewTime": 1792102982662,
+        "representedLagMs": 75.54296875,
+        "exhausted": false,
+        "elapsedMs": 61.30000001192093,
+        "accepted": false
+      },
+      {
+        "sequence": 500,
+        "sentAt": 170021.69999998808,
+        "viewTime": 1792102982889,
+        "representedLagMs": 75.9345703125,
+        "exhausted": false,
+        "elapsedMs": 100.5,
+        "accepted": true
+      }
+    ]
+  },
+  "diagnostics": "Host fire decisions: {\"accepted\":299,\"view-time\":10,\"cooldown\":191}; latest represented-view age 129 ms",
+  "guest": "8027 surface snapshots; epoch 1; RTT 105 ms; snapshot age 43 ms\nView Host: surface; 100 HP; 0 armor; 0.0 heat; #8CECFF; input ack 8295; 0 kills/0 deaths; standing; lean 0.000\nView One (you): surface; 100 HP; 0 armor; 0.0 heat; #8CECFF; input ack 8277; 0 kills/0 deaths; standing; lean 0.000\nView Two: surface; 100 HP; 0 armor; 0.0 heat; #8CECFF; input ack 8182; 0 kills/0 deaths; standing; lean 0.000\nView Three: surface; 100 HP; 0 armor; 0.0 heat; #8CECFF; input ack 8169; 0 kills/0 deaths; standing; lean 0.000\n1 occupied arenas; largest occupancy 4; 0 bolts; 6/6 pickups available",
+  "transport": "connected: prflx -> host; 19898943 bytes sent; RTT 75 ms; proxy route selected\nconnected: prflx -> host; 19733153 bytes sent; RTT 112 ms; proxy route selected\nconnected: prflx -> host; 19726256 bytes sent; RTT 101 ms; proxy route selected\nconstellation-live: 0 bytes queued\nconstellation-control: 0 bytes queued\nconstellation-control: 0 bytes queued\nconstellation-live: 0 bytes queued\nconstellation-control: 0 bytes queued\nconstellation-live: 0 bytes queued",
+  "proxy": "UDP impairment: 100 ms RTT; ±25 ms one-way jitter; 1% loss\n375651 forwarded; 3858 dropped; 12/12 paired sockets; 0 send errors; mean applied delay 53.1 ms"
+}

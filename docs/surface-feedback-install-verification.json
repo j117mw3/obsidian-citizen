@@ -1,0 +1,28 @@
+{
+  "pluginVersion": "0.6.4",
+  "roomProtocol": 9,
+  "checkpointFormat": 9,
+  "vault": "<test-vault>",
+  "installedPlugin": "<test-vault>\\.obsidian\\plugins\\constellation-graph",
+  "previousVersion": "0.6.3",
+  "backup": "<checkout>\\dist\\installed-backups\\before-0.6.4-20261016-010001",
+  "package": "<checkout>\\dist\\obsidian-citizen-0.6.4-surface-feedback\\obsidian-citizen-0.6.4-surface-feedback.zip",
+  "checksums": {
+    "main.js": "6F42B22BF6F827603CD9014D0F59B61059879CBA5BE2BF31350375B0973EE2A2",
+    "manifest.json": "5F2BB11A387ED7DA6B2FAEE59AEA34358A9E4DA8574EC4B28A4EB43C8FDFA1EE",
+    "styles.css": "AB5E69622E55B28F29A7ECE6DB29E723A0A0DC6479C6EFC53582765319960F13",
+    "obsidian-citizen-0.6.4-surface-feedback.zip": "E3BE9326982BE5954C5069D6F65155D67AE62AFA1854CA7CB188F5CDDF11D234"
+  },
+  "settingsUnchangedDuringInstall": true,
+  "settingsHash": "6B1E485D7FD1AFF32A4F6D5835FAD52E3610AEF9AA84EF5A4A845F2F1A32915C",
+  "tests": {
+    "passed": 188,
+    "failed": 0
+  },
+  "privacyMarkerScan": "passed",
+  "removedDiagnosticsVerifiedInBundle": true,
+  "zipMemberVerification": "passed",
+  "nativeRestartPerformed": false,
+  "computerUsePerformed": false,
+  "nativeAcceptance": "pending user reload, surface appearance, line-of-sight labels and confirmed-hit feedback observation"
+}

@@ -1,0 +1,27 @@
+{
+  "pluginVersion": "0.6.1",
+  "roomProtocol": 9,
+  "checkpointFormat": 9,
+  "vault": "<test-vault>",
+  "installedPlugin": "<test-vault>\\.obsidian\\plugins\\constellation-graph",
+  "previousVersion": "0.6.0",
+  "backup": "<checkout>\\dist\\installed-backups\\before-0.6.1-20261015-225157",
+  "package": "<checkout>\\dist\\obsidian-citizen-0.6.1-stable-planets\\obsidian-citizen-0.6.1-stable-planets.zip",
+  "checksums": {
+    "main.js": "CBD8009DA32A63CF1E58E9EC25B030E8D11A2D8135499B4E74AABA74DEAB70F0",
+    "manifest.json": "7B2FCE710DB70A31EAB69BDDE4862145F1085CCF5819C89A8C88B25C394B4601",
+    "styles.css": "65FC660BDD085975114A74141A2F22A2B42AEBEF8D11C76C73FDDAFB25A28440",
+    "obsidian-citizen-0.6.1-stable-planets.zip": "182D2E6B32D5A84E9214B4651F3622B36F17D5515070111ED847CBAFA353F613"
+  },
+  "settingsUnchanged": true,
+  "settingsHash": "233A4A841A801EF306805D0CD81C779973FB852AF1949C348F293DAB6CCB38B7",
+  "tests": {
+    "passed": 172,
+    "failed": 0
+  },
+  "privacyMarkerScan": "passed",
+  "zipMemberVerification": "passed",
+  "nativeRestartPerformed": false,
+  "computerUsePerformed": false,
+  "nativeAcceptance": "pending user restart and observation"
+}

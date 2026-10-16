@@ -1,0 +1,23 @@
+{
+  "scope": "Source tests, archive verification and installed-file readback; no computer-use or native gameplay claim",
+  "testsPassed": 160,
+  "vault": "<test-vault>",
+  "backup": "dist\\installed-backups\\before-docking-fix-42528e3f",
+  "before": {
+    "styles.css": "22EC5343AF90A5B3F6E4F42348FDDB58F22E50F3EAE202902DA5806185A827FA",
+    "manifest.json": "B157E52F2892005DC08F82B01F2FEF078D6C44F73C7B7E91F477443D531DB71F",
+    "main.js": "2CB6B4251118847C8C17CC18780CFB924D7ED03E72E8E5A0E590DD9AD2725320"
+  },
+  "installed": {
+    "styles.css": "65FC660BDD085975114A74141A2F22A2B42AEBEF8D11C76C73FDDAFB25A28440",
+    "manifest.json": "AC29D7FC49F828DB18F8675B39F95E34B7CE9EEDF9956AF5DD57B4BA03EC8989",
+    "main.js": "E194E9C1433271B1D5C882AEEB660EBA411F7B99CDB843A030F621EDC7238773"
+  },
+  "zipSha256": "8F118ADFE800E2F03E8A52404951284F8E59ED05EC94A6BC3C634139DEA00B78",
+  "author": "J117W3",
+  "repository": "https://github.com/j117mw3/obsidian-constellation-graph",
+  "settingsUnchanged": true,
+  "reloadRequestedByAgent": false,
+  "reloadRequired": true,
+  "nativeDockingObserved": false
+}

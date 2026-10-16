@@ -1,0 +1,27 @@
+{
+  "pluginVersion": "0.6.5",
+  "roomProtocol": 9,
+  "checkpointFormat": 9,
+  "vault": "<test-vault>",
+  "installedPlugin": "<test-vault>\\.obsidian\\plugins\\constellation-graph",
+  "previousVersion": "0.6.4",
+  "backup": "<checkout>\\dist\\installed-backups\\before-0.6.5-20261016-011455",
+  "package": "<checkout>\\dist\\obsidian-citizen-0.6.5-vent-and-patrols\\obsidian-citizen-0.6.5-vent-and-patrols.zip",
+  "checksums": {
+    "main.js": "1CBE758B2CDBCBAC7C42B6C359F72BB43EE1889DCDD3A76E4E69CF386E7BCA24",
+    "manifest.json": "3AECE5C4D432B6EAA9B146FC18367F908D506645779E9DE49ED94B655263B641",
+    "styles.css": "AB5E69622E55B28F29A7ECE6DB29E723A0A0DC6479C6EFC53582765319960F13",
+    "obsidian-citizen-0.6.5-vent-and-patrols.zip": "7293B18AFCE37C9AE7807E739B364A1D1566FEC894269419CEFCE0625B8A3020"
+  },
+  "settingsUnchangedDuringInstall": true,
+  "settingsHash": "6B1E485D7FD1AFF32A4F6D5835FAD52E3610AEF9AA84EF5A4A845F2F1A32915C",
+  "tests": {
+    "passed": 196,
+    "failed": 0
+  },
+  "privacyMarkerScan": "passed",
+  "zipMemberVerification": "passed",
+  "nativeRestartPerformed": false,
+  "computerUsePerformed": false,
+  "nativeAcceptance": "pending user reload, vent steam and four passive patrol observation"
+}

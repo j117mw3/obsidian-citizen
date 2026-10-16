@@ -1,0 +1,32 @@
+{
+  "pluginVersion": "0.6.8",
+  "roomProtocol": 11,
+  "checkpointFormat": 11,
+  "settingsSchema": 5,
+  "vault": "<test-vault>",
+  "installedPlugin": "<test-vault>\\.obsidian\\plugins\\constellation-graph",
+  "previousVersion": "0.6.7",
+  "backup": "<checkout>\\dist\\installed-backups\\before-0.6.8-20261016-022121",
+  "package": "<checkout>\\dist\\obsidian-citizen-0.6.8-moving-cover\\obsidian-citizen-0.6.8-moving-cover.zip",
+  "checksums": {
+    "main.js": "BB2B79A699BA27FB396508F6D496CF0C7F14136DF05D6F46FD0D79FA3E28FC51",
+    "manifest.json": "6D029D8FFABB1140A43BDBA7E67B0CE049AFE27C20394CA82FE86279BEA133D1",
+    "styles.css": "AB5E69622E55B28F29A7ECE6DB29E723A0A0DC6479C6EFC53582765319960F13",
+    "obsidian-citizen-0.6.8-moving-cover.zip": "802FF40F0F54A4E41BD967B4A0A1EBD6E07F53CC5209DA2AEBFC37FB84CC0999"
+  },
+  "settingsUnchangedDuringInstall": true,
+  "settingsHash": "98B6CA22A3F93C7A0BF7D4F4105FEDCDC581976CA7B090AC3F8C7D97A9719650",
+  "settingsMigration": "No new migration; retains schema 5.",
+  "tests": {
+    "passed": 215,
+    "failed": 0
+  },
+  "typecheck": "passed",
+  "productionBuild": "passed",
+  "privacyMarkerScan": "passed",
+  "zipMemberVerification": "passed",
+  "nativeRestartPerformed": false,
+  "computerUsePerformed": false,
+  "nativeAcceptance": "Pending user reload: twelve Smoke Hub walls, paired directional movement, safe clearances and mineral ground detail.",
+  "verificationLimits": "No fresh cross-computer WebRTC or impaired-network gameplay run; moving-cover replication with 200 ms RTT plus jitter tested in process; native rendering, frame rate and cross-computer multiplayer not observed."
+}

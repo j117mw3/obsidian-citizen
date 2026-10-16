@@ -1,0 +1,116 @@
+[
+  {
+    "scope": "Four real room clients in one browser context. Native WebRTC with loopback UDP impairment. Scripted poses and per-tick HP resets isolate hit registration; no WebGL, death/round lifecycle, cross-device clock, or rendered ghost assertions.",
+    "config": {
+      "rttMs": 100,
+      "distance": 10,
+      "stance": "standing",
+      "scenario": "strafe",
+      "shots": 10,
+      "referenceAt": 1792103282251
+    },
+    "eligible": false,
+    "passed": false,
+    "clients": 4,
+    "attempts": 10,
+    "accepted": 10,
+    "dispositions": 10,
+    "oracleHits": 7,
+    "actualHits": 7,
+    "agreement": 1,
+    "hitRateDeficit": 0,
+    "dispositionP95Ms": 139,
+    "dispositionP99Ms": 139,
+    "within600Ms": 1,
+    "within1000Ms": 1,
+    "duplicateHits": 0,
+    "blockerViolations": 0,
+    "maxRewindMs": 150,
+    "invalidSnapshots": 0,
+    "modeDivergence": 8,
+    "rejectionReasons": {},
+    "mismatchSequences": [],
+    "spreadSeedPlayerId": "96fab17e-6c86-4766-b864-24668b4b76ec",
+    "transport": [
+      {
+        "state": "connected",
+        "proxy": true,
+        "rttMs": 120
+      },
+      {
+        "state": "connected",
+        "proxy": true,
+        "rttMs": 94
+      },
+      {
+        "state": "connected",
+        "proxy": true,
+        "rttMs": 110
+      },
+      {
+        "state": "connected",
+        "proxy": true,
+        "rttMs": 106
+      },
+      {
+        "state": "connected",
+        "proxy": true,
+        "rttMs": 113
+      },
+      {
+        "state": "connected",
+        "proxy": true,
+        "rttMs": 135
+      },
+      {
+        "state": "connected",
+        "proxy": true,
+        "rttMs": 99
+      },
+      {
+        "state": "connected",
+        "proxy": true,
+        "rttMs": 112
+      },
+      {
+        "state": "connected",
+        "proxy": true,
+        "rttMs": 119
+      },
+      {
+        "state": "connected",
+        "proxy": true,
+        "rttMs": 103
+      },
+      {
+        "state": "connected",
+        "proxy": true,
+        "rttMs": 63
+      },
+      {
+        "state": "connected",
+        "proxy": true,
+        "rttMs": 124
+      }
+    ],
+    "proxy": {
+      "profile": {
+        "rtt": 100,
+        "jitter": 25,
+        "loss": 0.01,
+        "seed": 20261015
+      },
+      "sockets": 12,
+      "pairedSockets": 12,
+      "pending": 80,
+      "received": 11445,
+      "forwarded": 11232,
+      "dropped": 130,
+      "queued": 6,
+      "invalid": 3,
+      "sendErrors": 0,
+      "delayMax": 89.44659999999567,
+      "meanDelayMs": 53.22318114316232
+    }
+  }
+]

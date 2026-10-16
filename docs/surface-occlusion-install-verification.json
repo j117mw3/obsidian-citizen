@@ -1,0 +1,27 @@
+{
+  "pluginVersion": "0.6.3",
+  "roomProtocol": 9,
+  "checkpointFormat": 9,
+  "vault": "<test-vault>",
+  "installedPlugin": "<test-vault>\\.obsidian\\plugins\\constellation-graph",
+  "previousVersion": "0.6.2",
+  "backup": "<checkout>\\dist\\installed-backups\\before-0.6.3-20261016-004204",
+  "package": "<checkout>\\dist\\obsidian-citizen-0.6.3-surface-occlusion\\obsidian-citizen-0.6.3-surface-occlusion.zip",
+  "checksums": {
+    "main.js": "EA04814416CD026CDED2229BA71D0EA5682B17AB614BA01055F247E4545C97F4",
+    "manifest.json": "AA0B2F223232E233B13F6DA18822575820070C89F163E85112CA33583713A42B",
+    "styles.css": "11C7B0CEE8A0DA4223D63386A2877CCB4E0CEA2AFDD28A7C8117504318BF449D",
+    "obsidian-citizen-0.6.3-surface-occlusion.zip": "2CF9DF6C7C27DF0A4D3FA1885BFE38C0846F7D47F44905DC956D1EDF65AFD50A"
+  },
+  "settingsUnchangedDuringInstall": true,
+  "settingsHash": "6B1E485D7FD1AFF32A4F6D5835FAD52E3610AEF9AA84EF5A4A845F2F1A32915C",
+  "tests": {
+    "passed": 181,
+    "failed": 0
+  },
+  "privacyMarkerScan": "passed",
+  "zipMemberVerification": "passed",
+  "nativeRestartPerformed": false,
+  "computerUsePerformed": false,
+  "nativeAcceptance": "pending user restart and floor/horizon observation"
+}

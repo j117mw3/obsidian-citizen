@@ -1,0 +1,156 @@
+{
+  "focusedPageEmulation": true,
+  "result": {
+    "passed": false,
+    "reason": "Pole interruption shot rejected before damage; inspect admission diagnostics",
+    "checks": [
+      "Four ordinary docking requests admitted to one arena",
+      "Approved dark color replicated",
+      "One collection, replicated unavailable pickup",
+      "Real pickup timer restored availability on all peers"
+    ],
+    "elapsedMs": 20756,
+    "invalidSnapshots": 0,
+    "pickupEvents": [
+      {
+        "id": "ab385706-1f59-4157-82b5-ce42bda65099",
+        "at": 1792109750713
+      }
+    ],
+    "fireObservations": [
+      {
+        "player": "ab385706-1f59-4157-82b5-ce42bda65099",
+        "sequence": 1,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 274,
+        "rttMs": 201.1983852707514
+      }
+    ],
+    "damageEvents": [],
+    "respawns": [],
+    "roundEvents": [
+      {
+        "client": 0,
+        "at": 1792109748305,
+        "state": {
+          "epoch": 1,
+          "roundId": 1,
+          "phase": "combat",
+          "phaseRemainingMs": 0,
+          "winnerId": "",
+          "scores": [
+            {
+              "playerId": "3024bb02-abcb-421e-b3b6-6ea07ea3fa63",
+              "kills": 0,
+              "deaths": 0
+            }
+          ],
+          "layoutRequirements": []
+        }
+      },
+      {
+        "client": 1,
+        "at": 1792109748905,
+        "state": {
+          "epoch": 1,
+          "roundId": 1,
+          "phase": "combat",
+          "phaseRemainingMs": 0,
+          "winnerId": "",
+          "scores": [
+            {
+              "playerId": "3024bb02-abcb-421e-b3b6-6ea07ea3fa63",
+              "kills": 0,
+              "deaths": 0
+            },
+            {
+              "playerId": "ab385706-1f59-4157-82b5-ce42bda65099",
+              "kills": 0,
+              "deaths": 0
+            },
+            {
+              "playerId": "11b93fd2-ad9c-4ffd-b6ae-b09e71dca33a",
+              "kills": 0,
+              "deaths": 0
+            },
+            {
+              "playerId": "caf21402-13c8-4f55-8226-0f2daa31fe2d",
+              "kills": 0,
+              "deaths": 0
+            }
+          ],
+          "layoutRequirements": []
+        }
+      },
+      {
+        "client": 3,
+        "at": 1792109749057,
+        "state": {
+          "epoch": 1,
+          "roundId": 1,
+          "phase": "combat",
+          "phaseRemainingMs": 0,
+          "winnerId": "",
+          "scores": [
+            {
+              "playerId": "3024bb02-abcb-421e-b3b6-6ea07ea3fa63",
+              "kills": 0,
+              "deaths": 0
+            },
+            {
+              "playerId": "ab385706-1f59-4157-82b5-ce42bda65099",
+              "kills": 0,
+              "deaths": 0
+            },
+            {
+              "playerId": "11b93fd2-ad9c-4ffd-b6ae-b09e71dca33a",
+              "kills": 0,
+              "deaths": 0
+            },
+            {
+              "playerId": "caf21402-13c8-4f55-8226-0f2daa31fe2d",
+              "kills": 0,
+              "deaths": 0
+            }
+          ],
+          "layoutRequirements": []
+        }
+      },
+      {
+        "client": 2,
+        "at": 1792109749097,
+        "state": {
+          "epoch": 1,
+          "roundId": 1,
+          "phase": "combat",
+          "phaseRemainingMs": 0,
+          "winnerId": "",
+          "scores": [
+            {
+              "playerId": "3024bb02-abcb-421e-b3b6-6ea07ea3fa63",
+              "kills": 0,
+              "deaths": 0
+            },
+            {
+              "playerId": "ab385706-1f59-4157-82b5-ce42bda65099",
+              "kills": 0,
+              "deaths": 0
+            },
+            {
+              "playerId": "11b93fd2-ad9c-4ffd-b6ae-b09e71dca33a",
+              "kills": 0,
+              "deaths": 0
+            },
+            {
+              "playerId": "caf21402-13c8-4f55-8226-0f2daa31fe2d",
+              "kills": 0,
+              "deaths": 0
+            }
+          ],
+          "layoutRequirements": []
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "pluginVersion": "0.6.2",
+  "roomProtocol": 9,
+  "checkpointFormat": 9,
+  "vault": "<test-vault>",
+  "installedPlugin": "<test-vault>\\.obsidian\\plugins\\constellation-graph",
+  "previousVersion": "0.6.1",
+  "backup": "<checkout>\\dist\\installed-backups\\before-0.6.2-20261016-003614",
+  "package": "<checkout>\\dist\\obsidian-citizen-0.6.2-surface-polish\\obsidian-citizen-0.6.2-surface-polish.zip",
+  "checksums": {
+    "main.js": "6748B5DD99D3889DA1A3E107065C527FAA3169CF97E3715904401059E24736BA",
+    "manifest.json": "6DA55F64DE57CF1F888DC87BAAA020E39509B07DFECF3F06945EF5036E637869",
+    "styles.css": "11C7B0CEE8A0DA4223D63386A2877CCB4E0CEA2AFDD28A7C8117504318BF449D",
+    "obsidian-citizen-0.6.2-surface-polish.zip": "D08454FE6BBADF25B4B7A2C56E45000986D83D3EFA0CE3080717BE49513436E3"
+  },
+  "settingsUnchangedDuringInstall": true,
+  "settingsHash": "233A4A841A801EF306805D0CD81C779973FB852AF1949C348F293DAB6CCB38B7",
+  "settingsMigration": "On next plugin load: schema 4; old default C changes to Left Control, other custom bindings retained with collision repair.",
+  "tests": {
+    "passed": 179,
+    "failed": 0
+  },
+  "smokeHubPipeline": {
+    "actualVaultFixtureRead": true,
+    "connections": 6,
+    "physicalWalls": 6,
+    "renderedInstances": 6,
+    "distinctAssociations": 6
+  },
+  "privacyMarkerScan": "passed",
+  "zipMemberVerification": "passed",
+  "nativeRestartPerformed": false,
+  "computerUsePerformed": false,
+  "nativeAcceptance": "pending user restart and observation"
+}

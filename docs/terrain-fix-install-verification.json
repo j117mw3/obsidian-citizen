@@ -1,0 +1,61 @@
+{
+  "pluginVersion": "0.7.1",
+  "roomProtocol": 13,
+  "checkpointFormat": 13,
+  "terrainFormat": 2,
+  "settingsSchema": 5,
+  "installedPlugin": "<test-vault>\\.obsidian\\plugins\\constellation-graph",
+  "previousVersion": "0.7.0",
+  "backup": "<checkout>\\dist\\installed-backups\\before-0.7.1-20261016-045535",
+  "package": "<checkout>\\dist\\obsidian-citizen-0.7.1-terrain-motion-fix\\obsidian-citizen-0.7.1-terrain-motion-fix.zip",
+  "checksums": {
+    "main.js": "3CB070902AAF5CBA521FFDF466740519FD42EB07005B2664A012FB7FE95FC952",
+    "manifest.json": "E17A1A97FAF8660024AEB7F4E05B68DF5A3677DC277024283D987213A4CB5D4B",
+    "styles.css": "AB5E69622E55B28F29A7ECE6DB29E723A0A0DC6479C6EFC53582765319960F13",
+    "obsidian-citizen-0.7.1-terrain-motion-fix.zip": "AAA6549DD21460DF8C51C65D6DBDA229EA85EDBF6D0A382F5784A93C2548F661"
+  },
+  "baselineBundleSHA256": "5AFA3881B91D401592981061030AE9C4869BF039AE13ECA379940CE62FF49B75",
+  "settingsUnchangedDuringInstall": true,
+  "settingsHash": "98B6CA22A3F93C7A0BF7D4F4105FEDCDC581976CA7B090AC3F8C7D97A9719650",
+  "tests": {
+    "passed": 233,
+    "failed": 0
+  },
+  "typecheck": "passed",
+  "productionBuild": "passed",
+  "privacyMarkerScan": "passed",
+  "zipMemberVerification": "passed",
+  "terrainSeeds": 1000,
+  "completeLayoutSeeds": 1000,
+  "testedConnectionCounts": [
+    0,
+    1,
+    2,
+    6,
+    16,
+    17,
+    1000,
+    19999
+  ],
+  "terrainLatencyCases": {
+    "passed": 3,
+    "acceptedShotsPerCase": 500,
+    "rttMs": 200,
+    "jitterMs": 25,
+    "loss": 0.01,
+    "report": "docs/terrain-combat-latency-0.7.1.json"
+  },
+  "benchmark": "docs/terrain-benchmark-0.7.1.json",
+  "nativeRestartPerformed": false,
+  "computerUsePerformed": false,
+  "nativeAcceptance": "Pending user reload and redock: visible terrain beyond flat pole pads, file-linked wall movement, permanent ruins static, native shaders and performance.",
+  "verificationLimits": "No native rendering or cross-computer WebRTC observation. Synthetic terrain combat latency and headless geometry/CPU regressions pass. Very large planets retain approximately four-second generation cost.",
+  "correction": "More pronounced real terrain relief and reachable linked-wall targets with safe ruin steering. Permanent ruins remain static.",
+  "reliefRegression": {
+    "seeds": 1000,
+    "samplesPerSeed": 512,
+    "minimumHeightSpan": 1.6,
+    "maximumAllowedSlopeDegrees": 25
+  },
+  "movingWallRegression": "All twelve linked walls move >0.25 units over ten seconds in blocker reproduction; production solo world/frame resolver verifies moving instances and collision alignment."
+}

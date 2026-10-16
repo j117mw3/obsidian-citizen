@@ -1,0 +1,53 @@
+{
+  "pluginVersion": "0.7.0",
+  "roomProtocol": 12,
+  "checkpointFormat": 12,
+  "terrainFormat": 1,
+  "settingsSchema": 5,
+  "installedPlugin": "<test-vault>\\.obsidian\\plugins\\constellation-graph",
+  "previousVersion": "0.6.8",
+  "backup": "<checkout>\\dist\\installed-backups\\before-0.7.0-20261016-044120",
+  "package": "<checkout>\\dist\\obsidian-citizen-0.7.0-alien-terrain\\obsidian-citizen-0.7.0-alien-terrain.zip",
+  "checksums": {
+    "main.js": "3ED101B9A8E483147E0CD429F424EC8EDFF58F5709801FE15A28D5DD2A944556",
+    "manifest.json": "7B8FEA902B09E5A2E73F405E6025AD437EA76AF7B1993387A33EE5A6F2240E02",
+    "styles.css": "AB5E69622E55B28F29A7ECE6DB29E723A0A0DC6479C6EFC53582765319960F13",
+    "obsidian-citizen-0.7.0-alien-terrain.zip": "458FD6C2BD78CDC385ED56AFD57E16284FF2BD081367029EA2BA6899610B8196"
+  },
+  "baselineBundleSHA256": "5AFA3881B91D401592981061030AE9C4869BF039AE13ECA379940CE62FF49B75",
+  "settingsUnchangedDuringInstall": true,
+  "settingsHash": "98B6CA22A3F93C7A0BF7D4F4105FEDCDC581976CA7B090AC3F8C7D97A9719650",
+  "tests": {
+    "passed": 230,
+    "failed": 0
+  },
+  "typecheck": "passed",
+  "productionBuild": "passed",
+  "privacyMarkerScan": "passed",
+  "zipMemberVerification": "passed",
+  "terrainSeeds": 1000,
+  "completeLayoutSeeds": 1000,
+  "testedConnectionCounts": [
+    0,
+    1,
+    2,
+    6,
+    16,
+    17,
+    1000,
+    19999
+  ],
+  "terrainLatencyCases": {
+    "passed": 3,
+    "acceptedShotsPerCase": 500,
+    "rttMs": 200,
+    "jitterMs": 25,
+    "loss": 0.01,
+    "report": "docs/terrain-combat-latency-0.7.0.json"
+  },
+  "benchmark": "docs/terrain-benchmark-0.7.0.json",
+  "nativeRestartPerformed": false,
+  "computerUsePerformed": false,
+  "nativeAcceptance": "Pending user reload and native terrain readability, traversal, shader and GPU/frame-time observation.",
+  "verificationLimits": "Headless CPU/heap/geometry benchmark and synthetic network runs; no new cross-computer WebRTC or native Obsidian rendering/FPS session. Maximum-degree preparation approximately 3.7 seconds; initial local mesh preparation 13-41 ms. High-latency hit agreement remains limited by the preserved rewind cap."
+}

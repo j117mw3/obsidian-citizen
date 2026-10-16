@@ -1,8 +1,42 @@
 # Obsidian Citizen
 
-A 3D constellation of your Obsidian notes that you can explore on foot or fly through in Pilot mode. Notes appear as glowing stars coloured by folder or tag; clusters drift around their own centres as the camera moves through the graph. Obsidian Citizen keeps the existing `constellation-graph` plugin ID, so upgrades preserve saved settings.
+Obsidian Citizen turns your notes into a 3D constellation you can explore, fly through, and use as the setting for optional multiplayer space and first-person combat. Maintained by **J117W3**.
 
-**Release 0.5.0** combines the constellation renderer and multiplayer systems from both project histories. Multiplayer rooms share anonymous constellation geometry while note names, paths, tags and contents remain on each owner's computer.
+## A fork taking a different direction
+
+This project combines Hunter / JusVibin's original [Constellation Graph](https://github.com/xjusvibin/obsidian-constellation-graph) foundation with J117W3's multiplayer, cockpit, docking, and planetary arena work. Hunter's graph, flight, spacecraft, and audio work remains credited, and the original MIT copyright notice is retained. Obsidian Citizen is an independently maintained fork: its direction is a playable space and surface sandbox built around a private note constellation. It is a community project and is not affiliated with Obsidian.
+
+## Download and install
+
+The [historical build archive](https://github.com/j117mw3/obsidian-citizen/releases/tag/historical-builds-2026-10-16) contains the original install ZIPs for **0.5.1 through 0.7.1**, with SHA-256 checksums and a version index. Earlier [0.3.x releases](https://github.com/j117mw3/obsidian-citizen/releases) remain available. These are testing candidates; choose the same version on every multiplayer computer.
+
+**Archived builds:** back up your settings, close Obsidian, and extract one ZIP's `main.js`, `manifest.json`, and `styles.css` directly into `<vault>/.obsidian/plugins/constellation-graph/`. These original packages retain their historical ID and have not been renamed or rebuilt. Requires desktop Obsidian 1.7.2 or newer. See the [archive instructions](docs/historical-builds.md) for verification scope and source-history limitations.
+
+**Upcoming independent release:** the next completed release will use the unique `citizen` plugin ID so it cannot overwrite Hunter's plugin. It will install into `<vault>/.obsidian/plugins/citizen/`. Existing testers can back up and disable the old plugin, then copy only its `data.json` into the new folder while Obsidian is closed to retain preferences. Keep the original folder as a backup. Saved graph tabs may need reopening with **Open Obsidian Citizen**. The installer does not migrate or delete settings automatically.
+
+Community directory submission is being prepared. GitHub availability does not mean the plugin has been approved or listed in the store.
+
+## Available development build: 0.7.1
+
+- Fly eight spacecraft with cockpit instruments, boost, blasters, sound choices, and a pane-responsive Hangar.
+- Invite up to three friends to optional private rooms with host-authoritative combat, rounds, checkpoints, and host transfer.
+- Dock at main nodes and explore spherical arenas with radial gravity, hills, depressions, static ruins, and paired moving walls associated with linked files.
+- Use health and armor pickups, hold crouch, charged alternate fire, weapon vent feedback, pole navigation, and four solo training patrols.
+- Version 0.7.1 strengthens visible terrain relief and corrects linked-wall steering around permanent obstacles. Every participant needs **0.7.1 / room protocol 13**.
+
+The [changelog](CHANGELOG.md) records the 0.5.x through 0.7.x development milestones. Their original packages are now collected in the historical archive; they were not individually committed source releases. The unfinished bot/scoring update is excluded. Automated checks are recorded in the [0.7.1 verification](docs/verification-0.7.1.md); native rendering, audio, cross-computer gameplay, and large-arena performance acceptance remain separate. Large terrain layouts can take several seconds to prepare.
+
+In **Pilot mode**, aim your ship at a main sphere, approach within **12 world units of its surface**, use **X** to brake below speed **10**, and **hold J for 1.5 seconds**. The flight HUD shows range, readiness and hold progress. Only main nodes accept docking. Wait three seconds after damage; the host also enforces arena capacity and safe spawn availability. On the surface, hold **F** for two seconds at either pole to return to your ship.
+
+Surface crouch now defaults to **Left Control**, with a one-time migration from the old C default. Crouch is hold-only; custom key bindings are preserved. Existing toggle preferences migrate to hold; an existing custom binding on Left Control takes priority and crouch receives a non-conflicting fallback. Continuous pistol fire adds **7 heat per shot** and vents on the fifteenth shot. During the two-second vent, shooting and firing effects stop while steam rises from the weapon; holding the trigger resumes firing after cooling is confirmed. Hold right mouse for one second and release for a charged bolt: **50 damage, 55 heat**. Releasing early cancels; charging pauses cooling and blocks normal fire, so two quick charged shots force a vent. A rising electronic charge hum, ready chime, animated energy coils and inward-moving sparks show the buildup. The weapon braces with a subtle vibration; a thicker bolt and charge percentage indicate the alternate shot. These effects follow your laser color and sound settings. Charges cancel on focus loss, death, exit, and host migration; a five-second hold expires. Other normal-shot and cooling values are unchanged. Use the cyan **North** and amber **South** compass cards and direction arrows to find either exit. The shared operative/dummy model now has an articulated fitted suit, outlined helmet and visor, utility gear and pistol.
+
+Surface planets have opaque sci-fi paneling, larger technical sector stamps, low-profile instanced mineral scree, subtle circuitry and lit cyan/amber meridians leading toward the pole exits. These markings add no obstacles or collision. Wall diagnostics have been removed.
+
+Solo training now has four passive walking dummies: North and South patrols near the poles, plus East and West patrols in opposite hemispheres. They choose wandering destinations, pause occasionally, steer around walls and keep clear of pole exits. They do not shoot, consume pickups or count as multiplayer players. The health/armor selector and **Reset all dummies** affect all four; each defeated dummy respawns independently after two seconds.
+
+Visible opponents and training patrols show a name above a small red health bar. Both disappear immediately when the displayed head is behind a wall or the curved ground. A centered white hit marker and hit sound indicate confirmed character damage only, including hits absorbed by armor. Shooting walls, the floor or empty space does not trigger the hit marker.
+
+While docked, the planet and cover now occlude graph stars, links and world effects. You can still see unobstructed space above the horizon, but nodes and wires under the ground no longer draw over it. Graph-node labels and ship indicators are also hidden when blocked by an arena sphere. Orbit/flight graph styling returns when you leave the surface; the first-person weapon and intentional pole-navigation HUD remain separate overlays.
 
 ## Screenshots
 
@@ -15,7 +49,7 @@ These views use a synthetic vault with four fictional notes; no personal vault n
 
 ## Use
 
-- Ribbon icon (orbit) or the command **Open constellation graph**.
+- Ribbon icon (orbit) or the command **Open Obsidian Citizen**.
 - It updates live as you add, remove, rename and link notes. Your selection and any hidden groups are kept.
 
 ### Mouse
@@ -79,18 +113,26 @@ Press **P** in the graph (or the plane button on the toolbar) and fly through yo
 | H | Warp back out to see the whole graph (disabled in multiplayer) |
 | V | Switch between chase and cockpit view |
 | R | Switch between blaster and cannon |
-| Tab | Open or close the multiplayer scores |
+| B / Shift+B | Toggle the aimed cluster / toggle all clusters (solo only) |
+| N | Cycle spectator camera (multiplayer) |
+| Tab | Hold to show multiplayer scores |
 | K | Show or hide the controls panel |
 | Esc | Free the mouse (a second Esc leaves) |
 | P | Leave Pilot mode |
 
-The controls are also shown on screen as a small panel of key caps that light up as you press them, and fades after a few seconds.
+The controls are also shown on screen as a small panel of key caps that light up as you press them, and fades after a few seconds. Chase and cockpit views show drifting space dust; the streaks brighten and the field of view eases wider under afterburner.
 
-- **Mouse mode.** *Capture* hides the pointer and steers with its movement. *Cursor* keeps the pointer visible and steers by how far it is from the centre, with a dead zone and two faint rings to show it; over a panel or button it stops steering, so you can click the legend, toolbar and details panel while flying.
+- **Mouse mode.** *Capture* hides the pointer and aims directly with its movement (0.0022 radians per pixel at sensitivity 1, smoothed at 90/second and capped at 9 radians/second); stopping the mouse stops the turn without accumulated stick input. *Cursor* keeps the pointer visible and steers by how far it is from the centre, with a dead zone and two faint rings to show it; over a panel or button it stops steering, so you can click the legend, toolbar and details panel while flying.
 - **Scale.** Cruise speed is set from the size of your vault, so a bigger vault takes longer to cross: about 12 seconds across a 100-note vault at cruise speed, longer for larger ones. The *Flight speed* setting scales it. Warps take time in proportion to the distance.
 - **Wireframes and sound.** The plane has a glowing wireframe outline, and target brackets, impact bursts and faint shells around each group are drawn in wireframe too (they can be turned off). Engine, afterburner, blaster and warp sounds are synthesised in the plugin with the Web Audio API; no audio files are loaded. The Pilot HUD has separate saved **Mute engine**, **Mute afterburner** and **Hangar** controls. The two mutes do not affect blasters, and the master sound and volume controls still apply. Sound mutes when the window loses focus.
-- **Cockpit instruments.** The cockpit displays live hull, boost, recharge/lock, speed, weapon readiness, firing rate, protection or respawn time, and multiplayer score. A screen-reader text equivalent is available while cockpit view is active.
+- **Cockpit instruments.** The cockpit displays live hull, boost, recharge/lock, speed, weapon selection, ammunition or heat, readiness, firing rate, protection or respawn time, and multiplayer score. A screen-reader text equivalent is available while cockpit view is active.
 - Pilot mode needs motion, so it stays off when your system asks for reduced motion (the search, note list and details panel still work). It is not available without WebGL.
+
+### Surface combat
+
+In Pilot mode, **hold J for 1.5 seconds** while aiming at an eligible main node and within docking range to enter its spherical arena. Use **X** to brake; the docking HUD shows distance, speed requirements and hold progress. Walk with **WASD**, sprint with **Shift**, jump with **Space**, hold **Left Control** to crouch, and lean with **Q/E**. Hold **F** near either pole beacon to return to your ship; left-click to fire the laser pistol, or hold right-click for one second and release a charged shot. Players have 100 health, armor pickups add up to 50, normal bolts deal 10 damage and charged bolts deal 50, and walls block shots. Solo mode includes four walking training patrols. Each unique incoming or outgoing linked file creates **two walls** with safe offsets around its direction; six linked files produce twelve walls. Reciprocal links count once. Walls glide along the spherical surface toward their linked files as the graph moves, at up to 0.8 surface units per second. They wait for players (including crouched/leaning upper bodies), retain clearance from other walls, and keep poles and fixed pickups accessible. Occupied arenas retain radius, connection membership and pickup positions; later visits preserve pickup availability and respawn timers. Multiplayer uses host-owned collision poses near players and predicts distant cover from anonymous graph positions. Unlinked mains have open-ground pickups and the four training patrols, with no walls. Radius grows as `27 × sqrt(max(1, connections / 16))` surface units, keeping player and wall sizes unchanged.
+
+The pistol fires at five shots per second, cools between shots and vents after sustained fire. Laser colors are saved per player and brightened when needed for visibility. Network shots use bounded, at-most-150 ms target rewind; 100 ms RTT is the fairness target, while 150–200 ms is treated as degraded latency. These thresholds are covered by automated criteria but still need multi-client runtime verification.
 
 ### Multiplayer rooms
 
@@ -104,7 +146,7 @@ Joining shares anonymous star positions, connections, group colors and a restric
 
 Maps, inputs, flight state, combat and checkpoints travel over WebRTC data channels. ntfy is used for encrypted room discovery and peer setup only. If direct connectivity fails, the hosted Worker can issue short-lived TURN credentials; its free relay allowance is shared by all players and may be unavailable after provider limits are reached. Direct connectivity can continue when TURN is unavailable. Choose **Custom server** to use another compatible ntfy relay. See [server/README.md](server/README.md) for deployment notes and service limits.
 
-Firing at other pilots is optional. The host resolves shields, hull damage, weapon heat and cannon ammunition. Destruction gives a five-second respawn and three seconds of protection; firing ends protection. A discreet kill feed and the leaderboard show kills and deaths. The first pilot to five confirmed eliminations wins, then the room pauses for an eight-second shared supernova, regenerates each owner's constellation, waits for maps to synchronize, and starts the next round after a three-second countdown. Manual supernova is disabled in a room. Boost drains at 28% per second, recharges at 8% after 1.5 seconds without boosting, and stays empty for three seconds when depleted. Leaving Pilot mode or hiding the game view makes you a spectator; returning takes five seconds and preserves health and boost. Public-relay rooms use protocol 5 and require version 0.5.0 or newer.
+Firing at other pilots is optional. The host resolves shields, hull damage, weapon heat and cannon ammunition. Destruction gives a five-second respawn and three seconds of protection; firing ends protection. A discreet kill feed and the leaderboard show kills and deaths. The first pilot to five confirmed eliminations wins, then the room pauses for an eight-second shared supernova, regenerates each owner's constellation, waits for maps to synchronize, and starts the next round after a three-second countdown. Manual supernova is disabled in a room. Boost drains at 28% per second, recharges at 8% after 1.5 seconds without boosting, stays empty for three seconds when depleted, and pauses recharge for two seconds after damage. Solo cannon ammunition recovers one round every 0.6 seconds; rooms limit each life to 36 rounds. Leaving Pilot mode or hiding the game view makes you a spectator; returning takes five seconds and preserves health and boost. Public-relay rooms use protocol 13 and checkpoint format 13, and require matching 0.7.1 builds. All participants must update together. The hosted Worker continues to serve the historical protocol-4 route.
 
 The Worker keeps temporary TURN credentials and refresh-token sessions in memory, and does not log credentials or gameplay payloads. ntfy can observe room-topic traffic and connection metadata but cannot read room messages without the code. The TURN provider can observe peer IP addresses and traffic volume. Outside an active room, the plugin makes no network connections.
 
@@ -121,7 +163,19 @@ The Worker keeps temporary TURN credentials and refresh-token sessions in memory
 
 Open on startup (off by default), motion, camera, glow, palette, labels and grouping can be configured in plugin settings. Pilot mode adds mouse mode, sensitivity, flight speed and agility, view, sound, volume and separate engine and afterburner mutes. The Hangar saves ship and sound choices plus nearby-ship audio. Multiplayer settings include display name and Public or Custom relay. Earlier localhost WebSocket addresses are preserved as inactive legacy values; new installations use the public relay.
 
-## Privacy and safety
+## Network services and privacy
+
+Solo graph and gameplay features work offline. Multiplayer is opt-in and uses these services:
+
+- **ntfy.sh** (or your configured compatible relay): encrypted room discovery and WebRTC setup/recovery messages. The provider receives connection metadata and encrypted payloads. See [ntfy privacy](https://ntfy.sh/docs/privacy/).
+- **Google and Cloudflare STUN**: discover connectivity candidates. The services and connected peers can learn network addresses as part of ordinary WebRTC.
+- **constellation-rooms.mrassetto.workers.dev** on Cloudflare: issues temporary TURN access tokens and configuration. It handles network addresses for rate limiting and short-lived token state; service code is in `server/worker.js`. See [Cloudflare privacy](https://www.cloudflare.com/privacypolicy/).
+- **Metered TURN**: fallback relay when direct WebRTC fails. It relays encrypted WebRTC packets and processes connection metadata. The shared free allowance may run out. See [Metered privacy](https://www.metered.ca/privacy-policy/).
+- **Connected players**: receive anonymous graph geometry, chosen public pilot names, and game state over WebRTC. Graph shape itself can reveal structural information; only share rooms with people you trust.
+
+No player account or payment is required. The plugin does not implement analytics or read files outside your vault. Hosting providers apply their own policies. Audio and visual assets are bundled or synthesized locally.
+
+
 
 When you explicitly join, peers receive anonymous star positions, links, colors, player IDs, display names, flight and combat state. Note names, paths, tags, file contents and Obsidian vault objects are excluded from network types. Remote stars cannot be selected or opened; a local application boundary also blocks note opening while joined. Map IDs are random for the session and the real file mapping stays local. Audio is synthesized in the plugin. The graph reads Obsidian's index and does not write to note files.
 
@@ -143,18 +197,36 @@ npm ci --prefix server # signaling service dependency
 npm run dev          # esbuild watch, writes main.js
 npm run build        # type-check, then minified production main.js
 npm test             # synthetic privacy, protocol, combat, and signaling tests
+node dev/run-surface-latency.mjs  # deterministic four-session impairment/oracle matrix
+node dev/build-network-harness.mjs
+node dev/build-realtime-harness.mjs # native WebRTC hit/oracle trials with scripted targets
+node dev/build-surface-preview.mjs # rendered component preview with synthetic nodes
+node dev/build-lifecycle-harness.mjs # staged four-client lifecycle integration
+node dev/serve-network-smoke.mjs  # loopback signaling plus real browser WebRTC
+node dev/serve-network-smoke.mjs 8767 200 25 0.01 # actual UDP: 200 ms RTT, +/-25 ms one-way jitter, 1% loss
 npm run build:hosted --prefix server  # validate the Cloudflare Worker bundle
 npm run harness -- "<path to a vault>"   # builds dev/harness.html, a browser preview using that vault's notes as mock data
-npm run install-local -- "<path to a vault>"   # build and copy into <vault>/.obsidian/plugins/constellation-graph
+npm run install-local -- "<path to a vault>"   # build and copy into <vault>/.obsidian/plugins/citizen
 ```
+
+The loopback smoke server prints its browser URL. Open it in four tabs, create a room in one, and join from the others. The synthetic main nodes start in docking range, and the surface controls exercise normal production requests. To share one arena, have its owner dock, select another pilot under **Move my main near**, and move the published main. That pilot selects the owner under **Arena owner** and docks; repeat for the other pilots. Existing occupants follow the moving node. **Fire at visible player** aims an ordinary fire request at the nearest unobstructed opponent; it never changes avatar positions, health, or hit results. Crouch, lean, and walking also send normal controls. This fixture does not inject network impairment or establish FPS rendering quality; its TURN credential requests are disabled. `docs/verification-0.6.0.md` records the separate acceptance scopes.
 
 Source layout: `src/main.ts` (plugin), `view.ts` (Obsidian view), `data.ts` (vault-to-graph conversion), `app.ts` (UI and accessibility), `renderer.ts` and `sim.ts` (constellation rendering and motion), `pilot.ts` and `flight.ts` (shared flight simulation), `hangar.ts`, `ship.ts`, `importedShipModels.ts` and `cockpit.ts` (spacecraft), `sfx.ts` (synthesized audio), `room.ts` and `netcrypto.ts` (encrypted room discovery), `multiplayer.ts` (WebRTC mesh and anonymous map protocol), `combat.ts` (authoritative flight, weapons, rounds and checkpoints), `server/worker.js` (hosted TURN configuration endpoint), and `server/` (deployment files).
 
+For actual UDP impairment, use the second server command and its printed URL in all four tabs. The optional arguments are RTT (0/50/100/150/200 ms), maximum one-way jitter (0–25 ms), and drop probability (0–0.05). The test wrapper substitutes loopback ICE candidates; native WebRTC still handles encrypted packets and retransmissions. Check that each connection reports **proxy route selected** and an appropriate native RTT before interpreting results. The server prints an ephemeral local access token; proxy statistics omit candidate addresses and ICE credentials. The disposition trial requires four docked players and fresh snapshots. It measures response timing, including rejections, without resetting resources or establishing hit fairness. The revised shared-arena diagnostic passes response timing but still has many view-time rejections; see the verification record for the remaining acceptance gaps. All clients must use the same candidate build.
+
+The generated `/surface-latency.html` page uses four logical clients in one browser context over native WebRTC. Start an impaired loopback server as above and substitute that page in its printed URL, preserving the relay and UDP parameters. Use one server/port per concurrent room. The 0–100 ms fairness profiles run 20 cases with at least 500 accepted shots each; allow roughly two hours per profile. At 150–200 ms, the explicit attempt sample mode can instead collect 500 fire attempts for degraded stability/disposition checks, reporting accepted counts and hit metrics without a competitive-parity claim. Attempt mode is rejected through 100 ms. Targets, walls, and health resets are fixture controls. Results measure registration and response timing, not observed player movement, pickup lifecycle, WebGL, or audio. `/surface-preview.html` renders the actual surface components using synthetic nodes and explicitly staged ship/camera poses; it reads no vault and does not certify native Obsidian behavior.
+
+For `/surface-lifecycle.html`, start a dedicated server with `node dev/serve-network-smoke.mjs 8774 200 25 0.01` and substitute the page in its printed URL. It stages ship/body poses and initial combat resources, then sends ordinary docking, input and fire requests. Checks use real pickup, respawn and countdown timers, observe simultaneous collection, pole interruption/return, stale-life fire rejection and five surface eliminations. Synthetic layout republication stands in for the renderer's supernova animation. It does not prove traversal, native Obsidian visuals/audio, or an unstaged gameplay session. A failed or cancelled run is not acceptance; record any browser scheduling emulation separately.
+
 ## Licence and third-party notices
+
+Obsidian Citizen is J117W3's fork of [Constellation Graph by JusVibin](https://github.com/xjusvibin/obsidian-constellation-graph). The original copyright and MIT notices are preserved. Screenshots above are synthetic-vault views; they do not depict the new surface arenas.
 
 MIT, see `LICENSE`. The bundled `main.js` includes:
 
 - [Three.js](https://threejs.org), MIT licence, copyright the Three.js authors.
+- [fflate](https://github.com/101arrowz/fflate), MIT licence, copyright Arjun Barrett; bounded lossless compression of protocol 13 JSON messages.
 - [d3-force-3d](https://github.com/vasturiano/d3-force-3d), MIT licence, copyright Vasco Asturiano; it builds on [d3-force](https://github.com/d3/d3-force) (ISC licence, copyright Mike Bostock) and related d3 modules (ISC, BSD-3-Clause).
 - [ws](https://github.com/websockets/ws), MIT licence, used by the separate signaling service.
 

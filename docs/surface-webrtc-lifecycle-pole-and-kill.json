@@ -1,0 +1,741 @@
+{
+  "focusedPageEmulation": true,
+  "result": {
+    "passed": false,
+    "reason": "Timed out: authoritative fire disposition",
+    "checks": [
+      "Four ordinary docking requests admitted to one arena",
+      "Approved dark color replicated",
+      "One collection, replicated unavailable pickup",
+      "Real pickup timer restored availability on all peers",
+      "Network blaster damage interrupted a held pole exit",
+      "Pole return and redocking preserve resources",
+      "Confirmed surface elimination 1/5"
+    ],
+    "elapsedMs": 82690,
+    "invalidSnapshots": 0,
+    "pickupEvents": [
+      {
+        "id": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "at": 1792109871916
+      }
+    ],
+    "fireObservations": [
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 1,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 310,
+        "rttMs": 224.60673251642046
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 2,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 325,
+        "rttMs": 221.4853860131364
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 3,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 314,
+        "rttMs": 221.4853860131364
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 4,
+        "accepted": true,
+        "viewAgeMs": 201,
+        "rttMs": 218.98830881050915
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 5,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 317,
+        "rttMs": 194.52179190296977
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 6,
+        "accepted": true,
+        "viewAgeMs": 204,
+        "rttMs": 202.41743352237583
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 7,
+        "accepted": true,
+        "viewAgeMs": 206,
+        "rttMs": 213.78715745432058
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 8,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 245,
+        "rttMs": 221.06378077076522
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 9,
+        "accepted": true,
+        "viewAgeMs": 216,
+        "rttMs": 215.6510246166122
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 10,
+        "accepted": true,
+        "viewAgeMs": 201,
+        "rttMs": 207.85665575463184
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 11,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 256,
+        "rttMs": 205.0853246037055
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 12,
+        "accepted": true,
+        "viewAgeMs": 193,
+        "rttMs": 196.89460774637152
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 13,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 345,
+        "rttMs": 192.11568619709723
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 14,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 352,
+        "rttMs": 185.23403916614222
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 15,
+        "accepted": true,
+        "viewAgeMs": 212,
+        "rttMs": 184.1872313329138
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 16,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 261,
+        "rttMs": 182.67982805306482
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 17,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 362,
+        "rttMs": 182.14386244245188
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 18,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 254,
+        "rttMs": 193.1720719631692
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 19,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 241,
+        "rttMs": 209.67012605642833
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 20,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 338,
+        "rttMs": 215.5361008451427
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 21,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 360,
+        "rttMs": 223.98310454089136
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 22,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 369,
+        "rttMs": 222.5491869061705
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 23,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 257,
+        "rttMs": 221.63147961994912
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 24,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 376,
+        "rttMs": 221.3051836959593
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 25,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 338,
+        "rttMs": 228.755317565414
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 26,
+        "accepted": true,
+        "viewAgeMs": 201,
+        "rttMs": 233.523403241865
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 27,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 275,
+        "rttMs": 235.218722593492
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 28,
+        "accepted": true,
+        "viewAgeMs": 223,
+        "rttMs": 219.6599824598349
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 29,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 253,
+        "rttMs": 214.12798596786794
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 30,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 295,
+        "rttMs": 217.9619110194355
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 31,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 263,
+        "rttMs": 224.56952881554838
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 32,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 418,
+        "rttMs": 234.08449844195098
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 33,
+        "accepted": true,
+        "viewAgeMs": 239,
+        "rttMs": 237.46759875356082
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 34,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 277,
+        "rttMs": 238.73926320227895
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 35,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 328,
+        "rttMs": 239.55312844945854
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 36,
+        "accepted": true,
+        "viewAgeMs": 191,
+        "rttMs": 239.84250275956686
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 37,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 348,
+        "rttMs": 222.9792017661228
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 38,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 237,
+        "rttMs": 216.98336141289823
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 39,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 299,
+        "rttMs": 208.3493513042549
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 40,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 408,
+        "rttMs": 211.10358483472316
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 41,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 310,
+        "rttMs": 212.86629429422283
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 42,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 335,
+        "rttMs": 213.49303543537826
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 43,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 400,
+        "rttMs": 196.39554267864213
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 44,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 227,
+        "rttMs": 185.45314731433098
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 45,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 219,
+        "rttMs": 181.5625178514648
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 46,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 256,
+        "rttMs": 195.0400114249375
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 47,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 290,
+        "rttMs": 203.66560731196003
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 48,
+        "accepted": true,
+        "viewAgeMs": 213,
+        "rttMs": 206.73248584956804
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 49,
+        "accepted": true,
+        "viewAgeMs": 211,
+        "rttMs": 200.3487909437236
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 50,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 282,
+        "rttMs": 198.0790327549789
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 51,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 398,
+        "rttMs": 194.81058096318654
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 52,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 260,
+        "rttMs": 197.44846477054924
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 53,
+        "accepted": true,
+        "viewAgeMs": 202,
+        "rttMs": 201.24701745315153
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 54,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 239,
+        "rttMs": 203.67809117001698
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 55,
+        "accepted": true,
+        "viewAgeMs": 224,
+        "rttMs": 204.14247293601358
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 56,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 405,
+        "rttMs": 204.81118267904873
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 57,
+        "accepted": false,
+        "reason": "view-time",
+        "viewAgeMs": 311,
+        "rttMs": 205.2391569145912
+      },
+      {
+        "player": "d15d3765-757a-4e61-985d-98ea2beb9929",
+        "sequence": 58,
+        "accepted": true,
+        "viewAgeMs": 206,
+        "rttMs": 208.191325531673
+      },
+      {
+        "player": "f29859ba-866a-4566-b3f6-94caba043330",
+        "sequence": 1,
+        "accepted": false,
+        "reason": "state",
+        "viewAgeMs": 319,
+        "rttMs": 207.75101342581507
+      }
+    ],
+    "damageEvents": [
+      {
+        "target": "8e7a9bf7-231f-42f1-84e8-f4699d830116",
+        "applied": 10,
+        "killed": false,
+        "at": 1792109890700,
+        "lifeBefore": 2,
+        "lifeAfter": 2
+      },
+      {
+        "target": "f29859ba-866a-4566-b3f6-94caba043330",
+        "applied": 10,
+        "killed": false,
+        "at": 1792109899750,
+        "lifeBefore": 2,
+        "lifeAfter": 2
+      },
+      {
+        "target": "f29859ba-866a-4566-b3f6-94caba043330",
+        "applied": 10,
+        "killed": false,
+        "at": 1792109900566,
+        "lifeBefore": 2,
+        "lifeAfter": 2
+      },
+      {
+        "target": "f29859ba-866a-4566-b3f6-94caba043330",
+        "applied": 10,
+        "killed": false,
+        "at": 1792109902266,
+        "lifeBefore": 2,
+        "lifeAfter": 2
+      },
+      {
+        "target": "f29859ba-866a-4566-b3f6-94caba043330",
+        "applied": 10,
+        "killed": false,
+        "at": 1792109903100,
+        "lifeBefore": 2,
+        "lifeAfter": 2
+      },
+      {
+        "target": "f29859ba-866a-4566-b3f6-94caba043330",
+        "applied": 10,
+        "killed": false,
+        "at": 1792109904800,
+        "lifeBefore": 2,
+        "lifeAfter": 2
+      },
+      {
+        "target": "f29859ba-866a-4566-b3f6-94caba043330",
+        "applied": 10,
+        "killed": false,
+        "at": 1792109907400,
+        "lifeBefore": 2,
+        "lifeAfter": 2
+      },
+      {
+        "target": "f29859ba-866a-4566-b3f6-94caba043330",
+        "applied": 10,
+        "killed": false,
+        "at": 1792109916983,
+        "lifeBefore": 2,
+        "lifeAfter": 2
+      },
+      {
+        "target": "f29859ba-866a-4566-b3f6-94caba043330",
+        "applied": 10,
+        "killed": false,
+        "at": 1792109918833,
+        "lifeBefore": 2,
+        "lifeAfter": 2
+      },
+      {
+        "target": "f29859ba-866a-4566-b3f6-94caba043330",
+        "applied": 10,
+        "killed": false,
+        "at": 1792109923050,
+        "lifeBefore": 2,
+        "lifeAfter": 2
+      },
+      {
+        "target": "f29859ba-866a-4566-b3f6-94caba043330",
+        "applied": 10,
+        "killed": false,
+        "at": 1792109925700,
+        "lifeBefore": 2,
+        "lifeAfter": 2
+      },
+      {
+        "target": "f29859ba-866a-4566-b3f6-94caba043330",
+        "applied": 10,
+        "killed": false,
+        "at": 1792109936183,
+        "lifeBefore": 2,
+        "lifeAfter": 2
+      },
+      {
+        "target": "f29859ba-866a-4566-b3f6-94caba043330",
+        "applied": 10,
+        "killed": false,
+        "at": 1792109937050,
+        "lifeBefore": 2,
+        "lifeAfter": 2
+      },
+      {
+        "target": "f29859ba-866a-4566-b3f6-94caba043330",
+        "applied": 10,
+        "killed": false,
+        "at": 1792109940466,
+        "lifeBefore": 2,
+        "lifeAfter": 2
+      },
+      {
+        "target": "f29859ba-866a-4566-b3f6-94caba043330",
+        "applied": 10,
+        "killed": false,
+        "at": 1792109942133,
+        "lifeBefore": 2,
+        "lifeAfter": 2
+      },
+      {
+        "target": "f29859ba-866a-4566-b3f6-94caba043330",
+        "applied": 10,
+        "killed": true,
+        "at": 1792109944766,
+        "lifeBefore": 2,
+        "lifeAfter": 3
+      }
+    ],
+    "respawns": [
+      {
+        "id": "f29859ba-866a-4566-b3f6-94caba043330",
+        "at": 1792109949766
+      }
+    ],
+    "roundEvents": [
+      {
+        "client": 0,
+        "at": 1792109869742,
+        "state": {
+          "epoch": 1,
+          "roundId": 1,
+          "phase": "combat",
+          "phaseRemainingMs": 0,
+          "winnerId": "",
+          "scores": [
+            {
+              "playerId": "eaa26a6f-f5cd-454d-bdff-0e1bb3d7eabf",
+              "kills": 0,
+              "deaths": 0
+            }
+          ],
+          "layoutRequirements": []
+        }
+      },
+      {
+        "client": 2,
+        "at": 1792109870338,
+        "state": {
+          "epoch": 1,
+          "roundId": 1,
+          "phase": "combat",
+          "phaseRemainingMs": 0,
+          "winnerId": "",
+          "scores": [
+            {
+              "playerId": "eaa26a6f-f5cd-454d-bdff-0e1bb3d7eabf",
+              "kills": 0,
+              "deaths": 0
+            },
+            {
+              "playerId": "d15d3765-757a-4e61-985d-98ea2beb9929",
+              "kills": 0,
+              "deaths": 0
+            },
+            {
+              "playerId": "f29859ba-866a-4566-b3f6-94caba043330",
+              "kills": 0,
+              "deaths": 0
+            },
+            {
+              "playerId": "8e7a9bf7-231f-42f1-84e8-f4699d830116",
+              "kills": 0,
+              "deaths": 0
+            }
+          ],
+          "layoutRequirements": []
+        }
+      },
+      {
+        "client": 1,
+        "at": 1792109870429,
+        "state": {
+          "epoch": 1,
+          "roundId": 1,
+          "phase": "combat",
+          "phaseRemainingMs": 0,
+          "winnerId": "",
+          "scores": [
+            {
+              "playerId": "eaa26a6f-f5cd-454d-bdff-0e1bb3d7eabf",
+              "kills": 0,
+              "deaths": 0
+            },
+            {
+              "playerId": "d15d3765-757a-4e61-985d-98ea2beb9929",
+              "kills": 0,
+              "deaths": 0
+            },
+            {
+              "playerId": "f29859ba-866a-4566-b3f6-94caba043330",
+              "kills": 0,
+              "deaths": 0
+            },
+            {
+              "playerId": "8e7a9bf7-231f-42f1-84e8-f4699d830116",
+              "kills": 0,
+              "deaths": 0
+            }
+          ],
+          "layoutRequirements": []
+        }
+      },
+      {
+        "client": 3,
+        "at": 1792109870593,
+        "state": {
+          "epoch": 1,
+          "roundId": 1,
+          "phase": "combat",
+          "phaseRemainingMs": 0,
+          "winnerId": "",
+          "scores": [
+            {
+              "playerId": "eaa26a6f-f5cd-454d-bdff-0e1bb3d7eabf",
+              "kills": 0,
+              "deaths": 0
+            },
+            {
+              "playerId": "d15d3765-757a-4e61-985d-98ea2beb9929",
+              "kills": 0,
+              "deaths": 0
+            },
+            {
+              "playerId": "f29859ba-866a-4566-b3f6-94caba043330",
+              "kills": 0,
+              "deaths": 0
+            },
+            {
+              "playerId": "8e7a9bf7-231f-42f1-84e8-f4699d830116",
+              "kills": 0,
+              "deaths": 0
+            }
+          ],
+          "layoutRequirements": []
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,558 @@
+{
+  "currentMuzzleOffset": 0.12,
+  "scope": "Diagnostic repeat; original failed acceptance retained",
+  "status": "FAIL case 1/1; thresholds are unchanged. Inspect the result before continuing.",
+  "records": [
+    {
+      "scope": "Four real room clients in one browser context. Native WebRTC with loopback UDP impairment. Scripted poses and per-tick HP resets isolate hit registration; no WebGL, death/round lifecycle, cross-device clock, or rendered ghost assertions.",
+      "config": {
+        "rttMs": 100,
+        "distance": 5,
+        "stance": "standing",
+        "scenario": "strafe",
+        "shots": 500,
+        "referenceAt": 1792107805938
+      },
+      "eligible": true,
+      "passed": false,
+      "clients": 4,
+      "attempts": 535,
+      "accepted": 500,
+      "dispositions": 535,
+      "oracleHits": 414,
+      "actualHits": 377,
+      "agreement": 0.897196261682243,
+      "hitRateDeficit": 0.0691588785046729,
+      "dispositionP95Ms": 163,
+      "dispositionP99Ms": 245,
+      "within600Ms": 1,
+      "within1000Ms": 1,
+      "duplicateHits": 0,
+      "blockerViolations": 0,
+      "maxRewindMs": 150,
+      "invalidSnapshots": 0,
+      "modeDivergence": 0,
+      "rejectionReasons": {
+        "view-time": 35
+      },
+      "viewTimeRejections": [
+        {
+          "sequence": 23,
+          "hostAgeMs": 263,
+          "requestDelayMs": 191,
+          "measuredRttMs": 100.94985487334071,
+          "expectedAgeMs": 125.47492743667036,
+          "issuedBeforeMs": 28,
+          "issuedAfterMs": 22,
+          "viewExhausted": false,
+          "snapshotAgeMs": 100,
+          "estimatedOffsetMs": 3.8388671875
+        },
+        {
+          "sequence": 40,
+          "hostAgeMs": 905,
+          "requestDelayMs": 46,
+          "measuredRttMs": 120.44174139101028,
+          "expectedAgeMs": 135.22087069550514,
+          "issuedBeforeMs": null,
+          "issuedAfterMs": 853,
+          "viewExhausted": true,
+          "snapshotAgeMs": 909,
+          "estimatedOffsetMs": -1.722412109375
+        },
+        {
+          "sequence": 41,
+          "hostAgeMs": 992,
+          "requestDelayMs": 45,
+          "measuredRttMs": 118.95339311280824,
+          "expectedAgeMs": 134.47669655640414,
+          "issuedBeforeMs": null,
+          "issuedAfterMs": 942,
+          "viewExhausted": true,
+          "snapshotAgeMs": 997,
+          "estimatedOffsetMs": -1.722412109375
+        },
+        {
+          "sequence": 42,
+          "hostAgeMs": 1039,
+          "requestDelayMs": 76,
+          "measuredRttMs": 117.7627144902466,
+          "expectedAgeMs": 133.8813572451233,
+          "issuedBeforeMs": null,
+          "issuedAfterMs": 958,
+          "viewExhausted": true,
+          "snapshotAgeMs": 1013,
+          "estimatedOffsetMs": -3.177978515625
+        },
+        {
+          "sequence": 43,
+          "hostAgeMs": 1023,
+          "requestDelayMs": 77,
+          "measuredRttMs": 116.21017159219728,
+          "expectedAgeMs": 133.10508579609865,
+          "issuedBeforeMs": null,
+          "issuedAfterMs": 941,
+          "viewExhausted": true,
+          "snapshotAgeMs": 996,
+          "estimatedOffsetMs": 2.157470703125
+        },
+        {
+          "sequence": 44,
+          "hostAgeMs": 1024,
+          "requestDelayMs": 59,
+          "measuredRttMs": 114.96813727375783,
+          "expectedAgeMs": 132.48406863687893,
+          "issuedBeforeMs": null,
+          "issuedAfterMs": 959,
+          "viewExhausted": true,
+          "snapshotAgeMs": 1015,
+          "estimatedOffsetMs": -22.973876953125
+        },
+        {
+          "sequence": 45,
+          "hostAgeMs": 1007,
+          "requestDelayMs": 58,
+          "measuredRttMs": 110.57450981900627,
+          "expectedAgeMs": 130.28725490950313,
+          "issuedBeforeMs": null,
+          "issuedAfterMs": 941,
+          "viewExhausted": true,
+          "snapshotAgeMs": 999,
+          "estimatedOffsetMs": -17.779052734375
+        },
+        {
+          "sequence": 46,
+          "hostAgeMs": 1039,
+          "requestDelayMs": 75,
+          "measuredRttMs": 107.05960785520503,
+          "expectedAgeMs": 128.52980392760253,
+          "issuedBeforeMs": null,
+          "issuedAfterMs": 958,
+          "viewExhausted": true,
+          "snapshotAgeMs": 1014,
+          "estimatedOffsetMs": -16.5234375
+        },
+        {
+          "sequence": 47,
+          "hostAgeMs": 992,
+          "requestDelayMs": 45,
+          "measuredRttMs": 104.24768628416402,
+          "expectedAgeMs": 127.12384314208201,
+          "issuedBeforeMs": null,
+          "issuedAfterMs": 941,
+          "viewExhausted": true,
+          "snapshotAgeMs": 997,
+          "estimatedOffsetMs": -15.418701171875
+        },
+        {
+          "sequence": 48,
+          "hostAgeMs": 1009,
+          "requestDelayMs": 44,
+          "measuredRttMs": 111.99814902733121,
+          "expectedAgeMs": 130.99907451366562,
+          "issuedBeforeMs": null,
+          "issuedAfterMs": 958,
+          "viewExhausted": true,
+          "snapshotAgeMs": 1015,
+          "estimatedOffsetMs": -11.934814453125
+        },
+        {
+          "sequence": 49,
+          "hostAgeMs": 1009,
+          "requestDelayMs": 58,
+          "measuredRttMs": 118.19851922186498,
+          "expectedAgeMs": 134.0992596109325,
+          "issuedBeforeMs": null,
+          "issuedAfterMs": 942,
+          "viewExhausted": true,
+          "snapshotAgeMs": 1001,
+          "estimatedOffsetMs": -7.5478515625
+        },
+        {
+          "sequence": 50,
+          "hostAgeMs": 1026,
+          "requestDelayMs": 57,
+          "measuredRttMs": 123.158815377492,
+          "expectedAgeMs": 136.57940768874602,
+          "issuedBeforeMs": null,
+          "issuedAfterMs": 961,
+          "viewExhausted": true,
+          "snapshotAgeMs": 1019,
+          "estimatedOffsetMs": -3.83837890625
+        },
+        {
+          "sequence": 51,
+          "hostAgeMs": 1020,
+          "requestDelayMs": 74,
+          "measuredRttMs": 129.3270523019936,
+          "expectedAgeMs": 139.6635261509968,
+          "issuedBeforeMs": null,
+          "issuedAfterMs": 939,
+          "viewExhausted": true,
+          "snapshotAgeMs": 996,
+          "estimatedOffsetMs": 1.62939453125
+        },
+        {
+          "sequence": 52,
+          "hostAgeMs": 1040,
+          "requestDelayMs": 75,
+          "measuredRttMs": 134.2616418415949,
+          "expectedAgeMs": 142.13082092079745,
+          "issuedBeforeMs": null,
+          "issuedAfterMs": 959,
+          "viewExhausted": true,
+          "snapshotAgeMs": 1015,
+          "estimatedOffsetMs": 2.203369140625
+        },
+        {
+          "sequence": 53,
+          "hostAgeMs": 990,
+          "requestDelayMs": 42,
+          "measuredRttMs": 129.20931347327593,
+          "expectedAgeMs": 139.60465673663796,
+          "issuedBeforeMs": null,
+          "issuedAfterMs": 940,
+          "viewExhausted": true,
+          "snapshotAgeMs": 998,
+          "estimatedOffsetMs": 1.162841796875
+        },
+        {
+          "sequence": 54,
+          "hostAgeMs": 1038,
+          "requestDelayMs": 74,
+          "measuredRttMs": 125.16745077862075,
+          "expectedAgeMs": 137.58372538931036,
+          "issuedBeforeMs": null,
+          "issuedAfterMs": 957,
+          "viewExhausted": true,
+          "snapshotAgeMs": 1014,
+          "estimatedOffsetMs": -2.56982421875
+        },
+        {
+          "sequence": 55,
+          "hostAgeMs": 1008,
+          "requestDelayMs": 60,
+          "measuredRttMs": 121.9339606228966,
+          "expectedAgeMs": 135.9669803114483,
+          "issuedBeforeMs": null,
+          "issuedAfterMs": 942,
+          "viewExhausted": true,
+          "snapshotAgeMs": 998,
+          "estimatedOffsetMs": -2.455810546875
+        },
+        {
+          "sequence": 56,
+          "hostAgeMs": 1026,
+          "requestDelayMs": 63,
+          "measuredRttMs": 119.7471684983173,
+          "expectedAgeMs": 134.87358424915865,
+          "issuedBeforeMs": null,
+          "issuedAfterMs": 958,
+          "viewExhausted": true,
+          "snapshotAgeMs": 1013,
+          "estimatedOffsetMs": -3.7646484375
+        },
+        {
+          "sequence": 57,
+          "hostAgeMs": 1008,
+          "requestDelayMs": 44,
+          "measuredRttMs": 117.99773479865384,
+          "expectedAgeMs": 133.9988673993269,
+          "issuedBeforeMs": null,
+          "issuedAfterMs": 958,
+          "viewExhausted": true,
+          "snapshotAgeMs": 1014,
+          "estimatedOffsetMs": -4.91162109375
+        },
+        {
+          "sequence": 58,
+          "hostAgeMs": 793,
+          "requestDelayMs": 78,
+          "measuredRttMs": 116.59818783892308,
+          "expectedAgeMs": 133.29909391946154,
+          "issuedBeforeMs": null,
+          "issuedAfterMs": 710,
+          "viewExhausted": true,
+          "snapshotAgeMs": 765,
+          "estimatedOffsetMs": -0.12939453125
+        },
+        {
+          "sequence": 76,
+          "hostAgeMs": 183,
+          "requestDelayMs": 68,
+          "measuredRttMs": 89.52975984780674,
+          "expectedAgeMs": 119.76487992390338,
+          "issuedBeforeMs": 50,
+          "issuedAfterMs": 17,
+          "viewExhausted": true,
+          "snapshotAgeMs": 165,
+          "estimatedOffsetMs": -2.520263671875
+        },
+        {
+          "sequence": 95,
+          "hostAgeMs": 271,
+          "requestDelayMs": 196,
+          "measuredRttMs": 126.49585326884183,
+          "expectedAgeMs": 138.2479266344209,
+          "issuedBeforeMs": 4,
+          "issuedAfterMs": 46,
+          "viewExhausted": false,
+          "snapshotAgeMs": 79,
+          "estimatedOffsetMs": 0.41796875
+        },
+        {
+          "sequence": 199,
+          "hostAgeMs": 268,
+          "requestDelayMs": 190,
+          "measuredRttMs": 116.56068413164387,
+          "expectedAgeMs": 133.28034206582194,
+          "issuedBeforeMs": 47,
+          "issuedAfterMs": 3,
+          "viewExhausted": false,
+          "snapshotAgeMs": 125,
+          "estimatedOffsetMs": -2.505859375
+        },
+        {
+          "sequence": 223,
+          "hostAgeMs": 186,
+          "requestDelayMs": 113,
+          "measuredRttMs": 105.64929492008426,
+          "expectedAgeMs": 127.82464746004213,
+          "issuedBeforeMs": 39,
+          "issuedAfterMs": 11,
+          "viewExhausted": false,
+          "snapshotAgeMs": 112,
+          "estimatedOffsetMs": 2.755859375
+        },
+        {
+          "sequence": 227,
+          "hostAgeMs": 177,
+          "requestDelayMs": 74,
+          "measuredRttMs": 96.00028095941323,
+          "expectedAgeMs": 123.00014047970662,
+          "issuedBeforeMs": 50,
+          "issuedAfterMs": 16,
+          "viewExhausted": true,
+          "snapshotAgeMs": 153,
+          "estimatedOffsetMs": -6.514404296875
+        },
+        {
+          "sequence": 234,
+          "hostAgeMs": 207,
+          "requestDelayMs": 74,
+          "measuredRttMs": 106.25033577716766,
+          "expectedAgeMs": 128.12516788858383,
+          "issuedBeforeMs": 50,
+          "issuedAfterMs": 17,
+          "viewExhausted": true,
+          "snapshotAgeMs": 183,
+          "estimatedOffsetMs": -8.091552734375
+        },
+        {
+          "sequence": 273,
+          "hostAgeMs": 231,
+          "requestDelayMs": 156,
+          "measuredRttMs": 114.60373094752327,
+          "expectedAgeMs": 132.30186547376164,
+          "issuedBeforeMs": 4,
+          "issuedAfterMs": 46,
+          "viewExhausted": false,
+          "snapshotAgeMs": 79,
+          "estimatedOffsetMs": 0.871337890625
+        },
+        {
+          "sequence": 280,
+          "hostAgeMs": 332,
+          "requestDelayMs": 255,
+          "measuredRttMs": 91.57251100512484,
+          "expectedAgeMs": 120.78625550256243,
+          "issuedBeforeMs": null,
+          "issuedAfterMs": 3,
+          "viewExhausted": false,
+          "snapshotAgeMs": 74,
+          "estimatedOffsetMs": -1.35498046875
+        },
+        {
+          "sequence": 285,
+          "hostAgeMs": 289,
+          "requestDelayMs": 209,
+          "measuredRttMs": 106.01672040615932,
+          "expectedAgeMs": 128.00836020307966,
+          "issuedBeforeMs": 27,
+          "issuedAfterMs": 23,
+          "viewExhausted": false,
+          "snapshotAgeMs": 57,
+          "estimatedOffsetMs": -4.114990234375
+        },
+        {
+          "sequence": 311,
+          "hostAgeMs": 237,
+          "requestDelayMs": 161,
+          "measuredRttMs": 130.63492560574616,
+          "expectedAgeMs": 140.31746280287308,
+          "issuedBeforeMs": 49,
+          "issuedAfterMs": 1,
+          "viewExhausted": false,
+          "snapshotAgeMs": 125,
+          "estimatedOffsetMs": -0.3388671875
+        },
+        {
+          "sequence": 335,
+          "hostAgeMs": 228,
+          "requestDelayMs": 122,
+          "measuredRttMs": 119.52955449960028,
+          "expectedAgeMs": 134.76477724980015,
+          "issuedBeforeMs": 50,
+          "issuedAfterMs": 17,
+          "viewExhausted": true,
+          "snapshotAgeMs": 156,
+          "estimatedOffsetMs": -2.143798828125
+        },
+        {
+          "sequence": 409,
+          "hostAgeMs": 205,
+          "requestDelayMs": 59,
+          "measuredRttMs": 120.80890725669674,
+          "expectedAgeMs": 135.40445362834836,
+          "issuedBeforeMs": 50,
+          "issuedAfterMs": 17,
+          "viewExhausted": true,
+          "snapshotAgeMs": 196,
+          "estimatedOffsetMs": -13.9140625
+        },
+        {
+          "sequence": 488,
+          "hostAgeMs": 183,
+          "requestDelayMs": 79,
+          "measuredRttMs": 114.74435207573012,
+          "expectedAgeMs": 132.37217603786507,
+          "issuedBeforeMs": 0,
+          "issuedAfterMs": 0,
+          "viewExhausted": true,
+          "snapshotAgeMs": 154,
+          "estimatedOffsetMs": -6.98828125
+        },
+        {
+          "sequence": 492,
+          "hostAgeMs": 188,
+          "requestDelayMs": 81,
+          "measuredRttMs": 102.49688661021906,
+          "expectedAgeMs": 126.24844330510953,
+          "issuedBeforeMs": 0,
+          "issuedAfterMs": 0,
+          "viewExhausted": true,
+          "snapshotAgeMs": 157,
+          "estimatedOffsetMs": -4.619140625
+        },
+        {
+          "sequence": 525,
+          "hostAgeMs": 310,
+          "requestDelayMs": 150,
+          "measuredRttMs": 101.67425069197792,
+          "expectedAgeMs": 125.83712534598897,
+          "issuedBeforeMs": 0,
+          "issuedAfterMs": 0,
+          "viewExhausted": true,
+          "snapshotAgeMs": 210,
+          "estimatedOffsetMs": 0.6220703125
+        }
+      ],
+      "mismatchSequences": [
+        23,
+        24,
+        27,
+        28,
+        37,
+        39,
+        40,
+        42,
+        43,
+        44,
+        45,
+        46
+      ],
+      "spreadSeedPlayerId": "23cd687b-c694-46cd-9bcf-f8bd0068f864",
+      "transport": [
+        {
+          "state": "connected",
+          "proxy": true,
+          "rttMs": 109
+        },
+        {
+          "state": "connected",
+          "proxy": true,
+          "rttMs": 116
+        },
+        {
+          "state": "connected",
+          "proxy": true,
+          "rttMs": 101
+        },
+        {
+          "state": "connected",
+          "proxy": true,
+          "rttMs": 136
+        },
+        {
+          "state": "connected",
+          "proxy": true,
+          "rttMs": 108
+        },
+        {
+          "state": "connected",
+          "proxy": true,
+          "rttMs": 96
+        },
+        {
+          "state": "connected",
+          "proxy": true,
+          "rttMs": 109
+        },
+        {
+          "state": "connected",
+          "proxy": true,
+          "rttMs": 78
+        },
+        {
+          "state": "connected",
+          "proxy": true,
+          "rttMs": 111
+        },
+        {
+          "state": "connected",
+          "proxy": true,
+          "rttMs": 118
+        },
+        {
+          "state": "connected",
+          "proxy": true,
+          "rttMs": 109
+        },
+        {
+          "state": "connected",
+          "proxy": true,
+          "rttMs": 96
+        }
+      ],
+      "proxy": {
+        "profile": {
+          "rtt": 100,
+          "jitter": 25,
+          "loss": 0.01,
+          "seed": 20261015
+        },
+        "sockets": 12,
+        "pairedSockets": 12,
+        "pending": 86,
+        "received": 4616042,
+        "forwarded": 4569625,
+        "dropped": 46286,
+        "queued": 96,
+        "invalid": 45,
+        "sendErrors": 0,
+        "delayMax": 118.83880000002682,
+        "meanDelayMs": 52.953739095940215
+      }
+    }
+  ]
+}

@@ -1,0 +1,136 @@
+{
+  "currentMuzzleOffset": 0.12,
+  "scope": "Four logical clients in one browser context; native WebRTC with scripted poses and HP resets; partial until all 20 cases complete",
+  "status": "FAIL case 1/20; thresholds are unchanged. Inspect the result before continuing.",
+  "records": [
+    {
+      "scope": "Four real room clients in one browser context. Native WebRTC with loopback UDP impairment. Scripted poses and per-tick HP resets isolate hit registration; no WebGL, death/round lifecycle, cross-device clock, or rendered ghost assertions.",
+      "config": {
+        "rttMs": 100,
+        "distance": 5,
+        "stance": "standing",
+        "scenario": "strafe",
+        "shots": 500,
+        "referenceAt": 1792107413143
+      },
+      "eligible": true,
+      "passed": false,
+      "clients": 4,
+      "attempts": 532,
+      "accepted": 500,
+      "dispositions": 532,
+      "oracleHits": 415,
+      "actualHits": 384,
+      "agreement": 0.8890977443609023,
+      "hitRateDeficit": 0.05827067669172932,
+      "dispositionP95Ms": 158,
+      "dispositionP99Ms": 271,
+      "within600Ms": 1,
+      "within1000Ms": 1,
+      "duplicateHits": 0,
+      "blockerViolations": 0,
+      "maxRewindMs": 150,
+      "invalidSnapshots": 0,
+      "modeDivergence": 0,
+      "rejectionReasons": {
+        "view-time": 32
+      },
+      "mismatchSequences": [
+        10,
+        32,
+        44,
+        45,
+        51,
+        75,
+        82,
+        85,
+        89,
+        117,
+        123,
+        132
+      ],
+      "spreadSeedPlayerId": "63bd12d0-8281-4cde-b5d9-bf2297f3ff1b",
+      "transport": [
+        {
+          "state": "connected",
+          "proxy": true,
+          "rttMs": 76
+        },
+        {
+          "state": "connected",
+          "proxy": true,
+          "rttMs": 124
+        },
+        {
+          "state": "connected",
+          "proxy": true,
+          "rttMs": 93
+        },
+        {
+          "state": "connected",
+          "proxy": true,
+          "rttMs": 125
+        },
+        {
+          "state": "connected",
+          "proxy": true,
+          "rttMs": 109
+        },
+        {
+          "state": "connected",
+          "proxy": true,
+          "rttMs": 74
+        },
+        {
+          "state": "connected",
+          "proxy": true,
+          "rttMs": 99
+        },
+        {
+          "state": "connected",
+          "proxy": true,
+          "rttMs": 82
+        },
+        {
+          "state": "connected",
+          "proxy": true,
+          "rttMs": 116
+        },
+        {
+          "state": "connected",
+          "proxy": true,
+          "rttMs": 122
+        },
+        {
+          "state": "connected",
+          "proxy": true,
+          "rttMs": 116
+        },
+        {
+          "state": "connected",
+          "proxy": true,
+          "rttMs": 127
+        }
+      ],
+      "proxy": {
+        "profile": {
+          "rtt": 100,
+          "jitter": 25,
+          "loss": 0.01,
+          "seed": 20261015
+        },
+        "sockets": 12,
+        "pairedSockets": 12,
+        "pending": 78,
+        "received": 4264208,
+        "forwarded": 4221368,
+        "dropped": 42720,
+        "queued": 90,
+        "invalid": 42,
+        "sendErrors": 0,
+        "delayMax": 118.83880000002682,
+        "meanDelayMs": 52.96205039162518
+      }
+    }
+  ]
+}

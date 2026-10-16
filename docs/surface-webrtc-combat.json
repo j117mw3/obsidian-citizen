@@ -1,0 +1,57 @@
+{
+  "fixture": "Real browser WebRTC, loopback signaling, no injected impairment or avatar/resource mutation",
+  "beforeLethal": "3914 surface snapshots; epoch 2; RTT 0 ms\nShared Owner (you): surface; 60 HP; 0 armor; 0.0 heat; #959595; input ack 4145; 0 kills/0 deaths; standing; lean 0.000\nShared Two: surface; 90 HP; 0 armor; 0.0 heat; #8CECFF; input ack 3707; 0 kills/0 deaths; crouched; lean 0.350\nShared Three: surface; 100 HP; 0 armor; 0.0 heat; #8CECFF; input ack 3695; 0 kills/0 deaths; standing; lean 0.000\n1 occupied arenas; largest occupancy 3; 0 bolts; 6/6 pickups available",
+  "reciprocalSteps": [
+    {
+      "result": "Fire 2: accepted; 2 authoritative dispositions",
+      "owner": "Shared Owner: surface; 80 HP; 0 armor; 0.0 heat; #959595; input ack 3724; 0 kills/0 deaths; standing; lean 0.000"
+    },
+    {
+      "result": "Fire 3: accepted; 3 authoritative dispositions",
+      "owner": "Shared Owner: surface; 70 HP; 0 armor; 0.0 heat; #959595; input ack 3729; 0 kills/0 deaths; standing; lean 0.000"
+    },
+    {
+      "result": "Fire 4: accepted; 4 authoritative dispositions",
+      "owner": "Shared Owner: surface; 60 HP; 0 armor; 0.0 heat; #959595; input ack 3735; 0 kills/0 deaths; standing; lean 0.000"
+    }
+  ],
+  "lethalSteps": [
+    {
+      "result": "Fire 2: accepted; 2 authoritative dispositions",
+      "snapshot": "3919 surface snapshots; epoch 2; RTT 0 ms\nShared Owner (you): surface; 60 HP; 0 armor; 6.0 heat; #959595; input ack 4150; 0 kills/0 deaths; standing; lean 0.000\nShared Two: surface; 80 HP; 0 armor; 0.0 heat; #8CECFF; input ack 3713; 0 kills/0 deaths; crouched; lean 0.350\nShared Three: surface; 100 HP; 0 armor; 0.0 heat; #8CECFF; input ack 3701; 0 kills/0 deaths; standing; lean 0.000\n1 occupied arenas; largest occupancy 3; 0 bolts; 6/6 pickups available"
+    },
+    {
+      "result": "Fire 3: accepted; 3 authoritative dispositions",
+      "snapshot": "3924 surface snapshots; epoch 2; RTT 0 ms\nShared Owner (you): surface; 60 HP; 0 armor; 12.0 heat; #959595; input ack 4156; 0 kills/0 deaths; standing; lean 0.000\nShared Two: surface; 70 HP; 0 armor; 0.0 heat; #8CECFF; input ack 3718; 0 kills/0 deaths; crouched; lean 0.350\nShared Three: surface; 100 HP; 0 armor; 0.0 heat; #8CECFF; input ack 3706; 0 kills/0 deaths; standing; lean 0.000\n1 occupied arenas; largest occupancy 3; 0 bolts; 6/6 pickups available"
+    },
+    {
+      "result": "Fire 4: accepted; 4 authoritative dispositions",
+      "snapshot": "3929 surface snapshots; epoch 2; RTT 0 ms\nShared Owner (you): surface; 60 HP; 0 armor; 18.0 heat; #959595; input ack 4162; 0 kills/0 deaths; standing; lean 0.000\nShared Two: surface; 60 HP; 0 armor; 0.0 heat; #8CECFF; input ack 3724; 0 kills/0 deaths; crouched; lean 0.350\nShared Three: surface; 100 HP; 0 armor; 0.0 heat; #8CECFF; input ack 3712; 0 kills/0 deaths; standing; lean 0.000\n1 occupied arenas; largest occupancy 3; 0 bolts; 6/6 pickups available"
+    },
+    {
+      "result": "Fire 5: accepted; 5 authoritative dispositions",
+      "snapshot": "3934 surface snapshots; epoch 2; RTT 0 ms\nShared Owner (you): surface; 60 HP; 0 armor; 24.0 heat; #959595; input ack 4167; 0 kills/0 deaths; standing; lean 0.000\nShared Two: surface; 50 HP; 0 armor; 0.0 heat; #8CECFF; input ack 3729; 0 kills/0 deaths; crouched; lean 0.350\nShared Three: surface; 100 HP; 0 armor; 0.0 heat; #8CECFF; input ack 3718; 0 kills/0 deaths; standing; lean 0.000\n1 occupied arenas; largest occupancy 3; 0 bolts; 6/6 pickups available"
+    },
+    {
+      "result": "Fire 6: accepted; 6 authoritative dispositions",
+      "snapshot": "3940 surface snapshots; epoch 2; RTT 0 ms\nShared Owner (you): surface; 60 HP; 0 armor; 30.0 heat; #959595; input ack 4174; 0 kills/0 deaths; standing; lean 0.000\nShared Two: surface; 40 HP; 0 armor; 0.0 heat; #8CECFF; input ack 3736; 0 kills/0 deaths; crouched; lean 0.350\nShared Three: surface; 100 HP; 0 armor; 0.0 heat; #8CECFF; input ack 3724; 0 kills/0 deaths; standing; lean 0.000\n1 occupied arenas; largest occupancy 3; 0 bolts; 6/6 pickups available"
+    },
+    {
+      "result": "Fire 7: accepted; 7 authoritative dispositions",
+      "snapshot": "3945 surface snapshots; epoch 2; RTT 0 ms\nShared Owner (you): surface; 60 HP; 0 armor; 36.0 heat; #959595; input ack 4179; 0 kills/0 deaths; standing; lean 0.000\nShared Two: surface; 30 HP; 0 armor; 0.0 heat; #8CECFF; input ack 3742; 0 kills/0 deaths; crouched; lean 0.350\nShared Three: surface; 100 HP; 0 armor; 0.0 heat; #8CECFF; input ack 3730; 0 kills/0 deaths; standing; lean 0.000\n1 occupied arenas; largest occupancy 3; 0 bolts; 6/6 pickups available"
+    },
+    {
+      "result": "Fire 8: accepted; 8 authoritative dispositions",
+      "snapshot": "3950 surface snapshots; epoch 2; RTT 0 ms\nShared Owner (you): surface; 60 HP; 0 armor; 42.0 heat; #959595; input ack 4185; 0 kills/0 deaths; standing; lean 0.000\nShared Two: surface; 20 HP; 0 armor; 0.0 heat; #8CECFF; input ack 3747; 0 kills/0 deaths; crouched; lean 0.350\nShared Three: surface; 100 HP; 0 armor; 0.0 heat; #8CECFF; input ack 3735; 0 kills/0 deaths; standing; lean 0.000\n1 occupied arenas; largest occupancy 3; 0 bolts; 6/6 pickups available"
+    },
+    {
+      "result": "Fire 9: accepted; 9 authoritative dispositions",
+      "snapshot": "3955 surface snapshots; epoch 2; RTT 0 ms\nShared Owner (you): surface; 60 HP; 0 armor; 48.0 heat; #959595; input ack 4191; 0 kills/0 deaths; standing; lean 0.000\nShared Two: surface; 10 HP; 0 armor; 0.0 heat; #8CECFF; input ack 3753; 0 kills/0 deaths; crouched; lean 0.350\nShared Three: surface; 100 HP; 0 armor; 0.0 heat; #8CECFF; input ack 3741; 0 kills/0 deaths; standing; lean 0.000\n1 occupied arenas; largest occupancy 3; 0 bolts; 6/6 pickups available"
+    },
+    {
+      "result": "Fire 10: accepted; 10 authoritative dispositions",
+      "snapshot": "3960 surface snapshots; epoch 2; RTT 0 ms\nShared Owner (you): surface; 90 HP; 0 armor; 54.0 heat; #959595; input ack 4197; 1 kills/0 deaths; standing; lean 0.000\nShared Two: surface; 0 HP; 0 armor; 0.0 heat; #8CECFF; input ack 3759; 0 kills/1 deaths; crouched; lean 0.350\nShared Three: surface; 100 HP; 0 armor; 0.0 heat; #8CECFF; input ack 3747; 0 kills/0 deaths; standing; lean 0.000\n1 occupied arenas; largest occupancy 3; 0 bolts; 6/6 pickups available"
+    }
+  ],
+  "afterRespawn": "7707 surface snapshots; epoch 2; RTT 1 ms\nShared Owner: surface; 90 HP; 0 armor; 0.0 heat; #959595; input ack 8402; 1 kills/0 deaths; standing; lean 0.000\nShared Two (you): surface; 100 HP; 0 armor; 0.0 heat; #8CECFF; input ack 7964; 0 kills/1 deaths; crouched; lean 0.350\nShared Three: surface; 100 HP; 0 armor; 0.0 heat; #8CECFF; input ack 7952; 0 kills/0 deaths; standing; lean 0.000\n1 occupied arenas; largest occupancy 3; 0 bolts; 6/6 pickups available"
+}

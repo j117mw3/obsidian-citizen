@@ -1,0 +1,45 @@
+{
+  "scope": "Deterministic source generator comparison, no runtime or network claim",
+  "hubId": "stream-audit",
+  "records": [
+    {
+      "degree": 0,
+      "before": {
+        "walls": "af4a3e81a7558652530c2d083e32270f496cc2095b0037a00a3e69905a8e4ae3",
+        "pickups": "75e18a18ada1b6db9cfb58cdb1e9e6fe29e3767827387ca0eaa4197bbc299ac1"
+      },
+      "after": {
+        "walls": "af4a3e81a7558652530c2d083e32270f496cc2095b0037a00a3e69905a8e4ae3",
+        "pickups": "75585c2f6fe950058cf55df1d7d5d235d7cbca1c4e8c3ea91c04c8a04790dfa1"
+      },
+      "wallsUnchanged": true,
+      "pickupsChanged": true
+    },
+    {
+      "degree": 7,
+      "before": {
+        "walls": "deee85fe6477dcac33bade8e8d5b90ab5082e851cb9088e9a8a462a01b09dd22",
+        "pickups": "491a101f5cb865ae57864ca1d50469945eb6d39f15d1079418f0aebe40534b29"
+      },
+      "after": {
+        "walls": "deee85fe6477dcac33bade8e8d5b90ab5082e851cb9088e9a8a462a01b09dd22",
+        "pickups": "fa24ab0b77aed132072fc029ef55d3748b883ac92896168a755ecfe49f1db9f3"
+      },
+      "wallsUnchanged": true,
+      "pickupsChanged": true
+    },
+    {
+      "degree": 16,
+      "before": {
+        "walls": "9bb7d527be17b47f13790e6856f361caec07b38d1a6c3eb2dc2f73d9ee2a7ed0",
+        "pickups": "61d90160f18815cb7ab2064029748b48fcc814f3c228c9b59f2e6e866a32c24a"
+      },
+      "after": {
+        "walls": "9bb7d527be17b47f13790e6856f361caec07b38d1a6c3eb2dc2f73d9ee2a7ed0",
+        "pickups": "36fb3025827342f1b6944bf6f7b62a3db8297971ab4ff1583632a91d47851ba2"
+      },
+      "wallsUnchanged": true,
+      "pickupsChanged": true
+    }
+  ]
+}

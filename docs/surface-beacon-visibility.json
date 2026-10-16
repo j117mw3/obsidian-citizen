@@ -1,0 +1,15 @@
+{
+  "scope": "Manual geometric visibility check of production createSurfaceArenaVisual; not native Obsidian pixels",
+  "method": "Bundle surface and surfaceVisuals with esbuild, generate an arena, translate its root, update world matrices, raycast inward along each pole through all opaque meshes",
+  "rootPosition": [12, -7, 5],
+  "planetRadiusWorld": 6,
+  "before": [
+    {"pole": "north", "capRadiusWorld": 6.477777777777778, "capIsFirstVisibleMesh": true},
+    {"pole": "south", "capRadiusWorld": 5.877777777777776, "capIsFirstVisibleMesh": false}
+  ],
+  "after": [
+    {"pole": "north", "capRadiusWorld": 6.477777777777778, "capIsFirstVisibleMesh": true},
+    {"pole": "south", "capRadiusWorld": 6.477777777777778, "capIsFirstVisibleMesh": true}
+  ],
+  "mainJsSha256": "3B3DB6B2DA59334588AEFDB630599646BC5E2EB36E0E6C438DF9A77186EB6915"
+}

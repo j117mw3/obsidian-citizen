@@ -1,0 +1,171 @@
+[
+  {
+    "version": "0.5.1",
+    "asset": "Obsidian-Citizen-0.5.1-historical.zip",
+    "sha256": "ff747fbbd3e33d95814eea7cb2b064a30a91a250e7d6fc3f85867344a55597af",
+    "pluginId": "constellation-graph",
+    "name": "Obsidian Citizen",
+    "members": {
+      "main.js": "524352bfa2782a4a256677dbaf36121f751e02681521e9b60f64dc96afbd45d8",
+      "manifest.json": "8ed86f05e3adf99bfd72fb39a22ca3ea65f79bbd46821e47bfeae818ad43d5eb",
+      "styles.css": "b8758702042cf1a4bafb62c5cfdb627d9546b00d76e46805727c29e29573d97e"
+    },
+    "sourceSnapshotAvailable": false
+  },
+  {
+    "version": "0.5.2",
+    "asset": "Obsidian-Citizen-0.5.2-historical.zip",
+    "sha256": "57ab51c8543d9791026920a0998eba8820755658699feb0759ceb814dcc6f024",
+    "pluginId": "constellation-graph",
+    "name": "Obsidian Citizen",
+    "members": {
+      "main.js": "e02aa15d81ec6103a7c02fa4bbbd107ff826952fabae52e0068e77c7322d9f43",
+      "manifest.json": "e53cbf2b87c5c087027093e1629e022f7cf911a91ba706f6980afce9b1137d4c",
+      "styles.css": "1162184ef21f091bf27ff76daf5ed5b7c7969261edbacf61e1dafaa617ccce23"
+    },
+    "sourceSnapshotAvailable": false
+  },
+  {
+    "version": "0.6.0",
+    "asset": "Obsidian-Citizen-0.6.0-historical.zip",
+    "sha256": "8f118adfe800e2f03e8a52404951284f8e59ed05ec94a6bc3c634139dea00b78",
+    "pluginId": "constellation-graph",
+    "name": "Obsidian Citizen",
+    "members": {
+      "main.js": "e194e9c1433271b1d5c882aeeb660eba411f7b99cdb843a030f621edc7238773",
+      "manifest.json": "ac29d7fc49f828db18f8675b39f95e34b7ce9eedf9956af5dd57b4ba03ec8989",
+      "styles.css": "65fc660bdd085975114a74141a2f22a2b42aebef8d11c76c73fddafb25a28440"
+    },
+    "sourceSnapshotAvailable": false
+  },
+  {
+    "version": "0.6.1",
+    "asset": "Obsidian-Citizen-0.6.1-historical.zip",
+    "sha256": "182d2e6b32d5a84e9214b4651f3622b36f17d5515070111ed847cbafa353f613",
+    "pluginId": "constellation-graph",
+    "name": "Obsidian Citizen",
+    "members": {
+      "main.js": "cbd8009da32a63cf1e58e9ec25b030e8d11a2d8135499b4e74aaba74deab70f0",
+      "manifest.json": "7b2fce710db70a31eab69bdde4862145f1085ccf5819c89a8c88b25c394b4601",
+      "styles.css": "65fc660bdd085975114a74141a2f22a2b42aebef8d11c76c73fddafb25a28440"
+    },
+    "sourceSnapshotAvailable": false
+  },
+  {
+    "version": "0.6.2",
+    "asset": "Obsidian-Citizen-0.6.2-historical.zip",
+    "sha256": "d08454fe6bbadf25b4b7a2c56e45000986d83d3efa0ce3080717be49513436e3",
+    "pluginId": "constellation-graph",
+    "name": "Obsidian Citizen",
+    "members": {
+      "main.js": "6748b5dd99d3889da1a3e107065c527faa3169cf97e3715904401059e24736ba",
+      "manifest.json": "6da55f64de57cf1f888dc87baaa020e39509b07dfecf3f06945ef5036e637869",
+      "styles.css": "11c7b0cee8a0da4223d63386a2877ccb4e0cea2afdd28a7c8117504318bf449d"
+    },
+    "sourceSnapshotAvailable": false
+  },
+  {
+    "version": "0.6.3",
+    "asset": "Obsidian-Citizen-0.6.3-historical.zip",
+    "sha256": "2cf9df6c7c27df0a4d3fa1885bfe38c0846f7d47f44905dc956d1edf65afd50a",
+    "pluginId": "constellation-graph",
+    "name": "Obsidian Citizen",
+    "members": {
+      "main.js": "ea04814416cd026cded2229ba71d0ea5682b17ab614ba01055f247e4545c97f4",
+      "manifest.json": "aa0b2f223232e233b13f6da18822575820070c89f163e85112ca33583713a42b",
+      "styles.css": "11c7b0cee8a0da4223d63386a2877ccb4e0cea2afdd28a7c8117504318bf449d"
+    },
+    "sourceSnapshotAvailable": false
+  },
+  {
+    "version": "0.6.4",
+    "asset": "Obsidian-Citizen-0.6.4-historical.zip",
+    "sha256": "e3be9326982be5954c5069d6f65155d67ae62afa1854ca7cb188f5cddf11d234",
+    "pluginId": "constellation-graph",
+    "name": "Obsidian Citizen",
+    "members": {
+      "main.js": "6f42b22bf6f827603cd9014d0f59b61059879cba5be2bf31350375b0973ee2a2",
+      "manifest.json": "5f2bb11a387ed7da6b2faee59aea34358a9e4da8574ec4b28a4eb43c8fdfa1ee",
+      "styles.css": "ab5e69622e55b28f29a7ece6db29e723a0a0dc6479c6efc53582765319960f13"
+    },
+    "sourceSnapshotAvailable": false
+  },
+  {
+    "version": "0.6.5",
+    "asset": "Obsidian-Citizen-0.6.5-historical.zip",
+    "sha256": "7293b18afce37c9ae7807e739b364a1d1566fec894269419cefce0625b8a3020",
+    "pluginId": "constellation-graph",
+    "name": "Obsidian Citizen",
+    "members": {
+      "main.js": "1cbe758b2cdbcbac7c42b6c359f72bb43ee1889dcdd3a76e4e69cf386e7bca24",
+      "manifest.json": "3aece5c4d432b6eaa9b146fc18367f908d506645779e9de49ed94b655263b641",
+      "styles.css": "ab5e69622e55b28f29a7ece6db29e723a0a0dc6479c6efc53582765319960f13"
+    },
+    "sourceSnapshotAvailable": false
+  },
+  {
+    "version": "0.6.6",
+    "asset": "Obsidian-Citizen-0.6.6-historical.zip",
+    "sha256": "0d2f855c0c01714dfc2762da25585dba8647c8f454e155b163f091aec9f59d64",
+    "pluginId": "constellation-graph",
+    "name": "Obsidian Citizen",
+    "members": {
+      "main.js": "785353729a5fe4245dc51fb1131c847cf4de005265f7f3a1cae3d34c4f0b6d48",
+      "manifest.json": "07d3d40f7687316b8b10649797a54220b5c718f8c74f8bba99d7676de0a6ab97",
+      "styles.css": "ab5e69622e55b28f29a7ece6db29e723a0a0dc6479c6efc53582765319960f13"
+    },
+    "sourceSnapshotAvailable": false
+  },
+  {
+    "version": "0.6.7",
+    "asset": "Obsidian-Citizen-0.6.7-historical.zip",
+    "sha256": "c09eb2a2e83d4c9bb4fcc5babdbafe56d97addcfdd160ee5d7f501db7803d4d5",
+    "pluginId": "constellation-graph",
+    "name": "Obsidian Citizen",
+    "members": {
+      "main.js": "eb89d7c596a07f3962c9d955f9de0cd712429542ef81ffd4c26b7f6c4fee7380",
+      "manifest.json": "5afe1c8298d193907dd3abef9c3b346965de3028244a470b6a6a95a606daa33a",
+      "styles.css": "ab5e69622e55b28f29a7ece6db29e723a0a0dc6479c6efc53582765319960f13"
+    },
+    "sourceSnapshotAvailable": false
+  },
+  {
+    "version": "0.6.8",
+    "asset": "Obsidian-Citizen-0.6.8-historical.zip",
+    "sha256": "802ff40f0f54a4e41bd967b4a0a1ebd6e07f53cc5209da2aebfc37fb84cc0999",
+    "pluginId": "constellation-graph",
+    "name": "Obsidian Citizen",
+    "members": {
+      "main.js": "bb2b79a699ba27fb396508f6d496cf0c7f14136df05d6f46fd0d79fa3e28fc51",
+      "manifest.json": "6d029d8ffabb1140a43bdba7e67b0ce049afe27c20394ca82fe86279bea133d1",
+      "styles.css": "ab5e69622e55b28f29a7ece6db29e723a0a0dc6479c6efc53582765319960f13"
+    },
+    "sourceSnapshotAvailable": false
+  },
+  {
+    "version": "0.7.0",
+    "asset": "Obsidian-Citizen-0.7.0-historical.zip",
+    "sha256": "458fd6c2bd78cdc385ed56afd57e16284ff2bd081367029ea2ba6899610b8196",
+    "pluginId": "constellation-graph",
+    "name": "Obsidian Citizen",
+    "members": {
+      "main.js": "3ed101b9a8e483147e0cd429f424ec8edff58f5709801fe15a28d5dd2a944556",
+      "manifest.json": "7b8fea902b09e5a2e73f405e6025ad437ea76af7b1993387a33ee5a6f2240e02",
+      "styles.css": "ab5e69622e55b28f29a7ece6db29e723a0a0dc6479c6efc53582765319960f13"
+    },
+    "sourceSnapshotAvailable": false
+  },
+  {
+    "version": "0.7.1",
+    "asset": "Obsidian-Citizen-0.7.1-historical.zip",
+    "sha256": "aaa6549dd21460df8c51c65d6dbda229ea85edbf6d0a382f5784a93c2548f661",
+    "pluginId": "constellation-graph",
+    "name": "Obsidian Citizen",
+    "members": {
+      "main.js": "3cb070902aaf5cba521ffdf466740519fd42eb07005b2664a012fb7fe95fc952",
+      "manifest.json": "e17a1a97faf8660024aeb7f4e05b68df5a3677dc277024283d987213a4cb5d4b",
+      "styles.css": "ab5e69622e55b28f29a7ece6db29e723a0a0dc6479c6efc53582765319960f13"
+    },
+    "sourceSnapshotAvailable": false
+  }
+]
