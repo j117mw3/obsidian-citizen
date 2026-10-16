@@ -1,12 +1,14 @@
-# Obsidian Citizen 0.6.7
+# Obsidian Citizen 0.6.8
 
-- Add a two-tone electronic charge hum with a rising pitch and volume, a sustained ready tone and a one-time ready chime. Stop it on firing, cancellation, focus loss, expiry, mute and disposal; cap every voice lifetime. Respect existing sound and volume settings.
-- Add three animated energy coils and twelve inward-moving sparks, tinted to the selected laser color. Lift and brace the weapon with restrained vibration while charging; keep camera, physical muzzle and hit geometry unchanged.
-- Preserve damage, heat, charge time, hold crouch, settings schema 5 and room/checkpoint protocol 10.
+- Generate exactly two separated walls per unique linked file, retaining reciprocal/self-link deduplication and anonymous associations. The six-file Smoke Hub has twelve physical and rendered walls. Keep the existing radius formula based on file count, with no additional cover cap.
+- Drive cover toward the live file bearings on the sphere at 0.8 surface units per second. Keep exit/pickup clearance, avoid overlapping walls, and stop before standing, crouched or leaning players. Preserve immutable geometry identity, radius, pickup layout and consumed-pickup timers while moving.
+- Update existing solid instances and wire outlines together; maintain collision indices incrementally rather than rebuilding scene geometry every frame. Add deterministic instanced mineral scree as low-profile walk-over ground detail.
+- Publish bounded compact host cover poses near players separately from acknowledged immutable geometry; predict distant presentation from anonymous graph positions. Preserve current collision poses on checkpoint migration and deduplicate repeated geometry definitions in bounded reliable transfers.
+- Bump plugin to 0.6.8 and room/checkpoint contracts to 11; reject incompatible rooms/checkpoints. Keep settings schema 5, movement and weapon balance unchanged.
 
 ## Install
 
-Download `main.js`, `manifest.json`, and `styles.css`, or extract `Obsidian-Citizen-0.6.7.zip` into `<vault>/.obsidian/plugins/constellation-graph/` with Obsidian closed. Back up your existing plugin and settings first. These original files retain the historical `constellation-graph` ID. All multiplayer participants need the same version. Requires desktop Obsidian 1.7.2 or newer.
+Download `main.js`, `manifest.json`, and `styles.css`, or extract `Obsidian-Citizen-0.6.8.zip` into `<vault>/.obsidian/plugins/constellation-graph/` with Obsidian closed. Back up your existing plugin and settings first. These original files retain the historical `constellation-graph` ID. All multiplayer participants need the same version. Requires desktop Obsidian 1.7.2 or newer.
 
 ## Verification and provenance
 
