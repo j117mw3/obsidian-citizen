@@ -192,10 +192,62 @@
   border: 1.5px solid rgba(255, 255, 255, 0.75); border-radius: 50%; box-shadow: 0 0 6px rgba(120, 220, 255, 0.6);
 }
 .cg-pilot-cross::after { content: ""; position: absolute; left: 50%; top: 50%; width: 3px; height: 3px; margin: -1.5px 0 0 -1.5px; background: #fff; border-radius: 50%; }
+.cg-root.cg-surfacing .cg-canvas { cursor: crosshair; }
+.cg-root.cg-surfacing :is(.cg-top, .cg-stats, .cg-motion-note, .cg-legend, .cg-legend-toggle, .cg-detail, .cg-list, .cg-tip, .cg-labels) { display: none !important; }
+.cg-surface-hud { position: absolute; inset: 0; z-index: 4; pointer-events: none; color: #e9f4ff; font: 12px var(--font-interface, system-ui, sans-serif); text-shadow: 0 1px 5px #000; }
+.cg-surface-hud[hidden] { display: none; }
+.cg-surface-crosshair { position: absolute; left: 50%; top: 50%; width: 14px; height: 14px; transform: translate(-50%, -50%); border: 1px solid rgba(230,248,255,.85); border-radius: 50%; box-shadow: 0 0 5px rgba(0,0,0,.9); }
+.cg-surface-crosshair::before, .cg-surface-crosshair::after { content: ""; position: absolute; background: #fff; box-shadow: 0 0 4px #000; }
+.cg-surface-crosshair::before { width: 1px; height: 4px; left: 6px; top: -5px; }
+.cg-surface-crosshair::after { width: 1px; height: 4px; left: 6px; bottom: -5px; }
+.cg-surface-hit-marker { position: absolute; left: 50%; top: calc(50% + 25px); transform: translate(-50%, -50%); color: #b8ff9a; font-size: 20px; font-weight: 800; text-shadow: 0 0 8px #0b1208; }
+.cg-surface-damage-direction { position: absolute; left: 50%; top: calc(50% - 46px); color: #ff6877; font-size: 24px; font-weight: 900; text-shadow: 0 0 8px #20060b; }
+.cg-surface-stance, .cg-surface-pole-compass, .cg-surface-enemy-cue, .cg-surface-connection { position: absolute; top: 14px; padding: 6px 9px; border: 1px solid rgba(170,205,230,.28); border-radius: 5px; background: rgba(5,10,18,.76); letter-spacing: .06em; font-size: 10px; font-weight: 750; }
+.cg-surface-stance { left: 14px; }
+.cg-surface-pole-compass { left: 50%; transform: translateX(-50%); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.cg-surface-enemy-cue { top: 46px; left: 50%; transform: translateX(-50%); display: flex; gap: 4px; align-items: center; color: rgba(224,237,247,.45); }
+.cg-surface-enemy-cue::after { content: attr(data-label); margin-left: 5px; color: #ffbc78; }
+.cg-surface-enemy-sector { font-size: 15px; line-height: 10px; }
+.cg-surface-enemy-sector.is-active { color: #ff886b; text-shadow: 0 0 8px #ff6d40; }
+.cg-surface-connection { right: 14px; color: #ffbe75; }
+.cg-surface-status { position: absolute; left: 18px; bottom: 18px; display: flex; gap: 16px; align-items: end; padding: 10px 12px; border: 1px solid rgba(170,205,230,.28); border-radius: 7px; background: rgba(5,10,18,.76); backdrop-filter: blur(5px); }
+.cg-surface-resource { min-width: 118px; }
+.cg-surface-resource-label { display: block; margin-bottom: 4px; letter-spacing: .08em; font-weight: 700; }
+.cg-surface-track { width: 118px; height: 5px; background: rgba(255,255,255,.18); border-radius: 4px; overflow: hidden; }
+.cg-surface-fill { height: 100%; width: 100%; transition: width .1s linear; }
+.cg-surface-health .cg-surface-fill { background: linear-gradient(90deg,#ff546b,#ff9b84); }
+.cg-surface-armor .cg-surface-fill { background: linear-gradient(90deg,#8c8bff,#d4b0ff); }
+.cg-surface-heat .cg-surface-fill { background: linear-gradient(90deg,#ffcc61,#ff654f); }
+.cg-surface-prompt { position: absolute; left: 50%; bottom: 20px; max-width: calc(100% - 300px); transform: translateX(-50%); padding: 7px 11px; border-radius: 5px; background: rgba(5,10,18,.74); text-align: center; }
+.cg-surface-training { position: absolute; top: 14px; right: 14px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; max-width: min(280px, calc(100% - 28px)); padding: 8px; border: 1px solid rgba(170,205,230,.28); border-radius: 7px; background: rgba(5,10,18,.78); pointer-events: auto; }
+.cg-surface-training[hidden] { display: none; }
+.cg-surface-training-title { flex-basis: 100%; color: #d7e9f8; font-weight: 700; letter-spacing: .04em; }
+.cg-surface-training select, .cg-surface-training button { min-height: 28px; border: 1px solid rgba(170,205,230,.4); border-radius: 4px; padding: 3px 7px; color: #e9f4ff; background: #101a28; font: inherit; }
+.cg-contrast .cg-surface-training { border-color: #fff; background: #000; }
+.cg-contrast .cg-surface-training select, .cg-contrast .cg-surface-training button { border-color: #fff; color: #fff; background: #000; }
+.cg-contrast .cg-surface-hud { color: #fff; text-shadow: none; }
+.cg-contrast .cg-surface-status, .cg-contrast .cg-surface-prompt { border: 1px solid #fff; background: #000; backdrop-filter: none; }
+.cg-contrast .cg-surface-crosshair { border-color: #fff; box-shadow: none; }
+.cg-contrast .cg-surface-stance, .cg-contrast .cg-surface-pole-compass, .cg-contrast .cg-surface-enemy-cue, .cg-contrast .cg-surface-connection { border-color: #fff; color: #fff; background: #000; }
+@container (max-width: 640px) {
+  .cg-surface-status { left: 12px; right: 12px; bottom: 12px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; box-sizing: border-box; }
+  .cg-surface-resource { min-width: 0; }
+  .cg-surface-track { width: 100%; }
+  .cg-surface-prompt { left: 12px; right: 12px; bottom: 78px; max-width: none; transform: none; font-size: 11px; }
+  .cg-surface-pole-compass { left: auto; right: 12px; max-width: calc(100% - 110px); transform: none; overflow: hidden; text-overflow: ellipsis; }
+  .cg-surface-training { top: 78px; left: 12px; right: 12px; max-width: none; box-sizing: border-box; }
+  .cg-surface-connection { top: 78px; right: 12px; }
+}
 .cg-pilot-hint {
   position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); padding: 4px 12px; max-width: 90%;
   border-radius: 8px; background: var(--cg-panel); border: 1px solid var(--cg-border); color: var(--cg-dim); font-size: 12px; text-align: center;
 }
+.cg-pilot-docking {
+  position: absolute; left: 50%; bottom: 96px; transform: translateX(-50%); max-width: min(90%, 460px);
+  padding: 6px 10px; border-radius: 8px; background: var(--cg-panel); border: 1px solid var(--cg-border);
+  color: var(--cg-ink); font-size: 12px; text-align: center; pointer-events: none; overflow-wrap: anywhere;
+}
+.cg-contrast .cg-pilot-docking { background: #000; border-color: #fff; color: #fff; }
 .cg-pilot-readout {
   position: absolute; left: 0; top: 0; transform: translate(50vw, 60vh) translateX(-50%); will-change: transform; text-align: center; white-space: nowrap;
   text-shadow: 0 0 6px #000, 0 0 3px #000;
