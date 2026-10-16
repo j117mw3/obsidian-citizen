@@ -1,15 +1,16 @@
-# Obsidian Citizen 0.5.1
+# Obsidian Citizen 0.5.2
 
-- Match upstream 0.4.1 flight controls: direct captured-mouse aiming, cursor steering, roll, braking, strafe, grip, speed-dependent agility, and 135-unit multiplayer cruise speed. Shared solo, prediction, and host movement constants now use the same implementation.
-- Restore boosted world-space dust streaks and eased speed/afterburner field-of-view changes in chase and cockpit views, while respecting reduced-motion and restoring the configured field of view when flight ends.
-- Send weapon selection as an ordered reliable command, acknowledge it in authoritative poses, and preserve unacknowledged choices during reconciliation. A regression test now exercises the actual client `R`-then-fire message order through the host control channel.
-- Restore solo cannon-ammunition recovery, keep room ammunition limited to 36 per life, and preserve cooldowns when switching weapons. Chaser and cockpit weapon displays show selection, rate, ammunition or heat, readiness, cooldown, and dry/overheated states.
-- Remove the redundant Scores toolbar button; hold Tab to show multiplayer standings. Keep the scoreboard bounded, scrollable, and keyboard accessible, and prevent pending clicks from firing during spectator transitions.
-- Keep the 0.5.0 room protocol-5 clients isolated; 0.5.1 rooms use protocol 6 and checkpoint format 6. The Worker’s historical protocol-4 route and TURN credential routes remain unchanged.
+- Run room movement at fixed 60 Hz, acknowledge sequenced per-tick controls, resend a bounded history, and replay peer prediction from exact host snapshots. The local host now renders directly from its own authoritative simulation instead of blending toward 20 Hz corrections.
+- Buffer remote ship states for 100 ms and interpolate their displayed movement, with at most 100 ms of extrapolation. Player labels, distance, audio position, and lead pip use the presented ship motion.
+- Increase forward pickup below cruise in solo and rooms while retaining cruise speed, boost rules, and other movement ratios. Reduce afterburner camera rattle and disable that rattle under reduced-motion preferences.
+- Replace the long weapon text strip with selected blaster/cannon icons, circular cooldown arcs, one-decimal timers, heat and ammunition values. Include cooldown duration in room poses and checkpoints.
+- Return the Hangar to a centered, content-sized panel around 440 px high, capped at 480 px, with a scrollable middle and fixed actions.
+- Use room protocol 7 and checkpoint format 7 for tick acknowledgement, queued inputs, and cooldown duration. Mixed clients get an update-required error. The Worker’s legacy protocol-4 routes and TURN service are unchanged.
+- Runtime acceptance in Obsidian and two-computer testing remain separate from the synthetic checks in `docs/verification-0.5.2.md`.
 
 ## Install
 
-Download `main.js`, `manifest.json`, and `styles.css`, or extract `Obsidian-Citizen-0.5.1.zip` into `<vault>/.obsidian/plugins/constellation-graph/` with Obsidian closed. Back up your existing plugin and settings first. These original files retain the historical `constellation-graph` ID. All multiplayer participants need the same version. Requires desktop Obsidian 1.7.2 or newer.
+Download `main.js`, `manifest.json`, and `styles.css`, or extract `Obsidian-Citizen-0.5.2.zip` into `<vault>/.obsidian/plugins/constellation-graph/` with Obsidian closed. Back up your existing plugin and settings first. These original files retain the historical `constellation-graph` ID. All multiplayer participants need the same version. Requires desktop Obsidian 1.7.2 or newer.
 
 ## Verification and provenance
 
