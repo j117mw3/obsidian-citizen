@@ -1,9 +1,9 @@
 {
   "id": "constellation-graph",
   "name": "Obsidian Citizen",
-  "version": "0.6.8",
+  "version": "0.7.0",
   "minAppVersion": "1.7.2",
-  "description": "J117W3's Obsidian Citizen: explore your note constellation by spaceship, dock on main nodes, and fight in spherical first-person arenas. Includes private multiplayer and four solo training patrols.",
+  "description": "J117W3's Obsidian Citizen: explore your note constellation by spaceship, dock on main nodes, and fight across procedural alien terrain and ruins. Includes private multiplayer, moving file-linked cover, and solo training patrols.",
   "author": "J117W3",
   "authorUrl": "https://github.com/j117mw3/obsidian-constellation-graph",
   "isDesktopOnly": true
