@@ -15,7 +15,11 @@ Citizen replaces the rejected OB Citizen display name. The plugin ID remains cit
 
 ## Release acceptance
 
-Source commit 3ed60eb86a173ac881e7b6673d2ea53baa66e9be is pushed on review/citizen-0.7.6. The authenticated directory preview form is filled with that branch. Submission is blocked by unavailable native input geometry and repeated window-capture timeouts; the user was asked to click Run preview scan. Directory branch preview, published release review, provenance, and downloaded asset verification are pending. Version 0.7.6 has not been tagged or published. This document will record the actual results after publication; local checks alone do not establish a directory Pass.
+Directory preview of commit 6d37f8f3ceaeafec8de6dedec65d54ef5942185f completed with zero errors. It cleared the original CSS findings and dependency findings. The remaining source warnings were five Array.at calls (and downstream typing effects) in surface lifecycle/realtime fixtures and pickup presentation; those calls have now been replaced by equivalent indexed access for the scanner's ES2020 type environment. A second preview is pending.
+
+The preview also warned that Citizen differs from the existing OB Citizen listing name. The listing edit form exposes descriptions but no display-name field; the name must be reconciled through release metadata. This warning is separate from the original trademark rejection, which is absent in the new preview.
+
+The desktop tool can read directory results, but screenshot capture times out and coordinate input geometry is unavailable. The user submitted the first preview. Version 0.7.6 has not been tagged or published; published review, provenance, and downloaded asset verification remain pending.
 
 Vault enumeration remains necessary for the local graph. Clipboard access is limited to user-triggered room-code writes; no clipboard reads occur. Names, paths, tags, and note contents remain local.
 

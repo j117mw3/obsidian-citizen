@@ -154,9 +154,9 @@ async function run(signal: AbortSignal) {
       assert(body(1).health === 100 && body(1).kills === kill, "Confirmed elimination must score once and heal at most thirty HP");
       await until(() => rounds.every(round => round?.scores.find(score => score.playerId === ids[1])?.kills === kill), "replicated score"); checkpoint(`Confirmed surface elimination ${kill}/5`);
       if (kill === 5) break;
-      const diedAt = thisKill.at(-1)!.at;
+      const diedAt = thisKill[thisKill.length - 1].at;
       await until(() => body(2).health === 100 && body(2).lifeId > lifeBefore, "natural five-second respawn", 7000);
-      const respawn = respawns.at(-1)!; assert(respawn.at - diedAt >= 5000 && body(2).armor === 0, "Respawn timer/resources invalid");
+      const respawn = respawns[respawns.length - 1]; assert(respawn.at - diedAt >= 5000 && body(2).armor === 0, "Respawn timer/resources invalid");
       staged(2, [0, 1, 0]);
       if (kill === 1) { await wait(800); const before = body(2).health; assert(await shoot(1, 2, lifeBefore) === false, "Old-life fire request accepted"); assert(body(2).health === before, "Rejected old-life fire changed resources"); checkpoint("Old-life fire request rejected after real respawn"); }
       await until(() => Date.now() >= body(2).protectedUntil + 300, "natural spawn protection expires", 4500);

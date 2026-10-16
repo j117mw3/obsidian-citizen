@@ -48,7 +48,7 @@ export async function runRealtimeSurfaceCase(config: SurfaceLatencyCase, relay: 
           if (index === 0 || index === 1) {
             const tail = index === 0 ? publicationTail : receptionTail, at = Date.now();
             if (index === 0) {
-              const previous = tail.at(-1); cadence.publications++;
+              const previous = tail.length ? tail[tail.length - 1] : undefined; cadence.publications++;
               cadence.firstPublicationAt ||= at; cadence.lastPublicationAt = at;
               if (document.visibilityState === "hidden") cadence.hiddenPublications++;
               if (previous) { const gap = at - previous.receivedAt; cadence.maxGapMs = Math.max(cadence.maxGapMs, gap); if (gap > 125) cadence.gapsOver125Ms++; }
@@ -112,7 +112,8 @@ export async function runRealtimeSurfaceCase(config: SurfaceLatencyCase, relay: 
         if (result.reason === "view-time" && viewTimeRejections.length < 1000) {
           const measuredRttMs = fixture(requireFixture(authority)).connectionTiming.get(args[0])?.measuredRtt(args[5]) ?? null;
           const viewTime = Number(args[2]), issued = args[4].filter(time => Number.isSafeInteger(time) && time <= args[5]).slice().sort((a, b) => a - b);
-          const before = issued.filter(time => time <= viewTime).at(-1), after = issued.find(time => time >= viewTime);
+          const earlier = issued.filter(time => time <= viewTime);
+          const before = earlier.length ? earlier[earlier.length - 1] : undefined, after = issued.find(time => time >= viewTime);
           viewTimeRejections.push({ sequence: args[1], hostAgeMs: args[5] - viewTime, requestDelayMs: args[5] - attempt.at,
             measuredRttMs, expectedAgeMs: measuredRttMs === null ? null : 75 + measuredRttMs / 2,
             issuedBeforeMs: before === undefined ? null : viewTime - before, issuedAfterMs: after === undefined ? null : after - viewTime,

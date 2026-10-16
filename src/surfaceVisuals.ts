@@ -147,7 +147,7 @@ export function createSurfaceArenaVisual(arena: SurfaceArena): THREE.Group {
     const icon = pickup.kind === "armor" ? shieldIcon(color, size) : healthCross(color, size);
     marker.add(icon);
     marker.add(pickupLabel(String(marker.userData.label), color));
-    marker.children.at(-1)!.position.y = size * 0.95;
+    marker.children[marker.children.length - 1].position.y = size * 0.95;
     root.add(marker);
   }
 
