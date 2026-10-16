@@ -16,7 +16,7 @@ Download [OB Citizen 0.7.4](https://github.com/j117mw3/obsidian-citizen/releases
 
 **Plugin identity and settings:** starting with 0.7.2, this independent fork uses the unique `citizen` plugin ID so it cannot overwrite Hunter's plugin. It installs into `<vault>/.obsidian/plugins/citizen/`. Testers moving from the archived `constellation-graph` builds can back up and disable the old plugin, then copy only its `data.json` into the new folder while Obsidian is closed to retain preferences. Keep the original folder as a backup. Saved graph tabs may need reopening with **Open OB Citizen**. The installer does not migrate or delete settings automatically.
 
-Community directory submission is being prepared. GitHub availability does not mean the plugin has been approved or listed in the store.
+The independent [OB Citizen directory listing](https://community.obsidian.md/plugins/citizen) is live, with Hunter / JusVibin credited as a contributor. Automated review currently flags the abbreviated display name as containing part of “Obsidian”; directory installation is not yet approved. Use the GitHub release for manual installation while that review finding is resolved.
 
 ## Current version: 0.7.4
 
