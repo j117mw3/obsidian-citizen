@@ -9,12 +9,13 @@ Citizen replaces the rejected OB Citizen display name. The plugin ID remains cit
 - All 240 automated tests passed, including two new tests covering valid and malformed WebRTC statistics. Existing settings, anonymous topology, invalid network data, multiplayer, combat, and terrain checks passed.
 - Network, real-time surface, surface preview, and lifecycle browser harness builds passed.
 - Dependency audit reports zero vulnerabilities.
+- Two logical clients on the loopback signaling fixture established native browser WebRTC, joined one room, received anonymous maps/positions, docked independently, accepted an authoritative surface shot, and left cleanly. The preview and both room clients logged zero browser warnings/errors. This does not establish cross-computer connectivity.
 - Synthetic browser preview: graph and Hangar rendered; engine-preview control completed; staged surface docking rendered the HUD and hid graph controls. This is browser component evidence, not native Obsidian acceptance or proof of audible output.
 - Native Obsidian capture failed twice with capture/channel timeouts. Native popout, live vault reload, cross-computer multiplayer, and audible-output acceptance are not claimed.
 
 ## Release acceptance
 
-Directory branch preview, published release review, provenance, and downloaded asset verification are pending. This document will record the actual results after publication; local checks alone do not establish a directory Pass.
+Source commit 3ed60eb86a173ac881e7b6673d2ea53baa66e9be is pushed on review/citizen-0.7.6. The authenticated directory preview form is filled with that branch. Submission is blocked by unavailable native input geometry and repeated window-capture timeouts; the user was asked to click Run preview scan. Directory branch preview, published release review, provenance, and downloaded asset verification are pending. Version 0.7.6 has not been tagged or published. This document will record the actual results after publication; local checks alone do not establish a directory Pass.
 
 Vault enumeration remains necessary for the local graph. Clipboard access is limited to user-triggered room-code writes; no clipboard reads occur. Names, paths, tags, and note contents remain local.
 
