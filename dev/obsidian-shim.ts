@@ -16,7 +16,8 @@ function make<K extends keyof HTMLElementTagNameMap>(tag: K, o?: Info | string):
   return e;
 }
 
-Object.assign(window, { createEl: make, createDiv: (o?: Info | string) => make("div", o) });
+// Bootstrap SVG helpers in the browser fixture before any Obsidian helpers exist.
+Object.assign(window, { createSvg: (tag: string) => document.importNode(document.implementation.createDocument("http://www.w3.org/2000/svg", tag).documentElement, true), createEl: make, createDiv: (o?: Info | string) => make("div", o), createSpan: (o?: Info | string) => make("span", o) });
 
 Object.assign(HTMLElement.prototype, {
   createDiv(this: HTMLElement, o?: Info | string) { const e = make("div", o); this.appendChild(e); return e; },

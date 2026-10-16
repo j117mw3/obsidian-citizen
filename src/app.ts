@@ -126,7 +126,7 @@ export class ConstellationApp {
     let made: GraphRenderer | null = null;
     if (webglAvailable()) {
       try { made = new ConstellationRenderer(this.stage, callbacks, settings); }
-      catch (e) { console.warn("OB Citizen: the 3D view could not start", e); }
+      catch (e) { console.warn("Citizen: the 3D view could not start", e); }
     }
     this.flat = !made;
     this.renderer = made ?? new FallbackRenderer(callbacks);
@@ -290,7 +290,7 @@ export class ConstellationApp {
       elimination: event => this.onElimination(event),
       removed: id => { if (id) { this.renderer.removeRemote(id); this.remoteIds.delete(id); } },
       authority: (hostId, _epoch, _checkpoint) => { this.renderer.resetRemoteInterpolation?.(); this.renderer.setRoomAuthority?.(hostId === this.network?.localPlayerId); this.multiplayerStatus.textContent = "Room authority transferred. Reconnecting the shared session…"; },
-    }, () => ({ data: this.data, nodes: this.renderer.nodes }), () => this.roomServiceUrl(), this.host.post, this.host.request);
+    }, () => ({ data: this.data, nodes: this.renderer.nodes }), () => this.roomServiceUrl(), this.host.post ?? (async () => { throw new Error("HTTP transport is unavailable"); }), this.host.request);
     this.roundRefreshTimer = window.setInterval(() => this.refreshRoundDisplay(), 250);
   }
 
@@ -467,7 +467,7 @@ export class ConstellationApp {
       } else this.renderer.syncRoomNova(state.phaseRemainingMs);
     } else if (state.phase === "countdown" && old?.phase !== "countdown") this.announce("The next round is starting.");
     else if (state.phase === "combat" && old?.roundId !== undefined && state.roundId > old.roundId) this.announce(`Round ${state.roundId} started.`);
-    for (const [id, row] of this.playerRows) { const pose = this.playerStates.get(id); if (pose) this.updatePlayerRow(id, pose); }
+    for (const id of this.playerRows.keys()) { const pose = this.playerStates.get(id); if (pose) this.updatePlayerRow(id, pose); }
     this.refreshRoundDisplay();
   }
 

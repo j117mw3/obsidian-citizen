@@ -1,3 +1,4 @@
+import { isUnknownArray } from "./validation";
 import { updateTerrainPresentation } from "./surfaceTerrainMesh";
 import type { SurfacePlayerState } from "./surfacePhysics";
 import { SurfaceNameplates, type SurfaceNameplateTarget } from "./surfaceNameplates";
@@ -14,19 +15,19 @@ import type { GraphData, GraphRenderer, RendererCallbacks, SimNode } from "./typ
 import { ConstellationSettings, effectiveAutoRotate, effectiveHighContrast, effectiveMotion, prefersReducedMotion } from "./settings";
 import type { AnonymousTopology, ImpactSnapshot, NavigationTarget, Pose, ShotSnapshot } from "./multiplayer";
 import { buildShip, type Ship } from "./ship";
-import type { PilotProfile, ShipId } from "./pilotProfile";
+import type { PilotProfile } from "./pilotProfile";
 import type { RemoteAudioState } from "./sfx";
 import { interpolateRemotePose } from "./interpolation";
 import { StarCollisionGrid } from "./flight";
 import { SurfaceCoverMotion } from "./surfaceCover";
 import { decodeCoverPoses, type SurfaceCoverPacket } from "./surfaceCoverWire";
 import { createSurfaceArenaVisual, createSurfaceBotDropVisual, updateSurfaceCoverVisual, setSurfacePickupVisibility, SurfaceBoltGraphic, renderOccludedSurfaceWorld, surfaceSphereOccludes } from "./surfaceVisuals";
-import { selectMainNodeIds, surfaceBodySegments, SURFACE, type SurfaceBotView, type SurfaceBotShotView, type SurfaceBotDropView } from "./surface";
+import { selectMainNodeIds, SURFACE, type SurfaceBotView, type SurfaceBotShotView, type SurfaceBotDropView } from "./surface";
 import { surfaceShotDamage, type SurfaceShotKind, SURFACE_BLASTER } from "./surfaceCombat";
 import { SurfacePilot } from "./surfacePilot";
 import { SurfaceAudio } from "./surfaceAudio";
 import { SurfaceWorld, type SurfaceArenaView, type SurfaceShipState, type SurfaceTopology } from "./surfaceWorld";
-import { createSurfacePlayerState, type SurfaceInput } from "./surfacePhysics";
+import { type SurfaceInput } from "./surfacePhysics";
 import { spreadSurfaceDirection, surfaceSpreadDegrees, surfaceSeed, traceSurfaceSegment } from "./surfaceCombat";
 import type { SurfaceCombatTarget } from "./surfaceCombat";
 import { SurfaceHistory, type SurfaceHistoryFrame } from "./surfaceHistory";
@@ -930,7 +931,7 @@ export class ConstellationRenderer implements GraphRenderer {
         this.scene.add(ship.group); ship.lights.forEach(light => { light.visible = true; this.scene.add(light); });
       }
       ship.group.position.set(...this.parkedWorldPosition(player, arena)); ship.group.quaternion.set(...player.ship.rotation);
-      ship.lights.forEach(light => { light.position.copy(ship!.group.position); light.quaternion.copy(ship!.group.quaternion); });
+      ship.lights.forEach(light => { light.position.copy(ship.group.position); light.quaternion.copy(ship.group.quaternion); });
       seen.add(player.id);
     }
     for (const [id, ship] of this.remoteParkedSurfaceShips) if (!seen.has(id)) {
@@ -956,7 +957,7 @@ export class ConstellationRenderer implements GraphRenderer {
       const age = bolt.shot.stoppedAt ? 0 : Math.max(0, Math.min(0.1, (hostNow - bolt.updatedAt) / 1000, (bolt.shot.startedAt + SURFACE_BLASTER.boltLifetimeMs - bolt.updatedAt) / 1000));
       const travel = Math.min(120 * age, SURFACE_BLASTER.boltRange - bolt.shot.travelled);
       const position = new THREE.Vector3(...bolt.shot.position).addScaledVector(new THREE.Vector3(...bolt.shot.direction), travel);
-      const blocker = traceSurfaceSegment(bolt.shot.position, position.toArray() as [number, number, number], arena.arena.walls, [], "", arena.arena.radius ?? SURFACE.radius);
+      const blocker = traceSurfaceSegment(bolt.shot.position, position.toArray(), arena.arena.walls, [], "", arena.arena.radius ?? SURFACE.radius);
       if (blocker) position.set(...blocker.position);
       const tail = Math.min(2.2, bolt.shot.travelled + travel);
       const start = position.clone().addScaledVector(new THREE.Vector3(...bolt.shot.direction), -tail);
@@ -993,7 +994,7 @@ export class ConstellationRenderer implements GraphRenderer {
       const item = object as THREE.Mesh | THREE.LineSegments;
       if (item.geometry) item.geometry.dispose();
       const material = item.material;
-      if (material) for (const value of Array.isArray(material) ? material : [material]) { (value as THREE.MeshBasicMaterial).map?.dispose(); value.dispose(); }
+      if (material) for (const value of isUnknownArray(material) ? material : [material]) { (value as THREE.MeshBasicMaterial).map?.dispose(); value.dispose(); }
     });
     group.removeFromParent();
   }
@@ -1022,7 +1023,7 @@ export class ConstellationRenderer implements GraphRenderer {
       if (!hub.dockable && !frozen) continue;
       const connected = topology.links.flatMap(edge => edge[0] === hub.id ? [edge[1]] : edge[1] === hub.id ? [edge[0]] : []);
       const group = createSurfaceArenaVisual(frozen ?? generateSurfaceArena(hub.id, connected, new Map(), true));
-      this.sim.setSurfaceEnvelope?.(this.sim.nodes[index].id, group.userData.radius);
+      this.sim.setSurfaceEnvelope?.(this.sim.nodes[index].id, Number(group.userData.radius));
       this.scene.add(group);
       this.localSurfaceGroups.set(hub.id, { group, index });
     }
@@ -1163,12 +1164,12 @@ export class ConstellationRenderer implements GraphRenderer {
   setRemoteShip(playerId: string, pose: Pose, name = "Pilot", profile?: PilotProfile): void {
     let remote = this.remoteShips.get(playerId);
     if (!remote) {
-      const chosen = profile ?? { revision: 1, ship: "classic", engine: "classic", afterburner: "classic", laser: "classic" } as PilotProfile;
+      const chosen = profile ?? { revision: 1, ship: "classic", engine: "classic", afterburner: "classic", laser: "classic" };
       const ship = buildShip(chosen.ship); ship.group.scale.setScalar(this.multiplayer ? 0.68 : 0.34); ship.group.visible = false;
       this.scene.add(ship.group); ship.lights.forEach(light => this.scene.add(light));
-      const indicator = document.createElement("div"); indicator.className = "cg-player-indicator"; indicator.hidden = true;
-      const arrow = document.createElement("span"); arrow.className = "cg-player-indicator-arrow";
-      const label = document.createElement("span"); label.className = "cg-player-indicator-label";
+      const indicator = createDiv(); indicator.className = "cg-player-indicator"; indicator.hidden = true;
+      const arrow = createSpan(); arrow.className = "cg-player-indicator-arrow";
+      const label = createSpan(); label.className = "cg-player-indicator-label";
       indicator.append(arrow, label); this.indicatorLayer.appendChild(indicator);
       remote = { ship, target: null, samples: [], name, profile: chosen, indicator, label, arrow, velocity: new THREE.Vector3() }; this.remoteShips.set(playerId, remote);
     }
@@ -1576,7 +1577,7 @@ export class ConstellationRenderer implements GraphRenderer {
     this.removeParkedSurfaceShip();
     this.rebuildLocalSurfaceVisuals();
     this.controls.enabled = true; this.tween = null; this.autoFrame = false;
-    this.setPilot(true, { position: position.toArray() as [number, number, number], rotation: [...ship.rotation], velocity: [0, 0, 0] });
+    this.setPilot(true, { position: position.toArray(), rotation: [...ship.rotation], velocity: [0, 0, 0] });
   }
 
   private returnToRoomSurfaceShip(ship: { position: [number, number, number]; rotation: [number, number, number, number]; velocity: [number, number, number] }, center: [number, number, number]): void {
@@ -1776,7 +1777,7 @@ export class ConstellationRenderer implements GraphRenderer {
       const end = start.clone().addScaledVector(bolt.direction, travel);
       const bots = this.surfaceWorld.listBots().filter(bot => bot.arenaKey === arena.key && bot.health > 0);
       const targets: SurfaceCombatTarget[] = bots.map(bot => ({ id: bot.id, state: bot.state, health: bot.health, protected: false }));
-      const hit = bolt.stoppedAt || travel <= 0 ? null : traceSurfaceSegment(start.toArray() as [number, number, number], end.toArray() as [number, number, number], arena.arena.walls, targets, bolt.ownerId, arena.arena.radius ?? SURFACE.radius);
+      const hit = bolt.stoppedAt || travel <= 0 ? null : traceSurfaceSegment(start.toArray(), end.toArray(), arena.arena.walls, targets, bolt.ownerId, arena.arena.radius ?? SURFACE.radius);
       if (hit) {
         bolt.position.set(...hit.position);
         bolt.travelled += travel * hit.t;
@@ -1795,7 +1796,7 @@ export class ConstellationRenderer implements GraphRenderer {
       if (!bolt.stoppedAt && (stepAt >= bolt.startedAt + SURFACE_BLASTER.boltLifetimeMs || bolt.travelled >= 30)) { bolt.graphic.dispose(); continue; }
       const tail = Math.min(2.2, Math.max(0.08, bolt.travelled));
       const from = bolt.position.clone().addScaledVector(bolt.direction, -tail);
-      bolt.graphic.setSegment(new THREE.Vector3(...surfaceToWorld(from.toArray() as [number, number, number], this.surfaceDisplayCenter(arena))), new THREE.Vector3(...surfaceToWorld(bolt.position.toArray() as [number, number, number], this.surfaceDisplayCenter(arena))));
+      bolt.graphic.setSegment(new THREE.Vector3(...surfaceToWorld(from.toArray(), this.surfaceDisplayCenter(arena))), new THREE.Vector3(...surfaceToWorld(bolt.position.toArray(), this.surfaceDisplayCenter(arena))));
       remaining.push(bolt);
     }
     this.surfaceBolts = remaining;
@@ -2239,14 +2240,14 @@ export class ConstellationRenderer implements GraphRenderer {
     this.updateNavigationMarker();
     this.updatePlayerIndicators();
     const remoteAudio: RemoteAudioState[] = [...this.remoteShips].map(([id, remote]) => ({
-      id, profile: remote.profile, position: remote.ship.group.position.toArray() as [number, number, number],
+      id, profile: remote.profile, position: remote.ship.group.position.toArray(),
       active: !!remote.target?.active && remote.target.health > 0 && remote.ship.group.visible,
       speed: remote.target ? Math.hypot(...remote.target.velocity) : 0, thrust: remote.target?.thrust ?? 0, boosting: remote.target?.boosting ?? false,
     }));
     if (this.surfacePilot.active) {
-      const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion).toArray() as [number, number, number];
-      const up = new THREE.Vector3(0, 1, 0).applyQuaternion(this.camera.quaternion).toArray() as [number, number, number];
-      this.pilot.updateSurfaceNearbyAudio(remoteAudio, { position: this.camera.position.toArray() as [number, number, number], forward, up }, this.settings.pilotNearbyAudio);
+      const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion).toArray();
+      const up = new THREE.Vector3(0, 1, 0).applyQuaternion(this.camera.quaternion).toArray();
+      this.pilot.updateSurfaceNearbyAudio(remoteAudio, { position: this.camera.position.toArray(), forward, up }, this.settings.pilotNearbyAudio);
     } else this.pilot.updateNearbyAudio(remoteAudio, this.multiplayer && this.pilot.active && this.settings.pilotNearbyAudio);
     if (!(moving || animating || camMoved || this.stale || this.tween || this.follow >= 0)) return; // fully at rest: draw nothing
     this.stale = false;
@@ -2443,7 +2444,7 @@ export class ConstellationRenderer implements GraphRenderer {
     if (!this.surfacePilot.active) return false;
     const arenas = this.multiplayer ? this.roomSurfaceArenas.values() : this.surfaceWorld.listArenas();
     for (const arena of arenas){const center=this.surfaceDisplayCenter(arena);
-      if(arena.arena.terrain){const a=worldToSurface(this.camera.position.toArray() as [number,number,number],center),b=worldToSurface(point.toArray() as [number,number,number],center);
+      if(arena.arena.terrain){const a=worldToSurface(this.camera.position.toArray(),center),b=worldToSurface(point.toArray(),center);
         if(traceSurfaceSegment(a,b,arena.arena.walls,[],"",arena.arena.radius??27))return true;
       }else if(surfaceSphereOccludes(this.camera.position,point,center,(arena.arena.radius??27)*SURFACE_WORLD_SCALE))return true;
     }

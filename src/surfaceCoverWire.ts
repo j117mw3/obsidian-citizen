@@ -1,3 +1,5 @@
+import { isRecord } from "./validation";
+import { isUnknownArray } from "./validation";
 import type { SurfaceVector } from "./surface";
 import type { SurfaceArenaView, SurfacePlayerView } from "./surfaceWorld";
 import { nearbySurfaceWalls } from "./surfaceCollision";
@@ -34,9 +36,9 @@ export function encodeCoverPoses(arenas:readonly SurfaceArenaView[],players:read
   });
 }
 export function validCoverPackets(value:unknown,arenas:readonly SurfaceArenaView[]):boolean {
-  if(value===undefined)return true;if(!Array.isArray(value)||value.length>4)return false;
+  if(value===undefined)return true;if(!isUnknownArray(value)||value.length>4)return false;
   let count=0;const seen=new Set<string>();
-  for(const packet of value){const arena=arenas.find(a=>a.key===packet?.arenaKey);if(!arena||seen.has(packet.arenaKey))return false;seen.add(packet.arenaKey);
+  for(const packet of value){if(!isRecord(packet)||typeof packet.arenaKey!=="string")return false;const arena=arenas.find(a=>a.key===packet?.arenaKey);if(!arena||seen.has(packet.arenaKey))return false;seen.add(packet.arenaKey);
     const rows=decodeCoverPoses(packet.poses,arena.arena.walls.length);if(!rows||(count+=rows.length)>MAX_ROWS)return false;}
   return true;
 }

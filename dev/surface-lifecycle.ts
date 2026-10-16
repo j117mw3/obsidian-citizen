@@ -1,3 +1,6 @@
+import "./obsidian-shim";
+import { connectionStats, connectionStatById } from "../src/rtcStats";
+import { proxyStats, browserPost } from "./browser-http";
 // Explicitly staged integration fixture. No vault reads, WebGL, clock overrides,
 // direct damage calls, accelerated timers, or resource resets during fights.
 import * as THREE from "three";
@@ -11,18 +14,16 @@ import type { RoundSnapshot } from "../src/rounds";
 import type { GraphData, SimNode } from "../src/types";
 import { proxyIceConnection } from "./network-impairment";
 
-const access = (value: unknown): any => value;
-const wait = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
+import { fixture, requireFixture, type SessionFixture, type AuthorityFixture } from "./fixture-access";
+const wait = (ms: number) => new Promise<void>(resolve => window.setTimeout(resolve, ms));
 const status = document.getElementById("status")!, output = document.getElementById("results")!, progress = document.getElementById("progress")!;
 const query = new URLSearchParams(location.search), token = query.get("udp"), relay = query.get("relay");
 let active: AbortController | null = null;
 async function initialize() {
   if (!token || relay !== `${location.origin}/relay` || !/^http:\/\/127\.0\.0\.1:\d+$/.test(location.origin)) throw new Error("Use a dedicated loopback UDP server URL");
-  const response = await fetch(`/udp/stats?token=${encodeURIComponent(token)}`);
-  if (!response.ok) throw new Error("UDP fixture unavailable");
-  const proxy = await response.json();
+  const proxy = await proxyStats(`/udp/stats?token=${encodeURIComponent(token)}`);
   if (proxy.profile.rtt !== 200 || proxy.profile.jitter !== 25 || proxy.profile.loss !== 0.01) throw new Error("Lifecycle check requires 200 ms RTT, ±25 ms one-way jitter and 1% UDP loss");
-  globalThis.RTCPeerConnection = proxyIceConnection(globalThis.RTCPeerConnection, token, () => { status.textContent = "UDP registration failed"; });
+  window.RTCPeerConnection = proxyIceConnection(window.RTCPeerConnection, token, () => { status.textContent = "UDP registration failed"; });
   document.getElementById("start")!.removeAttribute("disabled"); status.textContent = "Ready: dedicated real UDP 200 ms profile.";
 }
 
@@ -31,8 +32,8 @@ async function run(signal: AbortSignal) {
   const histories = Array.from({ length: 4 }, () => new SurfaceHistory()), estimates = [0, 0, 0, 0], received = [0, 0, 0, 0];
   const rounds: Array<RoundSnapshot | null> = [null, null, null, null], nova = [0, 0, 0, 0], roundEvents: unknown[] = [], eliminations = Array.from({ length: 4 }, () => new Set<string>());
   const dispositions = new Map<string, boolean>(), sequence = [0, 0, 0, 0], interact = [false, false, false, false];
-  const checks: string[] = [], pickupEvents: unknown[] = [], fireObservations: unknown[] = [], damageEvents: Array<{ target: string; applied: number; killed: boolean; at: number; lifeBefore: number; lifeAfter: number }> = [], respawns: Array<{ id: string; at: number }> = [];
-  let inputs = 0, invalidSnapshots = 0, host: any, authority: any, arenaKey = "";
+  const checks: string[] = [], pickupEvents: unknown[] = [], fireObservations: Array<{ player: string; sequence: number; accepted: boolean; reason?: string; viewAgeMs: number; rttMs: number | null }> = [], damageEvents: Array<{ target: string; applied: number; killed: boolean; at: number; lifeBefore: number; lifeAfter: number }> = [], respawns: Array<{ id: string; at: number }> = [];
+  let inputs = 0, invalidSnapshots = 0, host: SessionFixture, authority: AuthorityFixture, arenaKey = "";
   const startedAt = Date.now(), deadline = startedAt + 360000;
   const graphs = Array.from({ length: 4 }, () => {
     const data: GraphData = { groups: [{ key: "fixture", label: "Fixture", color: "#8CECFF", count: 2 }],
@@ -47,8 +48,8 @@ async function run(signal: AbortSignal) {
     const end = Math.min(deadline, Date.now() + timeout);
     while (!predicate()) { if (signal.aborted) throw new Error("Cancelled; no acceptance result"); if (Date.now() >= end) throw new Error(`Timed out: ${label}`); await wait(20); }
   };
-  const body = (index: number) => authority.world.players.get(ids[index]);
-  const staged = (index: number, normal: [number, number, number], forward?: [number, number, number]) => { body(index).surface = createSurfacePlayerState(normal, forward); };
+  const body = (index: number) => requireFixture(fixture(authority.world).players.get(ids[index]));
+  const staged = (index: number, normal: readonly [number, number, number], forward?: readonly [number, number, number]) => { body(index).surface = createSurfacePlayerState(normal, forward); };
   const everySnapshot = (predicate: (snapshot: SurfaceNetworkSnapshot) => unknown) => snapshots.every(snapshot => snapshot && predicate(snapshot));
   const shoot = async (targetIndex: number, index = 1, obsoleteLife?: number) => {
     const snapshot = snapshots[index], shooter = snapshot?.players.find(player => player.id === ids[index]);
@@ -57,14 +58,14 @@ async function run(signal: AbortSignal) {
       estimates[index] + Math.max(0, now - received[index]), snapshot!.hostTime);
     const target = shown.samples.find(sample => sample.player.id === ids[targetIndex]); assert(target, "Target has no presented pose");
     const muzzle = new THREE.Vector3(...surfaceViewPose(shooter!.surface!).muzzle), targetPosition = new THREE.Vector3(...target!.frame.state.position);
-    const aim = targetPosition.clone().addScaledVector(targetPosition.clone().normalize(), 1.2).sub(muzzle).normalize().toArray() as [number, number, number];
+    const aim = targetPosition.clone().addScaledVector(targetPosition.clone().normalize(), 1.2).sub(muzzle).normalize().toArray();
     const next = ++sequence[index]; sessions[index].fireSurface(next, Math.floor(shown.representedAt), shooter!.arenaKey!, obsoleteLife ?? shooter!.lifeId, aim);
     if (obsoleteLife !== undefined) {
       // Current-life snapshot reconciliation intentionally cancels this local
       // pending command. Inspect the actual host receipt/rejection, not a
       // callback that the production client is required to retire.
-      await until(() => fireObservations.some(item => access(item).player === ids[index] && access(item).sequence === next), "host rejection of obsolete life", 1800);
-      return access(fireObservations.find(item => access(item).player === ids[index] && access(item).sequence === next)).accepted as boolean;
+      await until(() => fireObservations.some(item => item.player === ids[index] && item.sequence === next), "host rejection of obsolete life", 1800);
+      return requireFixture(fireObservations.find(item => item.player === ids[index] && item.sequence === next)).accepted;
     }
     await until(() => dispositions.has(`${index}:${next}`), "authoritative fire disposition", 1800);
     return dispositions.get(`${index}:${next}`)!;
@@ -85,25 +86,25 @@ async function run(signal: AbortSignal) {
           if (state.phase === "supernova" && nova[index] !== state.roundId) {
             nova[index] = state.roundId;
             for (const node of graphs[index].nodes) node.x += 3;
-            setTimeout(() => sessions[index]?.republishLocalLayout(), 0);
+            window.setTimeout(() => sessions[index]?.republishLocalLayout(), 0);
           }
         },
         elimination(event) { eliminations[index].add(event.id); },
-      }, () => graphs[index], () => relay!);
+      }, () => graphs[index], () => relay!, browserPost);
       sessions.push(session);
       if (index === 0) await session.create("Lifecycle Host"); else await session.join(sessions[0].room, `Lifecycle ${index}`);
     }
-    await until(() => sessions.every(session => session.members.length === 4 && [...access(session).peers.values()].filter((peer: any) => peer.pc.connectionState === "connected").length === 3), "four-client native mesh", 30000);
-    host = access(sessions[0]); authority = host.surfaceAuthority;
+    await until(() => sessions.every(session => session.members.length === 4 && [...fixture(session).peers.values()].filter((peer) => peer.pc.connectionState === "connected").length === 3), "four-client native mesh", 30000);
+    host = fixture(sessions[0]); authority = fixture(requireFixture(host.surfaceAuthority));
     const topology = sessions[0].localTopology!, hub = topology.nodes.find(node => node.dockable)!; arenaKey = `${ids[0]}/${hub.id}`;
     await until(() => authority.world.getArena(arenaKey), "host arena");
     const realUpdate = authority.world.updatePlayer.bind(authority.world), realDamage = authority.world.damage.bind(authority.world), realFire = authority.fire.bind(authority);
-    authority.fire = (...args: any[]) => { const result = realFire(...args); fireObservations.push({ player: args[0], sequence: args[1], accepted: result.accepted, reason: result.reason,
+    authority.fire = (...args: Parameters<typeof realFire>) => { const result = realFire(...args); fireObservations.push({ player: args[0], sequence: args[1], accepted: result.accepted, reason: result.reason,
       viewAgeMs: args[5] - Number(args[2]), rttMs: authority.connectionTiming.get(args[0])?.measuredRtt(args[5]) ?? null }); return result; };
-    authority.world.updatePlayer = (...args: any[]) => { const result = realUpdate(...args); if (result === "pickup") pickupEvents.push({ id: args[0], at: args[3] }); if (result === "respawn") respawns.push({ id: args[0], at: args[3] }); return result; };
-    authority.world.damage = (...args: any[]) => { const lifeBefore = authority.world.getPlayer(args[0])?.lifeId, result = realDamage(...args); if (result.applied) damageEvents.push({ target: args[0], applied: result.applied, killed: result.killed, at: args[3], lifeBefore, lifeAfter: authority.world.getPlayer(args[0])?.lifeId }); return result; };
+    authority.world.updatePlayer = (...args: Parameters<typeof realUpdate>) => { const result = realUpdate(...args); if (result === "pickup") pickupEvents.push({ id: args[0], at: args[3] }); if (result === "respawn") respawns.push({ id: args[0], at: args[3] }); return result; };
+    authority.world.damage = (...args: Parameters<typeof realDamage>) => { const lifeBefore = authority.world.getPlayer(args[0])?.lifeId, result = realDamage(...args); if (result.applied) damageEvents.push({ target: args[0], applied: result.applied, killed: result.killed, at: args[3], lifeBefore: lifeBefore ?? 0, lifeAfter: authority.world.getPlayer(args[0])?.lifeId ?? 0 }); return result; };
     const dock = async (index: number) => {
-      const centre = authority.world.getArena(arenaKey).center, fighter = host.world.players.get(ids[index]);
+      const centre = requireFixture(authority.world.getArena(arenaKey)).center, fighter = requireFixture(requireFixture(host.world).players.get(ids[index]));
       fighter.pos.set(centre[0], centre[1], centre[2] + 15); fighter.rot.set(0, 0, 0, 1); fighter.vel.set(0, 0, 0); fighter.active = true; fighter.input.active = true;
       await wait(150); sessions[index].requestSurfaceDock({ ownerId: ids[0], starId: hub.id, revision: sessions[0].localTopology!.revision });
       await until(() => authority.world.getPlayer(ids[index])?.mode === "surface", `normal docking request ${index}`);
@@ -113,13 +114,13 @@ async function run(signal: AbortSignal) {
     inputs = window.setInterval(() => { for (let index = 0; index < 4; index++) { const player = snapshots[index]?.players.find(player => player.id === ids[index]); if (player?.surface && player.arenaKey) sessions[index].sendSurfaceInput({ moveX: 0, moveY: 0, sprint: false, jump: false, crouch: false, yawDelta: 0, pitchDelta: 0, lean: 0, interact: interact[index] }, player.arenaKey, player.lifeId); } }, 1000 / 60);
     sessions[1].setSurfaceColor("#000000"); await until(() => everySnapshot(snapshot => snapshot.players.find(player => player.id === ids[1])?.laserColor === "#959595"), "approved color on every peer"); checkpoint("Approved dark color replicated");
 
-    const arena = authority.world.getArena(arenaKey), pickup = arena.arena.pickups.find((item: any) => item.kind === "small-health");
+    const arena = requireFixture(authority.world.getArena(arenaKey)), pickup = requireFixture(arena.arena.pickups.find((item) => item.kind === "small-health"));
     for (const index of [1, 2]) { staged(index, pickup.normal); body(index).health = 60; body(index).armor = 0; }
     await until(() => pickupEvents.length, "simultaneous pickup");
     assert(body(1).health + body(2).health === 145, "One small pickup must heal exactly one of two colocated players");
     staged(1, [0, 1, 0]); staged(2, [0, -1, 0]);
     await until(() => everySnapshot(snapshot => snapshot.pickups.some(item => item.arenaKey === arenaKey && item.id === pickup.id && !item.available)), "pickup hidden on all peers");
-    const pickupTimer = authority.world.getPickups(arenaKey, Date.now()).find((item: any) => item.id === pickup.id).respawnAt;
+    const pickupTimer = authority.world.getPickups(arenaKey, Date.now()).find((item) => item.id === pickup.id)!.respawnAt;
     assert(pickupEvents.length === 1, "Simultaneous collection duplicated"); checkpoint("One collection, replicated unavailable pickup");
     await until(() => everySnapshot(snapshot => snapshot.hostTime >= pickupTimer && snapshot.pickups.some(item => item.arenaKey === arenaKey && item.id === pickup.id && item.available)), "real fifteen-second pickup respawn", 18000);
     assert(pickupEvents.length === 1, "Pickup collected twice while players were away"); checkpoint("Real pickup timer restored availability on all peers");
@@ -139,8 +140,8 @@ async function run(signal: AbortSignal) {
     interact[3] = false; checkpoint("Network blaster damage interrupted a held pole exit");
     await wait(3200); interact[3] = true;
     await until(() => body(3).mode === "ship", "continuous pole return", 5000); interact[3] = false;
-    assert(body(3).health === 90 && !host.world.isSurfaceDocked(ids[3]), "Undocking must preserve surface health and restore ship mode");
-    assert(host.world.poses(Date.now()).find((item: any) => item.id === ids[3]).pose.velocity.every((value: number) => value === 0), "Returned ship must be at rest");
+    assert(body(3).health === 90 && !requireFixture(host.world).isSurfaceDocked(ids[3]), "Undocking must preserve surface health and restore ship mode");
+    assert(requireFixture(host.world).poses(Date.now()).find((item) => item.id === ids[3])!.pose.velocity.every((value: number) => value === 0), "Returned ship must be at rest");
     await dock(3); assert(body(3).health === 90, "Redocking healed surface health"); staged(3, [-1, 0, 0]); checkpoint("Pole return and redocking preserve resources");
 
     staged(2, [0, 1, 0]); body(2).health = 100; body(2).armor = 50; body(1).health = 70;
@@ -169,12 +170,12 @@ async function run(signal: AbortSignal) {
     checkpoint("Republished layouts, countdown, round two and pickup/resource reset");
     assert(invalidSnapshots === 0, "Invalid surface snapshots received");
     const transport = [];
-    for (const session of sessions) for (const peer of access(session).peers.values()) { const stats = await peer.pc.getStats(), selected = [...stats.values()].find((item: any) => item.type === "transport" && item.selectedCandidatePairId) as any;
-      const pair = selected && stats.get(selected.selectedCandidatePairId), remote = pair && stats.get(pair.remoteCandidateId); transport.push({ connected: peer.pc.connectionState === "connected", proxy: remote?.address === "127.0.0.1", rttMs: Math.round((pair?.currentRoundTripTime ?? 0) * 1000) }); }
+    for (const session of sessions) for (const peer of fixture(session).peers.values()) { const stats = await peer.pc.getStats(), selected = connectionStats(stats).find((item) => item.type === "transport" && item.selectedCandidatePairId);
+      const pair = selected && connectionStatById(stats, selected.selectedCandidatePairId ?? ""), remote = pair && connectionStatById(stats, pair.remoteCandidateId); transport.push({ connected: peer.pc.connectionState === "connected", proxy: remote?.address === "127.0.0.1", rttMs: Math.round((pair?.currentRoundTripTime ?? 0) * 1000) }); }
     assert(transport.length === 12 && transport.every(item => item.connected && item.proxy), "All twelve local peer connections must retain proxy routes");
     return { passed: true, scope: "Four logical clients, real WebRTC/UDP; staged ship/body poses and explicit initial combat resources; ordinary requests, no direct damage, real timers. No native Obsidian/WebGL/audio/traversal claim.", checks, elapsedMs: Date.now() - startedAt, invalidSnapshots, pickupEvents, pickupTimer, fireObservations, damageEvents, respawns, roundEvents, transport };
   } catch (error) { return { passed: false, reason: error instanceof Error ? error.message : String(error), checks, elapsedMs: Date.now() - startedAt, invalidSnapshots, pickupEvents, fireObservations, damageEvents, respawns, roundEvents }; }
-  finally { clearInterval(inputs); for (const session of sessions) session.leave(); }
+  finally { window.clearInterval(inputs); for (const session of sessions) session.leave(); }
 }
 document.getElementById("start")!.addEventListener("click", () => { if (active) return; const controller = active = new AbortController(); status.textContent = "Running staged lifecycle integration; real timers";
   void run(controller.signal).then(result => { output.textContent = JSON.stringify(result, null, 2); status.textContent = result.passed ? "PASS staged real-network lifecycle checks. No rendering claim." : `FAIL: ${result.reason}`; }).finally(() => { active = null; }); });

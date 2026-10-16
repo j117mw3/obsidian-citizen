@@ -1,7 +1,7 @@
 {
   "name": "citizen",
-  "version": "0.7.5",
-  "description": "OB Citizen: a 3D note constellation and multiplayer space sandbox.",
+  "version": "0.7.6",
+  "description": "Citizen: a 3D note constellation and multiplayer space sandbox.",
   "author": "J117W3",
   "homepage": "https://github.com/j117mw3/obsidian-citizen#readme",
   "repository": {
@@ -20,12 +20,17 @@
     "harness": "node dev/build-harness.mjs",
     "harness:network": "node dev/build-network-harness.mjs",
     "test:surface-latency": "node dev/run-surface-latency.mjs",
-    "install-local": "node dev/install-local.mjs"
+    "install-local": "node dev/install-local.mjs",
+    "lint": "eslint \"src/**/*.ts\" \"dev/**/*.ts\" --max-warnings 0 && node dev/lint-css.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
     "@types/three": "~0.180.0",
+    "@typescript-eslint/eslint-plugin": "^8.71.2",
+    "@typescript-eslint/parser": "^8.71.2",
     "esbuild": "^0.25.0",
+    "eslint": "^9.39.5",
+    "eslint-plugin-obsidianmd": "^0.4.2",
     "obsidian": "latest",
     "tslib": "^2.8.0",
     "typescript": "~5.9.0"
@@ -34,5 +39,8 @@
     "d3-force-3d": "^3.0.6",
     "fflate": "0.8.3",
     "three": "~0.180.0"
+  },
+  "overrides": {
+    "moment": "^2.31.0"
   }
 }

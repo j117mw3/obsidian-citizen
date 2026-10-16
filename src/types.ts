@@ -54,9 +54,9 @@ export interface SimNode extends RawNode {
 export interface Host {
   openNote(id: string, newTab: boolean): void;
   /** Send small room-discovery messages through Obsidian's native HTTP adapter. */
-  post?(url: string, body: string): Promise<number>;
+  post?(this: void, url: string, body: string): Promise<number>;
   /** Read the backend's short-lived ICE relay configuration through Obsidian's native HTTP adapter. */
-  request?(url: string, token?: string): Promise<{ status: number; body: unknown }>;
+  request?(this: void, url: string, token?: string): Promise<{ status: number; body: unknown }>;
   updateSettings?(patch: Partial<ConstellationSettings>): void;
 }
 

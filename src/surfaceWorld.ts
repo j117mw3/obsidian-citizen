@@ -3,7 +3,7 @@ import { SurfaceCoverMotion } from "./surfaceCover";
 import { generateDirectedSurfaceArena, surfaceRadiusForConnections } from "./surfaceGeometry";
 import { SURFACE, SURFACE_PARKING_NORMALS, type SurfaceArena, type SurfaceVector, type SurfaceBotView, type SurfaceBotShotView, type SurfaceBotDropView } from "./surface";
 import { createSurfacePlayerState, stepSurfacePlayer, surfacePoseClear, validSurfacePlayerState as validSurfaceState, type SurfaceInput, type SurfacePlayerState } from "./surfacePhysics";
-import { SURFACE_CHARGE, type SurfaceShotKind, SURFACE_BLASTER, spreadSurfaceDirection, surfaceSeed, surfaceShotDamage, traceSurfaceSegment, type SurfaceCombatTarget } from "./surfaceCombat";
+import { SURFACE_CHARGE, type SurfaceShotKind, SURFACE_BLASTER, spreadSurfaceDirection, surfaceSeed, traceSurfaceSegment, type SurfaceCombatTarget } from "./surfaceCombat";
 import { createSurfacePatrol, stepSurfacePatrol, type SurfacePatrol } from "./surfacePatrol";
 import { surfaceViewPose } from "./surfaceView";
 import { PLAYER_KILLS_TO_WIN } from "./rounds";
@@ -85,7 +85,7 @@ interface BotRuntime {
   lastSeenNormal: Vec3 | null; lastSeenAt: number; pursuitStartedAt: number; reacquireUntil: number; nextShotAt: number; respawnAt: number; shotSequence: number;
 }
 interface BotShotRuntime extends SurfaceBotShotView { simulatedAt: number }
-interface BotDropRuntime extends SurfaceBotDropView {}
+type BotDropRuntime = SurfaceBotDropView;
 
 const clamp = (value: number, low: number, high: number): number => Math.max(low, Math.min(high, value));
 const keyFor = (ownerId: string, hubId: string): string => `${ownerId}/${hubId}`;
@@ -115,7 +115,7 @@ function validArenaDefinition(arena: unknown, hubId: string): arena is SurfaceAr
       || Math.abs(Math.hypot(...wall.normal) - 1) > 0.01 || Math.abs(Math.hypot(...wall.tangent) - 1) > 0.01
       || Math.abs(dot(wall.normal, wall.tangent)) > 0.02 || !([SURFACE.lowWallHeight, SURFACE.tallWallHeight] as number[]).includes(wall.height)
       || !Number.isFinite(wall.length) || wall.length < 1 || wall.length > 10) return false;
-    wallIds.add(wall.id); connectionCounts.set(wall.connectionId!, (connectionCounts.get(wall.connectionId!) ?? 0) + 1);
+    wallIds.add(wall.id); connectionCounts.set(wall.connectionId, (connectionCounts.get(wall.connectionId) ?? 0) + 1);
   }
   if ([...connectionCounts.values()].some(count => count !== 2)) return false;
   const pickupIds = new Set<string>();
@@ -296,7 +296,7 @@ export class SurfaceWorld {
         target = visible[0].player; bot.targetId = target.id; bot.pursuitStartedAt = now; bot.lastSeenAt = now;
         bot.lastSeenNormal = unit([...target.surface!.position]); bot.nextShotAt = now + 1000;
       }
-      const sighted = target ? visible.find(item => item.player.id === target!.id) : undefined;
+      const sighted = target ? visible.find(item => item.player.id === target.id) : undefined;
       if (target && sighted) { bot.lastSeenAt = now; bot.lastSeenNormal = unit([...target.surface!.position]); }
       if (target && bot.lastSeenNormal) {
         bot.patrol.goal = [...bot.lastSeenNormal]; bot.patrol.repath = 1;
@@ -405,7 +405,7 @@ export class SurfaceWorld {
       const view = item?.view;
       if (!view || typeof view.key !== "string" || typeof view.ownerId !== "string" || !view.ownerId || typeof view.hubId !== "string" || !view.hubId
         || view.key !== keyFor(view.ownerId, view.hubId) || nextArenas.has(view.key) || !Number.isSafeInteger(view.revision) || view.revision < 1
-        || !Number.isSafeInteger(view.topologyRevision) || view.topologyRevision! < 1
+        || !Number.isSafeInteger(view.topologyRevision) || view.topologyRevision < 1
         || !finiteTuple(view.center, 3) || view.center.some(number => Math.abs(number) > 1_000_000) || typeof view.acceptingPlayers !== "boolean"
         || !validArenaDefinition(view.arena, view.hubId) || !Array.isArray(item.pickups) || item.pickups.length !== view.arena.pickups.length
         || item.pickups.some(pickup => !pickup || typeof pickup.available !== "boolean" || !Number.isFinite(pickup.respawnRemainingMs) || pickup.respawnRemainingMs < 0 || pickup.respawnRemainingMs > 60_000)
@@ -465,7 +465,7 @@ export class SurfaceWorld {
     for (const arena of mergedArenas.values()) if (arena.pending && arena.occupants.size === 0) return false;
 
     const nextBots = new Map<string, BotRuntime>(), botIndexes = new Map<string, Set<number>>();
-    const next = (checkpoint as SurfaceWorldCheckpoint).bots;
+    const next = (checkpoint).bots;
     for (const item of next) {
       const arena = mergedArenas.get(item?.arenaKey), patrol = item?.patrol;
       if (!arena || !arena.occupants.size || !Number.isSafeInteger(item.index) || item.index < 0 || item.index > 3
@@ -944,7 +944,7 @@ export class SurfaceWorld {
     const arena = value as Omit<SurfaceArenaView, "acceptingPlayers">;
     return typeof arena.ownerId === "string" && !!arena.ownerId && typeof arena.hubId === "string" && !!arena.hubId
       && arena.key === expectedKey && arena.key === keyFor(arena.ownerId, arena.hubId) && Number.isSafeInteger(arena.revision) && arena.revision > 0
-      && Number.isSafeInteger(arena.topologyRevision) && arena.topologyRevision! > 0
+      && Number.isSafeInteger(arena.topologyRevision) && arena.topologyRevision > 0
       && finiteTuple(arena.center, 3) && arena.center.every(number => Math.abs(number) <= 1_000_000) && validArenaDefinition(arena.arena, arena.hubId);
   }
 

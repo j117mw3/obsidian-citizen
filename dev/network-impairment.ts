@@ -1,3 +1,4 @@
+import { browserRequest } from "./browser-http";
 // Development fixture only: replace signaled ICE candidates with loopback UDP
 // forwarders. The native browser still owns ICE, encryption, SCTP, and channels.
 export function proxyIceConnection(Native: typeof RTCPeerConnection, token: string, reportError: () => void): typeof RTCPeerConnection {
@@ -6,11 +7,11 @@ export function proxyIceConnection(Native: typeof RTCPeerConnection, token: stri
       super({ ...configuration, iceCandidatePoolSize: 0, iceServers: [], iceTransportPolicy: "all" });
       let callback: ((this: RTCPeerConnection, event: RTCPeerConnectionIceEvent) => unknown) | null = null;
       const published = new Map<string, Promise<void>>();
-      Object.defineProperty(this, "onicecandidate", { get: () => callback, set: value => { callback = value; } });
+      Object.defineProperty(this, "onicecandidate", { get: () => callback, set: (value: ((this: RTCPeerConnection, event: RTCPeerConnectionIceEvent) => unknown) | null) => { callback = value; } });
       // localDescription normally incorporates gathered candidates. Suppress them
       // too, so an SDP candidate can never bypass the impaired trickle path.
       Object.defineProperty(this, "localDescription", { get: () => {
-        const description = Reflect.get(Native.prototype, "localDescription", this) as RTCSessionDescription | null;
+        const description = Reflect.get(Native.prototype, "localDescription", this);
         return description ? new RTCSessionDescription({ type: description.type, sdp: description.sdp.replace(/^a=candidate:.*\r?\n/gm, "") }) : null;
       } });
       this.addEventListener("icecandidate", event => {
@@ -21,7 +22,7 @@ export function proxyIceConnection(Native: typeof RTCPeerConnection, token: stri
         const pending = (async () => {
           const url = new URL("/udp/register", location.origin);
           url.searchParams.set("token", token); url.searchParams.set("ufrag", ufrag);
-          const response = await fetch(url, { method: "POST" });
+          const response = await browserRequest(url, { method: "POST" });
           if (!response.ok) throw new Error("Proxy registration failed");
           const value = await response.json() as { port: number };
           if (!Number.isInteger(value.port) || value.port < 1024 || value.port > 65535) throw new Error("Invalid proxy response");

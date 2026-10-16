@@ -22,7 +22,7 @@ const context = await esbuild.context({
   minify: prod,
   treeShaking: true,
   legalComments: "eof",
-  banner: { js: `/*! OB Citizen fork maintained by J117W3.\n${readFileSync(new URL("./LICENSE", import.meta.url), "utf8").replace(/\*\//g, "* /")}\n*/` },
+  banner: { js: `/*! Citizen fork maintained by J117W3.\n${readFileSync(new URL("./LICENSE", import.meta.url), "utf8").replace(/\*\//g, "* /")}\n*/` },
   outfile: "main.js",
 });
 

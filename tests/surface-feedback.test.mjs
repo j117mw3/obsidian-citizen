@@ -29,6 +29,7 @@ test("nameplate display uses public names safely, updates red HP fraction and re
   appendChild(child){this.children.push(child);child.parent=this;return child} append(...children){children.forEach(c=>this.appendChild(c))}
   setAttribute(key,value){this.attributes[key]=value} remove(){if(this.parent)this.parent.children=this.parent.children.filter(c=>c!==this)}
  }
+ const previousDiv=globalThis.createDiv, previousSpan=globalThis.createSpan; globalThis.createDiv=()=>new Element(); globalThis.createSpan=()=>new Element();
  const previous=globalThis.document;globalThis.document={createElement:()=>new Element()};
  try {
   const container=new Element(),plates=new SurfaceNameplates(container),{center,target,arena,camera}=fixture();target.name="<img onerror=alert(1)>";
@@ -38,7 +39,7 @@ test("nameplate display uses public names safely, updates red HP fraction and re
   arena.arena.walls=[];target.health=0;plates.update(camera,400,500,arena,center,[target]);assert.equal(container.children[0].children.length,0);
   target.health=100;target.arenaKey="other";plates.update(camera,400,500,arena,center,[target]);assert.equal(container.children[0].children.length,0);
   plates.dispose();assert.equal(container.children.length,0);
- } finally {globalThis.document=previous;}
+ } finally {globalThis.document=previous;globalThis.createDiv=previousDiv;globalThis.createSpan=previousSpan;}
 });
 test("training hit feedback confirms damage once and does not accept another player's identity",()=>{
  const pilot=Object.create(SurfacePilot.prototype),sounds=[];Object.assign(pilot,{active:true,playerId:"solo",seenCombatEvents:new Set(),audio:{play:s=>sounds.push(s)},updateHud(){}});

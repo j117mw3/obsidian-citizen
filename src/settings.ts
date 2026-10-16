@@ -141,8 +141,7 @@ function sanitizeSurfaceKeys(raw: Record<string, unknown>): Record<string, strin
     const chosen = !used.has(requested) ? requested : [fallback, ...alternatives].find(candidate => !used.has(candidate)) ?? "Escape";
     result[key] = chosen; used.add(chosen);
   }
-  return result as Pick<ConstellationSettings, "surfaceForwardKey" | "surfaceBackKey" | "surfaceLeftKey" | "surfaceRightKey" | "surfaceJumpKey"
-    | "surfaceSprintKey" | "surfaceCrouchKey" | "surfaceLeanLeftKey" | "surfaceLeanRightKey" | "surfaceInteractKey">;
+  return result;
 }
 
 /** Merge saved data over the defaults, dropping anything the wrong type or out of range (hand-edited or older data.json). */

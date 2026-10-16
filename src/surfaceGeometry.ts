@@ -52,7 +52,7 @@ function generateDirectedSurfaceArenaCandidate(hubId: string, connectedIds: read
     throw new Error("No accessible wall position");
   };
   const walls = connections.flatMap((connectionId, connectionIndex) => {
-    const bearing = bearings[connectionIndex] ? unit(bearings[connectionIndex]!) : randomNormal(random);
+    const bearing = bearings[connectionIndex] ? unit(bearings[connectionIndex]) : randomNormal(random);
     return [0, 1].map(side => {
     const index = connectionIndex * 2 + side;
     const normal = quantize(choose(pairedSurfaceBearing(bearing, side, radius)));

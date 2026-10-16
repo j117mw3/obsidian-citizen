@@ -1,3 +1,4 @@
+import { isUnknownArray } from "./validation";
 import { bindSurfaceTerrain, terrainQuery } from "./surfaceTerrain";
 import { validSurfaceArenaPayload, validSurfaceNetworkSnapshot, type SurfaceNetworkSnapshot } from "./surfaceAuthority";
 import type { SurfaceArena } from "./surface";
@@ -26,7 +27,7 @@ export class SurfaceSnapshotWire {
     const active = new Set<number>();
     const result = { ...snapshot, arenas: snapshot.arenas.map(arena => {
       let signatures = this.geometrySignatures.get(arena.arena);
-      if (!signatures) this.geometrySignatures.set(arena.arena, signatures = new Map());
+      if (!signatures) this.geometrySignatures.set(arena.arena, signatures = new Map<string, string>());
       const identity = `${arena.key}/${arena.revision}`;
       const signature = referencesOnly ? identity : signatures.get(identity) ?? JSON.stringify([arena.key, arena.revision, arena.arena]);
       signatures.set(identity, signature);
@@ -78,7 +79,7 @@ export class SurfaceSnapshotWire {
     if (transfer.parts.size !== total) return null;
     this.incoming.delete(token as number);
     try {
-      const arena = parseSurfaceTransfer(Array.from({ length: total as number }, (_, i) => transfer!.parts.get(i)!).join(""), MAX_GEOMETRY_BYTES);
+      const arena = parseSurfaceTransfer(Array.from({ length: total }, (_, i) => transfer.parts.get(i)!).join(""), MAX_GEOMETRY_BYTES);
       if (!validSurfaceArenaPayload(arena)) return null;
       const previous = this.received.get(token as number);
       if (previous && JSON.stringify(previous) !== JSON.stringify(arena.arena)) return null;
@@ -89,7 +90,7 @@ export class SurfaceSnapshotWire {
   }
 
   acknowledge(tokens: unknown, missing = false): void {
-    if (!Array.isArray(tokens) || tokens.length > 132 || !tokens.every(token => Number.isSafeInteger(token) && token > 0)) return;
+    if (!isUnknownArray(tokens) || tokens.length > 132 || !tokens.every((token): token is number => typeof token === "number" && Number.isSafeInteger(token) && token > 0)) return;
     const offered = new Set(this.offered.values());
     for (const token of tokens) if (offered.has(token)) {
       if (missing) this.acknowledged.delete(token); else this.acknowledged.add(token);
@@ -98,7 +99,7 @@ export class SurfaceSnapshotWire {
 
   decode(value: unknown, epoch: number): { snapshot: SurfaceNetworkSnapshot | null; acknowledge: number[]; missing: number[] } {
     const fail = { snapshot: null, acknowledge: [], missing: [] };
-    if (!value || typeof value !== "object" || !Array.isArray((value as SurfaceWireSnapshot).arenas) || (value as SurfaceWireSnapshot).arenas.length > 132) return fail;
+    if (!value || typeof value !== "object" || !isUnknownArray((value as SurfaceWireSnapshot).arenas) || (value as SurfaceWireSnapshot).arenas.length > 132) return fail;
     const wire = value as SurfaceWireSnapshot, missing: number[] = [];
     if (wire.epoch !== epoch) return fail;
     const active = new Set(wire.arenas.map(arena => arena?.geometryId));

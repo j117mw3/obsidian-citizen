@@ -1,9 +1,11 @@
+import { isUnknownArray } from "./validation";
+import { isFiniteNumber, isSafeInteger } from "./validation";
 import { validTerrainDefinition, bindSurfaceTerrain } from "./surfaceTerrain";
 import { encodeCoverPoses, validCoverPackets, type SurfaceCoverPacket } from "./surfaceCoverWire";
 import { surfaceRadiusForConnections, surfaceWorldRadii } from "./surfaceGeometry";
 import { SURFACE, type SurfaceVector, type SurfaceBotView, type SurfaceBotShotView, type SurfaceBotDropView } from "./surface";
 import { surfaceShotDamage, type SurfaceShotKind, SURFACE_BLASTER, spreadSurfaceDirection, surfaceSeed, surfaceSpreadDegrees, traceSurfaceSegment, type SurfaceCombatTarget } from "./surfaceCombat";
-import { validSurfacePlayerState as validSurfaceState, type SurfaceInput, type SurfacePlayerState } from "./surfacePhysics";
+import { validSurfacePlayerState as validSurfaceState } from "./surfacePhysics";
 import { SurfaceConnectionTiming, SurfaceHistory, validateSurfaceViewTime } from "./surfaceHistory";
 import { DEFAULT_SURFACE_LASER_COLOR, normalizeSurfaceLaserColor, isApprovedSurfaceLaserColor } from "./surfaceColor";
 import { SurfaceWorld, MAX_SURFACE_CHECKPOINT_ARENAS, MAX_SURFACE_BOTS, MAX_SURFACE_BOT_SHOTS, MAX_SURFACE_BOT_DROPS, type SurfaceArenaView, type SurfacePickupView, type SurfacePlayerView, type SurfaceShipState, type SurfaceTopology, type SurfaceWorldCheckpoint } from "./surfaceWorld";
@@ -17,10 +19,8 @@ export { validSurfaceControls as validSurfaceInput } from "./surfaceInput";
 type Vec3 = [number, number, number];
 const unit = (value: SurfaceVector): Vec3 => { const n = Math.hypot(...value) || 1; return [value[0] / n, value[1] / n, value[2] / n]; };
 const dot = (a: SurfaceVector, b: SurfaceVector): number => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-const cross = (a: SurfaceVector, b: SurfaceVector): Vec3 => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 const add = (a: SurfaceVector, b: SurfaceVector): Vec3 => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const scale = (a: SurfaceVector, n: number): Vec3 => [a[0] * n, a[1] * n, a[2] * n];
-const sub = (a: SurfaceVector, b: SurfaceVector): Vec3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const WORLD_PLANET_RADIUS = SURFACE.worldRadius;
 const WORLD_TO_SURFACE = SURFACE.radius / WORLD_PLANET_RADIUS;
 
@@ -53,23 +53,23 @@ export interface SurfaceFireDisposition { accepted: boolean; player: SurfacePlay
 interface RuntimeProjectile extends SurfaceProjectileSnapshot { rewindMs: number; simulatedAt: number }
 
 function normalizedDirection(value: unknown): Vec3 | null {
-  if (!Array.isArray(value) || value.length !== 3 || !value.every(v => typeof v === "number" && Number.isFinite(v))) return null;
+  if (!isUnknownArray(value) || value.length !== 3 || !value.every(v => typeof v === "number" && isFiniteNumber(v))) return null;
   const length = Math.hypot(value[0], value[1], value[2]);
   if (length < 0.9 || length > 1.1) return null;
   return [value[0] / length, value[1] / length, value[2] / length];
 }
 
-function isRecord(value: unknown): value is Record<string, any> { return !!value && typeof value === "object" && !Array.isArray(value); }
+function isRecord(value: unknown): value is Record<string, unknown> { return !!value && typeof value === "object" && !isUnknownArray(value); }
 function finiteTuple(value: unknown, length: number, limit = 1_000_000): value is number[] {
-  return Array.isArray(value) && value.length === length && value.every(number => typeof number === "number" && Number.isFinite(number) && Math.abs(number) <= limit);
+  return isUnknownArray(value) && value.length === length && value.every(number => typeof number === "number" && isFiniteNumber(number) && Math.abs(number) <= limit);
 }
 const validatedImmutableGeometry = new WeakSet<object>();
 function validArenaPayload(value: unknown): value is SurfaceArenaView {
-  if (!isRecord(value) || !isRecord(value.arena) || value.arena.hubId !== value.hubId || !Number.isSafeInteger(value.topologyRevision) || value.topologyRevision < 1 || !Number.isSafeInteger(value.arena.seed)
-    || !Array.isArray(value.arena.walls) || value.arena.walls.length > 39_998 || (value.arena.radius ?? SURFACE.radius) !== surfaceRadiusForConnections(value.arena.walls.length / 2)
-    || !Array.isArray(value.arena.pickups) || value.arena.pickups.length !== 6) return false;
+  if (!isRecord(value) || !isRecord(value.arena) || (value.arena.radius !== undefined && !isFiniteNumber(value.arena.radius)) || value.arena.hubId !== value.hubId || !isSafeInteger(value.topologyRevision) || value.topologyRevision < 1 || !isSafeInteger(value.arena.seed)
+    || !isUnknownArray(value.arena.walls) || value.arena.walls.length > 39_998 || (value.arena.radius ?? SURFACE.radius) !== surfaceRadiusForConnections(value.arena.walls.length / 2)
+    || !isUnknownArray(value.arena.pickups) || value.arena.pickups.length !== 6) return false;
   if(value.arena.terrain!==undefined&&!validTerrainDefinition(value.arena.terrain,value.arena.radius??27))return false;
-  bindSurfaceTerrain(value.arena.walls,value.arena.terrain);
+
   if (Object.isFrozen(value.arena) && validatedImmutableGeometry.has(value.arena)) return true;
   const wallIds = new Set<string>(), connectionCounts = new Map<string, number>();
   for (const wall of value.arena.walls) {
@@ -77,8 +77,8 @@ function validArenaPayload(value: unknown): value is SurfaceArenaView {
       || typeof wall.connectionId !== "string" || !/^n-[0-9a-f-]{36}$/i.test(wall.connectionId) || wall.connectionId === value.hubId || (connectionCounts.get(wall.connectionId) ?? 0) >= 2
       || !finiteTuple(wall.normal, 3, 1.01) || !finiteTuple(wall.tangent, 3, 1.01)
       || Math.abs(Math.hypot(...wall.normal) - 1) > 0.01 || Math.abs(Math.hypot(...wall.tangent) - 1) > 0.01
-      || Math.abs(dot(wall.normal as Vec3, wall.tangent as Vec3)) > 0.02 || ![SURFACE.lowWallHeight, SURFACE.tallWallHeight].includes(wall.height)
-      || !Number.isFinite(wall.length) || wall.length < 1 || wall.length > 10) return false;
+      || Math.abs(dot(wall.normal as Vec3, wall.tangent as Vec3)) > 0.02 || (wall.height !== SURFACE.lowWallHeight && wall.height !== SURFACE.tallWallHeight)
+      || !isFiniteNumber(wall.length) || wall.length < 1 || wall.length > 10) return false;
     wallIds.add(wall.id); connectionCounts.set(wall.connectionId, (connectionCounts.get(wall.connectionId) ?? 0) + 1);
   }
   if ([...connectionCounts.values()].some(count => count !== 2)) return false;
@@ -86,9 +86,9 @@ function validArenaPayload(value: unknown): value is SurfaceArenaView {
   for (const pickup of value.arena.pickups) {
     if (!isRecord(pickup) || typeof pickup.id !== "string" || !/^pickup-\d+$/.test(pickup.id) || pickupIds.has(pickup.id)
       || !finiteTuple(pickup.normal, 3, 1.01) || Math.abs(Math.hypot(...pickup.normal) - 1) > 0.01
-      || !["small-health", "large-health", "armor"].includes(pickup.kind)
-      || !["cover", "open"].includes(pickup.placement) || !Number.isFinite(pickup.heal) || !Number.isFinite(pickup.armor)
-      || !Number.isSafeInteger(pickup.respawnMs) || pickup.respawnMs < 10_000 || pickup.respawnMs > 60_000) return false;
+      || (pickup.kind !== "small-health" && pickup.kind !== "large-health" && pickup.kind !== "armor")
+      || (pickup.placement !== "cover" && pickup.placement !== "open") || !isFiniteNumber(pickup.heal) || !isFiniteNumber(pickup.armor)
+      || !isSafeInteger(pickup.respawnMs) || pickup.respawnMs < 10_000 || pickup.respawnMs > 60_000) return false;
     const expected = pickup.kind === "small-health" ? [25, 0, 15_000, value.arena.walls.length ? "cover" : "open"]
       : pickup.kind === "large-health" ? [50, 0, 30_000, "open"]
       : [0, 25, 30_000, pickup.placement];
@@ -96,20 +96,21 @@ function validArenaPayload(value: unknown): value is SurfaceArenaView {
       || (pickup.kind !== "armor" && pickup.placement !== expected[3])) return false;
     pickupIds.add(pickup.id);
   }
-  const small = value.arena.pickups.filter((pickup: any) => pickup.kind === "small-health").length;
-  const large = value.arena.pickups.filter((pickup: any) => pickup.kind === "large-health").length;
-  const armor = value.arena.pickups.filter((pickup: any) => pickup.kind === "armor").length;
+  const small = value.arena.pickups.filter((pickup: unknown) => isRecord(pickup) && pickup.kind === "small-health").length;
+  const large = value.arena.pickups.filter((pickup: unknown) => isRecord(pickup) && pickup.kind === "large-health").length;
+  const armor = value.arena.pickups.filter((pickup: unknown) => isRecord(pickup) && pickup.kind === "armor").length;
   const valid = small === 2 && large === 2 && armor === 2;
   if (valid && Object.isFrozen(value.arena) && Object.isFrozen(value.arena.walls) && Object.isFrozen(value.arena.pickups)
-    && value.arena.walls.every((wall: any) => Object.isFrozen(wall) && Object.isFrozen(wall.normal) && Object.isFrozen(wall.tangent))
-    && value.arena.pickups.every((pickup: any) => Object.isFrozen(pickup) && Object.isFrozen(pickup.normal))) validatedImmutableGeometry.add(value.arena);
+    && value.arena.walls.every((wall: unknown) => isRecord(wall) && Object.isFrozen(wall) && Object.isFrozen(wall.normal) && Object.isFrozen(wall.tangent))
+    && value.arena.pickups.every((pickup: unknown) => isRecord(pickup) && Object.isFrozen(pickup) && Object.isFrozen(pickup.normal))) validatedImmutableGeometry.add(value.arena);
+  if (valid) bindSurfaceTerrain(value.arena.walls as SurfaceArenaView["arena"]["walls"], value.arena.terrain);
   return valid;
 }
 
 export function validSurfaceArenaPayload(value: unknown): value is SurfaceArenaView {
-  return isRecord(value) && typeof value.key === "string" && value.key === `${value.ownerId}/${value.hubId}`
+  return isRecord(value) && typeof value.key === "string" && typeof value.ownerId === "string" && typeof value.hubId === "string" && value.key === `${value.ownerId}/${value.hubId}`
     && /^[0-9a-f-]{36}$/i.test(value.ownerId) && /^n-[0-9a-f-]{36}$/i.test(value.hubId)
-    && Number.isSafeInteger(value.revision) && value.revision >= 1 && finiteTuple(value.center, 3, 1_000_000)
+    && isSafeInteger(value.revision) && value.revision >= 1 && finiteTuple(value.center, 3, 1_000_000)
     && typeof value.acceptingPlayers === "boolean" && validArenaPayload(value);
 }
 
@@ -230,7 +231,7 @@ export class SurfaceAuthority {
     const player = this.world.getPlayer(id);
     if (!player?.surface || player.mode !== "surface" || !player.arenaKey) return { accepted: false, player, projectile: null, reason: "state" };
     if (arenaKey !== player.arenaKey || lifeId !== player.lifeId) return { accepted: false, player, projectile: null, reason: "state" };
-    if (!Number.isSafeInteger(sequence) || sequence < 1) return { accepted: false, player, projectile: null, reason: "sequence" };
+    if (!isSafeInteger(sequence) || sequence < 1) return { accepted: false, player, projectile: null, reason: "sequence" };
     if (sequence <= (this.lastFireRequestSequence.get(id) ?? 0)) return { accepted: false, player, projectile: null, reason: "sequence" };
     this.lastFireRequestSequence.set(id, sequence);
     const viewed = validateSurfaceViewTime(viewTime, now, issuedTimes, this.connectionTiming.get(id)?.measuredRtt(now) ?? null);
@@ -261,7 +262,7 @@ export class SurfaceAuthority {
   }
 
   step(dt: number, now: number): void {
-    if (!(dt > 0) || dt > 0.1 || !Number.isFinite(now)) return;
+    if (!(dt > 0) || dt > 0.1 || !isFiniteNumber(now)) return;
     this.world.moveCover(dt);
     const previous = this.world.listPlayers(), centers = this.captureCenters(previous);
     for (const player of previous) {
@@ -318,51 +319,54 @@ export class SurfaceAuthority {
 
   /** Restore durable surface state, but deliberately start a fresh rewind epoch. */
   restoreCheckpoint(value: unknown, now: number, ageMs = 0): boolean {
-    if (!isRecord(value) || value.version !== 2 || !Number.isSafeInteger(now) || !Number.isFinite(ageMs) || ageMs < 0 || ageMs > 15_000
-      || !Number.isSafeInteger(value.projectileSequence) || value.projectileSequence < 0 || !Array.isArray(value.colors)
-      || !Array.isArray(value.lastInputSequences) || !Array.isArray(value.lastFireRequestSequences) || !Array.isArray(value.projectiles)
-      || value.projectiles.length > 128 || !isRecord(value.world) || !Array.isArray(value.world.players) || value.world.players.length > 4
-      || !Array.isArray(value.world.arenas) || value.world.arenas.length > MAX_SURFACE_CHECKPOINT_ARENAS) return false;
+    if (!isRecord(value) || value.version !== 2 || !isSafeInteger(now) || !isFiniteNumber(ageMs) || ageMs < 0 || ageMs > 15_000
+      || !isSafeInteger(value.projectileSequence) || value.projectileSequence < 0 || !isUnknownArray(value.colors)
+      || !isUnknownArray(value.lastInputSequences) || !isUnknownArray(value.lastFireRequestSequences) || !isUnknownArray(value.projectiles)
+      || value.projectiles.length > 128 || !isRecord(value.world) || !isUnknownArray(value.world.players) || value.world.players.length > 4
+      || !isUnknownArray(value.world.arenas) || value.world.arenas.length > MAX_SURFACE_CHECKPOINT_ARENAS) return false;
 
     const playerIds = new Set<string>();
     for (const item of value.world.players) {
-      const id = item?.view?.id;
+      if (!isRecord(item) || !isRecord(item.view)) return false;
+      const id = item.view.id;
       if (typeof id !== "string" || !/^[0-9a-f-]{36}$/i.test(id) || playerIds.has(id)) return false;
       playerIds.add(id);
     }
     const pairs = (items: unknown[], validate: (id: string, item: unknown) => boolean): boolean => {
       const seen = new Set<string>();
       for (const pair of items) {
-        if (!Array.isArray(pair) || pair.length !== 2 || typeof pair[0] !== "string" || !playerIds.has(pair[0]) || seen.has(pair[0]) || !validate(pair[0], pair[1])) return false;
+        if (!isUnknownArray(pair) || pair.length !== 2 || typeof pair[0] !== "string" || !playerIds.has(pair[0]) || seen.has(pair[0]) || !validate(pair[0], pair[1])) return false;
         seen.add(pair[0]);
       }
       return seen.size === playerIds.size;
     };
     if (!pairs(value.colors, (_id, entry) => isApprovedSurfaceLaserColor(entry))
-      || !pairs(value.lastInputSequences, (_id, entry) => typeof entry === "number" && Number.isSafeInteger(entry) && entry >= 0)
-      || !pairs(value.lastFireRequestSequences, (_id, entry) => typeof entry === "number" && Number.isSafeInteger(entry) && entry >= 0)) return false;
+      || !pairs(value.lastInputSequences, (_id, entry) => typeof entry === "number" && isSafeInteger(entry) && entry >= 0)
+      || !pairs(value.lastFireRequestSequences, (_id, entry) => typeof entry === "number" && isSafeInteger(entry) && entry >= 0)) return false;
 
     const arenaKeys = new Set<string>();
     for (const item of value.world.arenas) {
-      const view = item?.view;
+      if (!isRecord(item)) return false;
+      const view = item.view;
       if (!view || !validSurfaceArenaPayload(view) || arenaKeys.has(view.key)
-        || (item.pending?.value != null && !validSurfaceArenaPayload({ ...item.pending.value, acceptingPlayers: true }))) return false;
+        || (isRecord(item.pending) && item.pending.value != null && !validSurfaceArenaPayload({ ...item.pending.value, acceptingPlayers: true }))) return false;
       arenaKeys.add(view.key);
     }
     const arenaKeysWithProjectiles = new Set(arenaKeys);
     const projectileIds = new Set<string>();
     for (const item of value.projectiles) {
-      const shot = item?.shot;
+      if (!isRecord(item)) return false;
+      const shot = item.shot;
       if (!isRecord(item) || !isRecord(shot) || typeof shot.id !== "string" || shot.id.length > 80
-        || !playerIds.has(shot.ownerId) || !Number.isSafeInteger(shot.sequence) || shot.sequence < 1
+        || (typeof shot.ownerId !== "string" || !playerIds.has(shot.ownerId)) || !isSafeInteger(shot.sequence) || shot.sequence < 1
         || shot.id !== `${shot.ownerId}:${shot.sequence}` || projectileIds.has(shot.id)
-        || !Number.isSafeInteger(shot.lifeId) || shot.lifeId < 1 || typeof shot.arenaKey !== "string" || !arenaKeysWithProjectiles.has(shot.arenaKey)
-        || !finiteTuple(shot.position, 3, (value.world.arenas.find(arena => arena.view.key === shot.arenaKey)?.view.arena.radius ?? 27) + SURFACE_BLASTER.boltRange + 5) || !normalizedDirection(shot.direction)
-        || !Number.isFinite(shot.travelled) || shot.travelled < 0 || shot.travelled > SURFACE_BLASTER.boltRange
-        || (shot.kind !== undefined && shot.kind !== "normal" && shot.kind !== "charged") || !isApprovedSurfaceLaserColor(shot.color) || !Number.isSafeInteger(shot.startedAt) || !Number.isSafeInteger(shot.stoppedAt)
-        || !Number.isFinite(item.ageMs) || item.ageMs < 0 || item.ageMs > SURFACE_BLASTER.boltLifetimeMs
-        || !Number.isFinite(item.stoppedRemainingMs) || item.stoppedRemainingMs < 0 || item.stoppedRemainingMs > 90
-        || !Number.isFinite(item.rewindMs) || item.rewindMs < 0 || item.rewindMs > 150) return false;
+        || !isSafeInteger(shot.lifeId) || shot.lifeId < 1 || typeof shot.arenaKey !== "string" || !arenaKeysWithProjectiles.has(shot.arenaKey)
+        || !finiteTuple(shot.position, 3, ((value.world.arenas.map(arena => isRecord(arena) ? arena.view : null).find(arena => validSurfaceArenaPayload(arena) && arena.key === shot.arenaKey) as SurfaceArenaView | undefined)?.arena.radius ?? 27) + SURFACE_BLASTER.boltRange + 5) || !normalizedDirection(shot.direction)
+        || !isFiniteNumber(shot.travelled) || shot.travelled < 0 || shot.travelled > SURFACE_BLASTER.boltRange
+        || (shot.kind !== undefined && shot.kind !== "normal" && shot.kind !== "charged") || !isApprovedSurfaceLaserColor(shot.color) || !isSafeInteger(shot.startedAt) || !isSafeInteger(shot.stoppedAt)
+        || !isFiniteNumber(item.ageMs) || item.ageMs < 0 || item.ageMs > SURFACE_BLASTER.boltLifetimeMs
+        || !isFiniteNumber(item.stoppedRemainingMs) || item.stoppedRemainingMs < 0 || item.stoppedRemainingMs > 90
+        || !isFiniteNumber(item.rewindMs) || item.rewindMs < 0 || item.rewindMs > 150) return false;
       projectileIds.add(shot.id);
     }
     if (value.projectileSequence < value.projectiles.length) return false;
@@ -478,7 +482,7 @@ export class SurfaceAuthority {
     const origin = new THREE.Vector3(...center), offset = new THREE.Vector3(...ship.position).sub(origin).multiplyScalar(scaleToWorld);
     const position = this.departureGrid.clearPointOnRay(origin, offset, offset.length());
     return {
-      position: position.toArray() as Vec3,
+      position: position.toArray(),
       rotation: [...ship.rotation], velocity: [0, 0, 0],
     };
   }
@@ -489,35 +493,35 @@ export class SurfaceAuthority {
 export function validSurfaceNetworkSnapshot(value: unknown, epoch?: number): value is SurfaceNetworkSnapshot {
   if (!value || typeof value !== "object") return false;
   const snapshot = value as SurfaceNetworkSnapshot;
-  if (!Number.isSafeInteger(snapshot.epoch) || snapshot.epoch < 1 || (epoch !== undefined && snapshot.epoch !== epoch)
-    || !Number.isSafeInteger(snapshot.sequence) || snapshot.sequence < 1 || !Number.isSafeInteger(snapshot.hostTime)
-    || !Array.isArray(snapshot.players) || snapshot.players.length > 4 || !Array.isArray(snapshot.arenas) || snapshot.arenas.length > 4 + 128
-      || !Array.isArray(snapshot.projectiles) || snapshot.projectiles.length > 128
-      || !Array.isArray(snapshot.pickups) || snapshot.pickups.length !== snapshot.arenas.length * 6
-      || !Array.isArray(snapshot.bots) || snapshot.bots.length > MAX_SURFACE_BOTS
-      || !Array.isArray(snapshot.botShots) || snapshot.botShots.length > MAX_SURFACE_BOT_SHOTS
-      || !Array.isArray(snapshot.botDrops) || snapshot.botDrops.length > MAX_SURFACE_BOT_DROPS
-      || !Array.isArray(snapshot.damageCues) || snapshot.damageCues.length > 64
-      || !Array.isArray(snapshot.hitConfirmations) || snapshot.hitConfirmations.length > 64) return false;
+  if (!isSafeInteger(snapshot.epoch) || snapshot.epoch < 1 || (epoch !== undefined && snapshot.epoch !== epoch)
+    || !isSafeInteger(snapshot.sequence) || snapshot.sequence < 1 || !isSafeInteger(snapshot.hostTime)
+    || !isUnknownArray(snapshot.players) || snapshot.players.length > 4 || !isUnknownArray(snapshot.arenas) || snapshot.arenas.length > 4 + 128
+      || !isUnknownArray(snapshot.projectiles) || snapshot.projectiles.length > 128
+      || !isUnknownArray(snapshot.pickups) || snapshot.pickups.length !== snapshot.arenas.length * 6
+      || !isUnknownArray(snapshot.bots) || snapshot.bots.length > MAX_SURFACE_BOTS
+      || !isUnknownArray(snapshot.botShots) || snapshot.botShots.length > MAX_SURFACE_BOT_SHOTS
+      || !isUnknownArray(snapshot.botDrops) || snapshot.botDrops.length > MAX_SURFACE_BOT_DROPS
+      || !isUnknownArray(snapshot.damageCues) || snapshot.damageCues.length > 64
+      || !isUnknownArray(snapshot.hitConfirmations) || snapshot.hitConfirmations.length > 64) return false;
   const ids = new Set<string>(), arenaKeys = new Set<string>();
   for (const arena of snapshot.arenas) {
     if (!arena || typeof arena.key !== "string" || arena.key !== `${arena.ownerId}/${arena.hubId}` || arenaKeys.has(arena.key)
       || !/^[0-9a-f-]{36}$/i.test(arena.ownerId) || !/^n-[0-9a-f-]{36}$/i.test(arena.hubId)
-      || !Number.isSafeInteger(arena.revision) || arena.revision < 1 || !Array.isArray(arena.center) || arena.center.length !== 3
-      || !arena.center.every(number => Number.isFinite(number) && Math.abs(number) <= 1_000_000) || typeof arena.acceptingPlayers !== "boolean"
+      || !isSafeInteger(arena.revision) || arena.revision < 1 || !isUnknownArray(arena.center) || arena.center.length !== 3
+      || !arena.center.every(number => isFiniteNumber(number) && Math.abs(number) <= 1_000_000) || typeof arena.acceptingPlayers !== "boolean"
       || !validArenaPayload(arena)) return false;
     arenaKeys.add(arena.key);
   }
   for (const player of snapshot.players) {
     if (!player || typeof player.id !== "string" || !/^[0-9a-f-]{36}$/i.test(player.id) || ids.has(player.id)
-      || !Number.isSafeInteger(player.lifeId) || player.lifeId < 1 || !["ship", "surface"].includes(player.mode)
-      || !Number.isSafeInteger(player.inputSequence) || player.inputSequence < 0
+      || !isSafeInteger(player.lifeId) || player.lifeId < 1 || !["ship", "surface"].includes(player.mode)
+      || !isSafeInteger(player.inputSequence) || player.inputSequence < 0
       || (player.arenaKey !== null && (!arenaKeys.has(player.arenaKey) || !snapshot.arenas.some(arena => arena.key === player.arenaKey)))
-      || !Number.isFinite(player.health) || player.health < 0 || player.health > 100 || !Number.isFinite(player.armor) || player.armor < 0 || player.armor > 50
-      || !Number.isSafeInteger(player.kills) || player.kills < 0 || player.kills > PLAYER_KILLS_TO_WIN || !Number.isSafeInteger(player.deaths) || player.deaths < 0
-      || !Number.isSafeInteger(player.protectedUntil) || player.protectedUntil < 0 || !Number.isSafeInteger(player.respawnAt) || player.respawnAt < 0
-      || !Number.isFinite(player.exitProgress) || player.exitProgress < 0 || player.exitProgress > 1
-      || !Number.isFinite(player.heat) || player.heat < 0 || player.heat > 100 || !Number.isSafeInteger(player.ventUntil)
+      || !isFiniteNumber(player.health) || player.health < 0 || player.health > 100 || !isFiniteNumber(player.armor) || player.armor < 0 || player.armor > 50
+      || !isSafeInteger(player.kills) || player.kills < 0 || player.kills > PLAYER_KILLS_TO_WIN || !isSafeInteger(player.deaths) || player.deaths < 0
+      || !isSafeInteger(player.protectedUntil) || player.protectedUntil < 0 || !isSafeInteger(player.respawnAt) || player.respawnAt < 0
+      || !isFiniteNumber(player.exitProgress) || player.exitProgress < 0 || player.exitProgress > 1
+      || !isFiniteNumber(player.heat) || player.heat < 0 || player.heat > 100 || !isSafeInteger(player.ventUntil)
       || !isRecord(player.ship) || !finiteTuple(player.ship.position, 3) || !finiteTuple(player.ship.rotation, 4, 1.1)
       || Math.abs(Math.hypot(...player.ship.rotation) - 1) > 0.02 || !finiteTuple(player.ship.velocity, 3, 10_000)
       || (player.mode === "surface" && (typeof player.arenaKey !== "string" || !validSurfaceState(player.surface) || (player.surface.radius ?? 27) !== (snapshot.arenas.find(arena => arena.key === player.arenaKey)?.arena.radius ?? 27) || player.surface.terrainHash !== snapshot.arenas.find(arena=>arena.key===player.arenaKey)?.arena.terrain?.hash))
@@ -527,12 +531,12 @@ export function validSurfaceNetworkSnapshot(value: unknown, epoch?: number): val
   const bots = new Map<string, SurfaceBotView>(), botIndexes = new Map<string, Set<number>>();
   for (const bot of snapshot.bots) {
     const arena = snapshot.arenas.find(item => item.key === bot?.arenaKey);
-    if (!bot || !arena || !Number.isSafeInteger(bot.index) || bot.index < 0 || bot.index > 3 || bot.id !== bot.arenaKey + "/bot-" + bot.index
-      || bots.has(bot.id) || !Number.isSafeInteger(bot.lifeId) || bot.lifeId < 1 || !validSurfaceState(bot.state)
+    if (!bot || !arena || !isSafeInteger(bot.index) || bot.index < 0 || bot.index > 3 || bot.id !== bot.arenaKey + "/bot-" + bot.index
+      || bots.has(bot.id) || !isSafeInteger(bot.lifeId) || bot.lifeId < 1 || !validSurfaceState(bot.state)
       || (bot.state.radius ?? SURFACE.radius) !== (arena.arena.radius ?? SURFACE.radius) || bot.state.terrainHash !== arena.arena.terrain?.hash
-      || !Number.isFinite(bot.health) || bot.health < 0 || bot.health > 100 || typeof bot.aggressive !== "boolean" || typeof bot.targetId !== "string"
+      || !isFiniteNumber(bot.health) || bot.health < 0 || bot.health > 100 || typeof bot.aggressive !== "boolean" || typeof bot.targetId !== "string"
       || (bot.targetId !== "" && (!snapshot.players.some(player => player.id === bot.targetId && player.mode === "surface" && player.arenaKey === bot.arenaKey && player.health > 0)))
-      || (bot.aggressive !== (bot.targetId !== "")) || !Number.isSafeInteger(bot.respawnAt)
+      || (bot.aggressive !== (bot.targetId !== "")) || !isSafeInteger(bot.respawnAt)
       || (bot.health > 0 ? bot.respawnAt !== 0 : bot.respawnAt <= snapshot.hostTime || bot.respawnAt > snapshot.hostTime + 15_000)) return false;
     const indexes = botIndexes.get(bot.arenaKey) ?? new Set<number>();
     if (indexes.has(bot.index)) return false;
@@ -545,12 +549,12 @@ export function validSurfaceNetworkSnapshot(value: unknown, epoch?: number): val
   const botShotIds = new Set<string>();
   for (const shot of snapshot.botShots) {
     const bot = shot && bots.get(shot.botId), arena = shot && snapshot.arenas.find(item => item.key === shot.arenaKey);
-    if (!bot || bot.health <= 0 || !arena || shot.arenaKey !== bot.arenaKey || !Number.isSafeInteger(shot.sequence) || shot.sequence < 1
+    if (!bot || bot.health <= 0 || !arena || shot.arenaKey !== bot.arenaKey || !isSafeInteger(shot.sequence) || shot.sequence < 1
       || shot.id !== bot.id + ":" + bot.lifeId + ":" + shot.sequence || botShotIds.has(shot.id)
       || !finiteTuple(shot.position, 3, (arena.arena.radius ?? SURFACE.radius) + 35) || !normalizedDirection(shot.direction)
-      || !Number.isFinite(shot.travelled) || shot.travelled < 0 || shot.travelled > 30 || !Number.isSafeInteger(shot.startedAt)
+      || !isFiniteNumber(shot.travelled) || shot.travelled < 0 || shot.travelled > 30 || !isSafeInteger(shot.startedAt)
       || snapshot.hostTime - shot.startedAt < 0 || snapshot.hostTime - shot.startedAt > 250
-      || !Number.isSafeInteger(shot.stoppedAt) || shot.stoppedAt < 0 || (shot.stoppedAt !== 0 && shot.stoppedAt < snapshot.hostTime)) return false;
+      || !isSafeInteger(shot.stoppedAt) || shot.stoppedAt < 0 || (shot.stoppedAt !== 0 && shot.stoppedAt < snapshot.hostTime)) return false;
     botShotIds.add(shot.id);
   }
   const botDropIds = new Set<string>();
@@ -558,7 +562,7 @@ export function validSurfaceNetworkSnapshot(value: unknown, epoch?: number): val
     const arena = drop && snapshot.arenas.find(item => item.key === drop.arenaKey);
     if (!arena || typeof drop.id !== "string" || !/^bot-drop-\d+$/.test(drop.id) || botDropIds.has(drop.id)
       || !finiteTuple(drop.position, 3, (arena.arena.radius ?? SURFACE.radius) + 0.02) || Math.abs(Math.hypot(...drop.position) - (arena.arena.radius ?? SURFACE.radius)) > 0.02
-      || drop.heal !== 30 || drop.available !== true || !Number.isSafeInteger(drop.expiresAt) || drop.expiresAt <= snapshot.hostTime
+      || drop.heal !== 30 || drop.available !== true || !isSafeInteger(drop.expiresAt) || drop.expiresAt <= snapshot.hostTime
       || drop.expiresAt > snapshot.hostTime + 30_000) return false;
     botDropIds.add(drop.id);
   }
@@ -568,28 +572,28 @@ export function validSurfaceNetworkSnapshot(value: unknown, epoch?: number): val
     if (!isRecord(pickup) || typeof pickup.id !== "string" || typeof pickup.arenaKey !== "string") return false;
     const definition = snapshot.arenas.find(arena => arena.key === pickup.arenaKey)?.arena.pickups.find(item => item.id === pickup.id);
     const key = `${pickup.arenaKey}/${pickup.id}`;
-    if (!definition || pickupKeys.has(key) || typeof pickup.available !== "boolean" || !Number.isSafeInteger(pickup.respawnAt)
+    if (!definition || pickupKeys.has(key) || typeof pickup.available !== "boolean" || !isSafeInteger(pickup.respawnAt)
       || (pickup.available ? pickup.respawnAt !== 0 : pickup.respawnAt <= snapshot.hostTime || pickup.respawnAt > snapshot.hostTime + definition.respawnMs)) return false;
     pickupKeys.add(key);
   }
   for (const shot of snapshot.projectiles) {
-    if (!shot || typeof shot.id !== "string" || shot.id.length > 80 || !ids.has(shot.ownerId) || !Number.isSafeInteger(shot.sequence) || shot.sequence < 1
-      || !Number.isSafeInteger(shot.lifeId) || !arenaKeys.has(shot.arenaKey) || !Array.isArray(shot.position) || shot.position.length !== 3
-      || !shot.position.every(number => Number.isFinite(number) && Math.abs(number) <= (snapshot.arenas.find(arena => arena.key === shot.arenaKey)?.arena.radius ?? SURFACE.radius) + SURFACE_BLASTER.boltRange + 5) || !normalizedDirection(shot.direction)
-      || !Number.isFinite(shot.travelled) || shot.travelled < 0 || shot.travelled > SURFACE_BLASTER.boltRange
-      || (shot.kind !== undefined && shot.kind !== "normal" && shot.kind !== "charged") || !isApprovedSurfaceLaserColor(shot.color) || !Number.isSafeInteger(shot.startedAt) || !Number.isSafeInteger(shot.stoppedAt)) return false;
+    if (!shot || typeof shot.id !== "string" || shot.id.length > 80 || !ids.has(shot.ownerId) || !isSafeInteger(shot.sequence) || shot.sequence < 1
+      || !isSafeInteger(shot.lifeId) || !arenaKeys.has(shot.arenaKey) || !isUnknownArray(shot.position) || shot.position.length !== 3
+      || !shot.position.every(number => isFiniteNumber(number) && Math.abs(number) <= (snapshot.arenas.find(arena => arena.key === shot.arenaKey)?.arena.radius ?? SURFACE.radius) + SURFACE_BLASTER.boltRange + 5) || !normalizedDirection(shot.direction)
+      || !isFiniteNumber(shot.travelled) || shot.travelled < 0 || shot.travelled > SURFACE_BLASTER.boltRange
+      || (shot.kind !== undefined && shot.kind !== "normal" && shot.kind !== "charged") || !isApprovedSurfaceLaserColor(shot.color) || !isSafeInteger(shot.startedAt) || !isSafeInteger(shot.stoppedAt)) return false;
   }
   const cueIds = new Set<string>();
   for (const cue of snapshot.damageCues) {
     if (!isRecord(cue) || typeof cue.id !== "string" || cue.id.length > 160 || cueIds.has(cue.id) || (!ids.has(cue.targetId) && !bots.has(cue.targetId))
-      || !Number.isSafeInteger(cue.at) || snapshot.hostTime - cue.at < 0 || snapshot.hostTime - cue.at > 1500
+      || !isSafeInteger(cue.at) || snapshot.hostTime - cue.at < 0 || snapshot.hostTime - cue.at > 1500
       || !normalizedDirection(cue.direction)) return false;
     cueIds.add(cue.id);
   }
   const hitIds = new Set<string>();
   for (const hit of snapshot.hitConfirmations) {
     if (!isRecord(hit) || typeof hit.id !== "string" || hit.id.length > 160 || hitIds.has(hit.id) || !ids.has(hit.ownerId) || (!ids.has(hit.targetId) && !bots.has(hit.targetId))
-      || !Number.isSafeInteger(hit.sequence) || hit.sequence < 1 || !Number.isSafeInteger(hit.at)
+      || !isSafeInteger(hit.sequence) || hit.sequence < 1 || !isSafeInteger(hit.at)
       || snapshot.hostTime - hit.at < 0 || snapshot.hostTime - hit.at > 1500) return false;
     hitIds.add(hit.id);
   }

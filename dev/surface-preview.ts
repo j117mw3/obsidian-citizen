@@ -11,7 +11,7 @@ import type { GraphData } from "../src/types";
 
 // Browser component preview only. Deliberate ship/camera staging is labelled in
 // the page; this does not prove normal docking approach or Obsidian rendering.
-const fixture = (value: unknown): any => value;
+import { fixture, requireFixture } from "./fixture-access";
 const host = document.getElementById("app")!, status = document.getElementById("preview-status")!;
 const ids = ["Preview/Main.md", ...Array.from({ length: 6 }, (_, index) => `Preview/Cover ${index + 1}.md`)];
 const data: GraphData = { groups: [{ key: "Preview", label: "Preview", color: "#8CECFF", count: 7 }],
@@ -19,40 +19,41 @@ const data: GraphData = { groups: [{ key: "Preview", label: "Preview", color: "#
   links: ids.slice(1).map(id => ({ source: ids[0], target: id })) };
 const settings = { ...DEFAULT_SETTINGS, motion: "off" as const, autoRotate: false, respectReducedMotion: false, bloom: false, surfaceCrouchMode: "hold" as const };
 const app = new ConstellationApp(host, { openNote() {} }, settings); app.setData(data);
-const renderer = fixture(app).renderer;
+import type { ConstellationRenderer } from "../src/renderer";
+const renderer = fixture(fixture(app).renderer as ConstellationRenderer);
 const boltSamples: SurfaceBoltGraphic[] = [];
 document.getElementById("enter")!.addEventListener("click", () => {
   if (!renderer.surfacePilot) { status.textContent = "WebGL renderer unavailable; no FPS visual claim."; return; }
-  if (renderer.surfacePilot.active) { status.textContent = "Already on the preview surface."; return; }
-  const index = renderer.sim.nodes.findIndex((node: any) => node.id === ids[0]), node = renderer.sim.nodes[index];
+  if (fixture(renderer.surfacePilot).active) { status.textContent = "Already on the preview surface."; return; }
+  const index = renderer.sim.nodes.findIndex((node) => node.id === ids[0]), node = renderer.sim.nodes[index];
   if (!node) { status.textContent = "Renderer still initializing."; return; }
   renderer.setPilot(true, { position: [node.x, node.y, node.z + 15], rotation: [0, 0, 0, 1], velocity: [0, 0, 0] });
   renderer.requestSurfaceDock(null, index);
-  status.textContent = renderer.surfacePilot.active ? "Solo surface active. Ship approach was staged by this fixture; core docking admission ran normally." : "Docking rejected; inspect the game HUD.";
+  status.textContent = fixture(renderer.surfacePilot).active ? "Solo surface active. Ship approach was staged by this fixture; core docking admission ran normally." : "Docking rejected; inspect the game HUD.";
 });
 document.getElementById("dummy-view")!.addEventListener("click", () => {
-  const dummy = renderer.trainingDummies?.[0], player = renderer.surfaceWorld?.players.get("solo");
+  const dummy = [...fixture(renderer.surfaceWorld).bots.values()][0], player = fixture(renderer.surfaceWorld).players.get("solo");
   if (!dummy || !player?.surface) { status.textContent = "Enter the preview surface first."; return; }
-  const target = new THREE.Vector3(...dummy.state.position), up = target.clone().normalize();
-  const right = new THREE.Vector3().crossVectors(new THREE.Vector3(...dummy.state.forward), up).normalize();
-  const position = target.clone().addScaledVector(new THREE.Vector3(...dummy.state.forward), -3).addScaledVector(right, 2).normalize().multiplyScalar(SURFACE.radius);
+  const target = new THREE.Vector3(...dummy.patrol.state.position), up = target.clone().normalize();
+  const right = new THREE.Vector3().crossVectors(new THREE.Vector3(...dummy.patrol.state.forward), up).normalize();
+  const position = target.clone().addScaledVector(new THREE.Vector3(...dummy.patrol.state.forward), -3).addScaledVector(right, 2).normalize().multiplyScalar(SURFACE.radius);
   const forward = target.clone().sub(position).projectOnPlane(position.clone().normalize()).normalize();
-  player.surface = { ...createSurfacePlayerState(position.clone().normalize().toArray() as [number, number, number], forward.toArray() as [number, number, number]), pitch: -0.13 };
-  renderer.surfacePilot.clearHeldInputs();
-  renderer.surfacePilot.applyAuthoritativeState(renderer.surfaceWorld.getPlayer("solo"), renderer.surfaceWorld.getArena(player.arenaKey));
+  player.surface = { ...createSurfacePlayerState(position.clone().normalize().toArray(), forward.toArray()), pitch: -0.13 };
+  fixture(renderer.surfacePilot).clearHeldInputs();
+  fixture(renderer.surfacePilot).applyAuthoritativeState(requireFixture(renderer.surfaceWorld.getPlayer("solo")), requireFixture(renderer.surfaceWorld.getArena(requireFixture(player.arenaKey))));
   status.textContent = "Camera staged near the dummy with an oblique cover view; this is not a walking/traversal test.";
 });
 document.getElementById("fire-preview")!.addEventListener("click", () => {
   if (!renderer.surfacePilot?.active) return;
-  renderer.surfacePilot.fire();
-  setTimeout(() => { if (renderer.trainingDummies?.[0]) status.textContent = `Training dummy: ${renderer.trainingDummies?.[0].health} HP, ${renderer.trainingDummies?.[0].armor} armor. This is a component shot, not a multiplayer hit.`; }, 150);
+  fixture(renderer.surfacePilot).fire();
+  window.setTimeout(() => { if ([...fixture(renderer.surfaceWorld).bots.values()][0]) status.textContent = `Training dummy: ${[...fixture(renderer.surfaceWorld).bots.values()][0].health} HP, ${[...fixture(renderer.surfaceWorld).bots.values()][0].armor} armor. This is a component shot, not a multiplayer hit.`; }, 150);
 });
 document.getElementById("crouch-preview")!.addEventListener("change", event => {
-  if (renderer.surfacePilot) renderer.surfacePilot.crouchToggle = (event.target as HTMLInputElement).checked;
+  if (renderer.surfacePilot) (event.target as HTMLInputElement).checked ? fixture(renderer.surfacePilot).keys.add("ControlLeft") : fixture(renderer.surfacePilot).keys.delete("ControlLeft");
 });
 document.getElementById("lean-preview")!.addEventListener("change", event => {
   if (!renderer.surfacePilot) return;
-  if ((event.target as HTMLInputElement).checked) renderer.surfacePilot.keys.add("KeyE"); else renderer.surfacePilot.keys.delete("KeyE");
+  if ((event.target as HTMLInputElement).checked) fixture(renderer.surfacePilot).keys.add("KeyE"); else fixture(renderer.surfacePilot).keys.delete("KeyE");
 });
 document.getElementById("bloom-preview")!.addEventListener("change", event => {
   settings.bloom = (event.target as HTMLInputElement).checked; app.applySettings({ ...settings });
@@ -74,7 +75,7 @@ document.getElementById("bolt-samples")!.addEventListener("click", () => {
   }
   status.textContent = "PAUSED production bolt samples: left 5u, centre 10u, right 15u; broadside, fixed world width/opacity and 2.2u tails. Not live shots or a collision test.";
 });
-document.getElementById("hold-fire")!.addEventListener("change", event => { if (renderer.surfacePilot) renderer.surfacePilot.heldFire = (event.target as HTMLInputElement).checked; });
+document.getElementById("hold-fire")!.addEventListener("change", event => { if (renderer.surfacePilot) fixture(renderer.surfacePilot).heldFire = (event.target as HTMLInputElement).checked; });
 document.getElementById("color-preview")!.addEventListener("change", event => {
   const input = event.target as HTMLInputElement, approved = normalizeSurfaceLaserColor(input.value);
   if (!approved) { status.textContent = "Invalid color; previous approved color retained."; return; }
@@ -87,10 +88,10 @@ document.getElementById("cover-report")!.addEventListener("click", () => {
   const player = renderer.surfaceWorld?.getPlayer("solo"), arena = player?.arenaKey ? renderer.surfaceWorld.getArena(player.arenaKey) : null;
   const visual = arena && renderer.localSurfaceGroups.get(arena.hubId)?.group;
   if (!visual) return;
-  const walls = visual.children.filter((child: any) => child.name.endsWith("-wall")).map((child: any) => {
+  const walls = visual.children.filter((child) => child.name.endsWith("-wall")).map((child) => {
     const point: THREE.Vector3 = child.getWorldPosition(new THREE.Vector3()), projected = point.clone().project(renderer.camera);
     return { type: child.name, distanceWorld: Number(point.distanceTo(renderer.camera.position).toFixed(2)), ndc: projected.toArray().map(value => Number(value.toFixed(2))) };
   });
-  status.textContent = `Cover diagnostics: ${JSON.stringify({ physicalSeed: arena.arena.seed, visualSeed: visual.userData.arenaSeed, physicalWalls: arena.arena.walls.length, visibleGroup: visual.visible, walls })}`;
+  status.textContent = `Cover diagnostics: ${JSON.stringify({ physicalSeed: arena.arena.seed, visualSeed: Number(visual.userData.arenaSeed), physicalWalls: arena.arena.walls.length, visibleGroup: visual.visible, walls })}`;
 });
 window.addEventListener("beforeunload", () => { for (const sample of boltSamples) sample.dispose(); app.destroy(); });

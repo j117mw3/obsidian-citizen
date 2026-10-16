@@ -1,3 +1,4 @@
+import { isUnknownArray } from "./validation";
 import { buildTerrainMesh, updateTerrainPresentation } from "./surfaceTerrainMesh";
 import { bindSurfaceTerrain, terrainHeight, wallGroundRadius, wallBurial } from "./surfaceTerrain";
 import { createSurfacePanelMaterial, createRuinMaterial } from "./surfaceDecor";
@@ -26,7 +27,7 @@ function pickupLabel(text: string, color: number): THREE.Sprite {
   const material = new THREE.SpriteMaterial({ color, transparent: true, depthWrite: false });
   const sprite = new THREE.Sprite(material); sprite.scale.set(0.9, 0.4, 1); sprite.renderOrder = 4; sprite.userData.label = text;
   if (typeof document === "undefined") return sprite;
-  const canvas = document.createElement("canvas"); canvas.width = 128; canvas.height = 56;
+  const canvas = createEl("canvas"); canvas.width = 128; canvas.height = 56;
   const context = canvas.getContext("2d");
   if (context) {
     context.fillStyle = "rgba(5,12,20,.88)"; context.strokeStyle = "#d9f4ff"; context.lineWidth = 4;
@@ -84,7 +85,7 @@ export function createSurfaceArenaVisual(arena: SurfaceArena): THREE.Group {
   const mineralMatrix = new THREE.Matrix4();
   for(let i=0;i<mineralCount;i++) {
     const y=(random()*2-1)*Math.cos(7/radius),angle=random()*Math.PI*2,r=Math.sqrt(1-y*y),normal=new THREE.Vector3(r*Math.cos(angle),y,r*Math.sin(angle));
-    mineralMatrix.compose(normal.clone().multiplyScalar(radius+(arena.terrain?terrainHeight(arena.terrain,normal.toArray() as [number,number,number]):0)-.015),radialFrame(normal,new THREE.Vector3(-normal.z,0,normal.x)),new THREE.Vector3(.25+random()*.6,.055+random()*.06,.25+random()*.6));
+    mineralMatrix.compose(normal.clone().multiplyScalar(radius+(arena.terrain?terrainHeight(arena.terrain,normal.toArray()):0)-.015),radialFrame(normal,new THREE.Vector3(-normal.z,0,normal.x)),new THREE.Vector3(.25+random()*.6,.055+random()*.06,.25+random()*.6));
     minerals.setMatrixAt(i,mineralMatrix); minerals.setColorAt(i,new THREE.Color().setRGB(.22+random()*.12,.30+random()*.12,.32+random()*.12));
   }
   minerals.computeBoundingSphere(); root.add(minerals);
@@ -145,7 +146,7 @@ export function createSurfaceArenaVisual(arena: SurfaceArena): THREE.Group {
     marker.userData.label = pickup.kind === "small-health" ? "+25" : pickup.kind === "large-health" ? "+50" : "ARMOR";
     const icon = pickup.kind === "armor" ? shieldIcon(color, size) : healthCross(color, size);
     marker.add(icon);
-    marker.add(pickupLabel(marker.userData.label, color));
+    marker.add(pickupLabel(String(marker.userData.label), color));
     marker.children.at(-1)!.position.y = size * 0.95;
     root.add(marker);
   }
@@ -188,12 +189,12 @@ export function updateSurfaceCoverVisual(root: THREE.Group, arena: SurfaceArena)
   const matrix=new THREE.Matrix4(),position=new THREE.Vector3(),size=new THREE.Vector3(),radius=arena.radius??27;
   let changed=false;
   arena.walls.forEach((wall,index)=>{
-    if(wall.normal.every((n,k)=>n===previous![index*3+k]))return;
+    if(wall.normal.every((n,k)=>n===previous[index*3+k]))return;
     const normal=vector(wall.normal).normalize(),tangent=vector(wall.tangent).projectOnPlane(normal).normalize();
     matrix.compose(position.copy(normal).multiplyScalar(wallGroundRadius(wall,radius)+(wall.height-wallBurial(wall))/2),radialFrame(normal,tangent),size.set(wall.length,wall.height+wallBurial(wall),SURFACE.wallThickness));
     cover.setMatrixAt(index,matrix);
     for(let col=0;col<4;col++){const attribute=lines.geometry.getAttribute(`wallColumn${col}`);for(let row=0;row<4;row++)attribute.array[index*4+row]=matrix.elements[col*4+row];}
-    wall.normal.forEach((n,k)=>previous![index*3+k]=n);changed=true;
+    wall.normal.forEach((n,k)=>previous[index*3+k]=n);changed=true;
   });
   if(changed){cover.instanceMatrix.needsUpdate=true;cover.computeBoundingSphere();for(let col=0;col<4;col++)lines.geometry.getAttribute(`wallColumn${col}`).needsUpdate=true;}
 }
@@ -237,7 +238,7 @@ export function renderOccludedSurfaceWorld(scene: THREE.Scene, surfaceActive: bo
   scene.traverseVisible(object => {
     const material = (object as THREE.Mesh).material;
     if (!material) return;
-    for (const item of Array.isArray(material) ? material : [material]) if (!item.depthTest) {
+    for (const item of isUnknownArray(material) ? material : [material]) if (!item.depthTest) {
       changed.add(item); item.depthTest = true;
     }
   });

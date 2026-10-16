@@ -1,3 +1,6 @@
+import "./obsidian-shim";
+import { connectionStats, connectionStatById } from "../src/rtcStats";
+import { browserRequest, browserPost, proxyStats } from "./browser-http";
 // Synthetic network-only browser harness. No vault access and no WebGL required.
 import { MultiplayerSession, type AnonymousPlayer, type AnonymousTopology, type Pose } from "../src/multiplayer";
 import * as THREE from "three";
@@ -23,7 +26,7 @@ const maps = document.getElementById("maps")!;
 const surfaceSummary = document.getElementById("surface")!;
 const surfaceResult = document.getElementById("surface-result")!;
 const fireReasons = new Map<string, number>();
-const authorityFire = SurfaceAuthority.prototype.fire;
+const authorityFire = Object.getOwnPropertyDescriptor(SurfaceAuthority.prototype, "fire")!.value as SurfaceAuthority["fire"];
 // Observe the production decision only; never alter arguments, results, or resources.
 SurfaceAuthority.prototype.fire = function(...args: Parameters<typeof authorityFire>) {
   const result = authorityFire.apply(this, args), reason = result.accepted ? "accepted" : result.reason ?? "rejected";
@@ -65,11 +68,11 @@ const requestedRelay = new URLSearchParams(location.search).get("relay");
 // Restrict the test-only override to loopback. Production defaults remain unchanged.
 const loopbackRelay = requestedRelay && /^http:\/\/(127\.0\.0\.1|localhost):\d+\/relay$/.test(requestedRelay) ? requestedRelay : null;
 if (loopbackRelay) { relay.disabled = true; status.textContent = "Loopback signaling fixture; TURN credential requests disabled."; }
-const NativeConnection = globalThis.RTCPeerConnection;
+const NativeConnection = window.RTCPeerConnection;
 const udpToken = loopbackRelay ? new URLSearchParams(location.search).get("udp") : null;
 const FixtureConnection = NativeConnection && udpToken ? proxyIceConnection(NativeConnection, udpToken, () => { status.textContent = "UDP impairment registration failed; connection closed."; status.className = "error"; }) : NativeConnection;
 if (NativeConnection) {
-  globalThis.RTCPeerConnection = class extends FixtureConnection {
+  window.RTCPeerConnection = class extends FixtureConnection {
     constructor(configuration?: RTCConfiguration) {
       super({ ...configuration, iceTransportPolicy: relay.checked ? "relay" : "all" });
       connections.add(this);
@@ -96,7 +99,7 @@ function movePublishedMain(slot: number): void {
 function updateMemberOptions(select: HTMLSelectElement): void {
   const selected = select.value || self;
   select.replaceChildren(...members.map(member => {
-    const option = document.createElement("option"); option.value = member.id; option.textContent = member.name; return option;
+    const option = createEl("option"); option.value = member.id; option.textContent = member.name; return option;
   }));
   if (members.some(member => member.id === selected)) select.value = selected;
 }
@@ -106,7 +109,7 @@ function dockOwner(ownerId: string): void {
 }
 const rows = new Map<string, HTMLLIElement>();
 const requestIce = async (url: string, token?: string) => {
-  const response = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : undefined });
+  const response = await browserRequest(url, { headers: token ? { Authorization: `Bearer ${token}` } : undefined });
   let body: unknown = null;
   try { body = await response.json(); } catch { /* preserve the status for the service error path */ }
   return { status: response.status, body };
@@ -115,7 +118,7 @@ function renderPlayers(): void {
   for (const [id, row] of rows) if (!members.some(member => member.id === id)) { row.remove(); rows.delete(id); }
   for (const member of members) {
     let row = rows.get(member.id);
-    if (!row) { row = document.createElement("li"); rows.set(member.id, row); players.append(row); }
+    if (!row) { row = createEl("li"); rows.set(member.id, row); players.append(row); }
     const pose = poses.get(member.id);
     const text = `${member.name}${member.id === self ? " (you)" : ""}: ${pose ? `${pose.health} HP, ${pose.active ? "flying" : "spectator"}` : "waiting for flight state"}`;
     const detail = `${text}${pose ? `; flight ack ${pose.inputTick}` : ""}`;
@@ -159,7 +162,7 @@ const network = new MultiplayerSession({
     if (sample && sample.elapsedMs === undefined) { sample.elapsedMs = performance.now() - sample.sentAt; sample.accepted = accepted; renderTrial(); }
   },
   surfaceColor(_sequence, accepted, approved) { surfaceResult.textContent = `Color ${accepted ? "approved" : "rejected"}: ${approved}`; },
-}, () => ({ data, nodes }), () => loopbackRelay ?? DEFAULT_RELAY, undefined, loopbackRelay ? undefined : requestIce);
+}, () => ({ data, nodes }), () => loopbackRelay ?? DEFAULT_RELAY, browserPost, loopbackRelay ? undefined : requestIce);
 
 async function start(action: "create" | "join"): Promise<void> {
   try {
@@ -191,9 +194,9 @@ document.getElementById("fire-nearest")!.addEventListener("click", () => {
     const up = new THREE.Vector3(...target.state.position).normalize(), forward = new THREE.Vector3(...target.state.forward).projectOnPlane(up).normalize();
     const right = new THREE.Vector3().crossVectors(forward, up).normalize();
     const point = new THREE.Vector3(...target.state.position).addScaledVector(up, target.state.crouched ? 0.7 : 1.2).addScaledVector(right, target.state.lean);
-    const hit = traceSurfaceSegment(pose.muzzle, point.toArray() as [number, number, number], arena.arena.walls, targets, self);
+    const hit = traceSurfaceSegment(pose.muzzle, point.toArray(), arena.arena.walls, targets, self);
     if (hit?.kind !== "player") continue;
-    network.fireSurface(++fireSequence, Math.floor(displayed.representedAt), shooter.arenaKey, shooter.lifeId, point.sub(muzzle).normalize().toArray() as [number, number, number]);
+    network.fireSurface(++fireSequence, Math.floor(displayed.representedAt), shooter.arenaKey, shooter.lifeId, point.sub(muzzle).normalize().toArray());
     return;
   }
   surfaceResult.textContent = "No visible unprotected player on this arena";
@@ -210,16 +213,16 @@ document.getElementById("fire-trial")!.addEventListener("click", () => {
   trial = { epoch: latestSurface.epoch, arenaKey: player.arenaKey, lifeId: player.lifeId, samples: [], aborted: null, sent: 0, startedAt: performance.now() };
   const thisTrial = trial;
   const timer = window.setInterval(() => {
-    if (trial !== thisTrial || thisTrial.aborted) { clearInterval(timer); renderTrial(); return; }
+    if (trial !== thisTrial || thisTrial.aborted) { window.clearInterval(timer); renderTrial(); return; }
     const shooter = latestSurface?.players.find(player => player.id === self);
-    if (!latestSurface || !shooter?.surface || shooter.mode !== "surface" || shooter.health <= 0 || shooter.lifeId !== thisTrial.lifeId || shooter.arenaKey !== thisTrial.arenaKey || latestSurface.epoch !== thisTrial.epoch) { thisTrial.aborted = "Shooter state changed"; clearInterval(timer); renderTrial(); return; }
+    if (!latestSurface || !shooter?.surface || shooter.mode !== "surface" || shooter.health <= 0 || shooter.lifeId !== thisTrial.lifeId || shooter.arenaKey !== thisTrial.arenaKey || latestSurface.epoch !== thisTrial.epoch) { thisTrial.aborted = "Shooter state changed"; window.clearInterval(timer); renderTrial(); return; }
     const displayed = presentation(); if (!displayed) return;
     const viewTime = Math.floor(displayed.representedAt);
     const sample = { sequence: ++fireSequence, sentAt: performance.now(), viewTime, representedLagMs: latestHostEstimate + Math.max(0, Date.now() - lastSnapshotWallAt) - viewTime, exhausted: displayed.exhausted };
     thisTrial.samples.push(sample); thisTrial.sent++;
     network.fireSurface(sample.sequence, viewTime, shooter.arenaKey, shooter.lifeId, surfaceBlasterDirection(shooter.surface));
     renderTrial();
-    if (thisTrial.sent === 500) { clearInterval(timer); window.setTimeout(renderTrial, 1500); }
+    if (thisTrial.sent === 500) { window.clearInterval(timer); window.setTimeout(renderTrial, 1500); }
   }, 220);
 });
 let inputSequence = 0;
@@ -240,21 +243,21 @@ const stats = window.setInterval(() => {
   renderTrial();
   void Promise.all([...connections].filter(pc => pc.connectionState !== "closed").map(async pc => {
     const report = await pc.getStats();
-    const selected = [...report.values()].find(item => item.type === "transport" && item.selectedCandidatePairId)?.selectedCandidatePairId;
-    const pair = selected ? report.get(selected) : [...report.values()].find(item => item.type === "candidate-pair" && item.nominated && item.state === "succeeded");
-    const local = pair && report.get(pair.localCandidateId)?.candidateType;
-    const remoteCandidate = pair && report.get(pair.remoteCandidateId);
+    const selected = connectionStats(report).find(item => item.type === "transport" && item.selectedCandidatePairId)?.selectedCandidatePairId;
+    const pair = selected ? connectionStatById(report, selected) : connectionStats(report).find(item => item.type === "candidate-pair" && item.nominated && item.state === "succeeded");
+    const local = pair && connectionStatById(report, pair.localCandidateId)?.candidateType;
+    const remoteCandidate = pair && connectionStatById(report, pair.remoteCandidateId);
     const remote = remoteCandidate?.candidateType;
     // Display only types and counters, never candidate addresses or credentials.
     return `${pc.connectionState}${pair ? `: ${local} -> ${remote}; ${pair.bytesSent || 0} bytes sent; RTT ${Math.round((pair.currentRoundTripTime ?? 0) * 1000)} ms${udpToken ? `; proxy route ${remoteCandidate?.address === "127.0.0.1" ? "selected" : "NOT VERIFIED"}` : ""}` : ""}`;
   })).then(rows => { transport.textContent = (rows.join("\n") || "No peer connection") + `\n${[...dataChannels].filter(channel => channel.readyState === "open").map(channel => `${channel.label}: ${channel.bufferedAmount} bytes queued`).join("\n")}`; }).catch(() => { transport.textContent = "Connection statistics unavailable"; });
   if (udpToken) {
     const url = new URL("/udp/stats", location.origin); url.searchParams.set("token", udpToken);
-    void fetch(url).then(response => response.json()).then(value => {
+    void proxyStats(url.toString()).then(value => {
       document.getElementById("impairment")!.textContent = `UDP impairment: ${value.profile.rtt} ms RTT; ±${value.profile.jitter} ms one-way jitter; ${value.profile.loss * 100}% loss\n${value.forwarded} forwarded; ${value.dropped} dropped; ${value.pairedSockets}/${value.sockets} paired sockets; ${value.sendErrors} send errors; mean applied delay ${value.meanDelayMs.toFixed(1)} ms`;
     }).catch(() => { document.getElementById("impairment")!.textContent = "UDP proxy statistics unavailable"; });
   }
 }, 1000);
-window.addEventListener("beforeunload", () => { clearInterval(inputs); clearInterval(stats); network.leave(); });
+window.addEventListener("beforeunload", () => { window.clearInterval(inputs); window.clearInterval(stats); network.leave(); });
 renderMaps();
 if (!NativeConnection) status.textContent = "This browser does not provide WebRTC.";

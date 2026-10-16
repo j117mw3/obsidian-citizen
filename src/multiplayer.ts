@@ -1,6 +1,8 @@
+import { connectionStats, connectionStatById } from "./rtcStats";
+import { isUnknownArray } from "./validation";
 import { surfaceWorldRadii } from "./surfaceGeometry";
 import { MAX_CHECKPOINT_BYTES, stringifySurfaceTransfer, parseSurfaceTransfer } from "./surfaceGeometryWire";
-import type { GraphData, RawLink, RawNode, SimNode } from "./types";
+import type { GraphData, RawNode, SimNode } from "./types";
 import { CombatWorld, type RoomCheckpoint } from "./combat";
 import { DEFAULT_PILOT_PROFILE, LASER_SOUND_IDS, validPilotProfile, type PilotProfile, type LaserSoundId } from "./pilotProfile";
 import { PLAYER_KILLS_TO_WIN, type EliminationEvent, type RoundSnapshot } from "./rounds";
@@ -171,7 +173,7 @@ export function validRoundSnapshot(value: unknown, epoch?: number): value is Rou
   if (!Number.isSafeInteger(state.epoch) || (epoch !== undefined && state.epoch !== epoch) || !Number.isSafeInteger(state.roundId) || state.roundId < 1
     || !["combat", "supernova", "waiting", "countdown"].includes(state.phase) || !Number.isFinite(state.phaseRemainingMs) || state.phaseRemainingMs < 0
     || typeof state.winnerId !== "string" || (state.winnerId !== "" && !/^[0-9a-f-]{36}$/i.test(state.winnerId))
-    || !Array.isArray(state.scores) || state.scores.length > 64 || !Array.isArray(state.layoutRequirements) || state.layoutRequirements.length > 4) return false;
+    || !isUnknownArray(state.scores) || state.scores.length > 64 || !isUnknownArray(state.layoutRequirements) || state.layoutRequirements.length > 4) return false;
   const phaseLimit = state.phase === "supernova" ? 8000 : state.phase === "waiting" ? 15_000 : state.phase === "countdown" ? 3000 : 0;
   if (state.phaseRemainingMs > phaseLimit) return false;
   const players = new Set<string>();
@@ -203,7 +205,7 @@ interface PositionAssembly { revision: number; sequence: number; totalBytes: num
 function validTopology(value: unknown): value is AnonymousTopology {
   if (!value || typeof value !== "object") return false;
   const t = value as AnonymousTopology;
-  if (!Number.isSafeInteger(t.revision) || t.revision < 1 || !Array.isArray(t.nodes) || !Array.isArray(t.groups) || !Array.isArray(t.links) || t.nodes.length > MAX_SHARED_NODES || t.links.length > MAX_SHARED_LINKS || t.groups.length > 128) return false;
+  if (!Number.isSafeInteger(t.revision) || t.revision < 1 || !isUnknownArray(t.nodes) || !isUnknownArray(t.groups) || !isUnknownArray(t.links) || t.nodes.length > MAX_SHARED_NODES || t.links.length > MAX_SHARED_LINKS || t.groups.length > 128) return false;
   const ids = new Set<string>();
   const dockableGroups = new Set<number>(), nodeGroups = new Set<number>(), highestDegrees = new Map<number, number>(), hubDegrees = new Map<number, number>();
   for (const n of t.nodes) {
@@ -215,12 +217,12 @@ function validTopology(value: unknown): value is AnonymousTopology {
   }
   for (const group of nodeGroups) if (!dockableGroups.has(group) || hubDegrees.get(group) !== highestDegrees.get(group)) return false;
   for (const g of t.groups) if (!g || typeof g.color !== "string" || !/^#[0-9a-f]{6}$/i.test(g.color) || !Number.isInteger(g.count) || g.count < 0 || g.count > MAX_SHARED_NODES) return false;
-  for (const l of t.links) if (!Array.isArray(l) || l.length !== 2 || !ids.has(l[0]) || !ids.has(l[1]) || l[0] === l[1]) return false;
+  for (const l of t.links) if (!isUnknownArray(l) || l.length !== 2 || !ids.has(l[0]) || !ids.has(l[1]) || l[0] === l[1]) return false;
   return true;
 }
 
 function validMembers(value: unknown): value is AnonymousPlayer[] {
-  if (!Array.isArray(value) || value.length < 1 || value.length > 4) return false;
+  if (!isUnknownArray(value) || value.length < 1 || value.length > 4) return false;
   const ids = new Set<string>(), slots = new Set<number>();
   for (const item of value) {
     if (!item || typeof item !== "object") return false;
@@ -234,12 +236,12 @@ function validMembers(value: unknown): value is AnonymousPlayer[] {
 }
 
 function validIceServers(value: unknown): RTCIceServer[] {
-  if (!Array.isArray(value) || value.length > 12) return [];
+  if (!isUnknownArray(value) || value.length > 12) return [];
   const result: RTCIceServer[] = [];
   for (const entry of value) {
     if (!entry || typeof entry !== "object") continue;
     const server = entry as RTCIceServer;
-    const urls = Array.isArray(server.urls) ? server.urls : [server.urls];
+    const urls = isUnknownArray(server.urls) ? server.urls : [server.urls];
     if (!urls.length || !urls.every(url => typeof url === "string" && /^(stun|stuns|turn|turns):/i.test(url))) continue;
     if (server.username !== undefined && typeof server.username !== "string") continue;
     if (server.credential !== undefined && typeof server.credential !== "string") continue;
@@ -331,9 +333,9 @@ export class MultiplayerSession {
   private closed = false;
   private opening = false;
 
-  constructor(private callbacks: MultiplayerCallbacks, private graph: () => { data: GraphData; nodes: readonly SimNode[] }, private signalingUrl: () => string, post?: PostFn,
+  constructor(private callbacks: MultiplayerCallbacks, private graph: () => { data: GraphData; nodes: readonly SimNode[] }, private signalingUrl: () => string, post: PostFn,
     request?: (url: string, token?: string) => Promise<{ status: number; body: unknown }>) {
-    this.post = post ?? (async (url, body) => (await fetch(url, { method: "POST", body, headers: { "Content-Type": "text/plain" } })).status);
+    this.post = post;
     this.request = request;
   }
   get active(): boolean { return !!this.selfId && !this.closed; }
@@ -357,7 +359,7 @@ export class MultiplayerSession {
     if (this.active) throw new Error("Leave the current room before joining another.");
     if (!validPilotProfile(profile)) throw new Error("The selected ship or sound profile is invalid.");
     if (this.opening) throw new Error("A room connection is already in progress.");
-    if (!globalThis.RTCPeerConnection || !globalThis.EventSource) throw new Error("This Obsidian WebView does not provide the browser features multiplayer needs.");
+    if (!window.RTCPeerConnection || !window.EventSource) throw new Error("This Obsidian WebView does not provide the browser features multiplayer needs.");
     const url = this.signalingUrl().trim() || DEFAULT_RELAY;
     const cleanName = name.trim().slice(0, 24);
     if (!cleanName) throw new Error("Enter a display name in plugin settings.");
@@ -526,24 +528,24 @@ export class MultiplayerSession {
       const existing = this.roster.find(member => member.id === msg.id);
       if (!existing || msg.profile.revision <= existing.profile.revision) return;
       this.roster = this.roster.map(member => member.id === msg.id ? { ...member, profile: msg.profile as PilotProfile } : member);
-      this.world?.setProfile(msg.id, msg.profile as PilotProfile);
+      this.world?.setProfile(msg.id, msg.profile);
       this.callbacks.members(this.roster, this.selfId, this.hostId, this.epoch); return;
     }
     if (msg.type === "member-left") {
-      const id = String(msg.id || ""); this.removePeer(id); this.roster = this.roster.filter(x => x.id !== id); this.callbacks.removed(id);
+      const id = (typeof msg.id === "string" ? msg.id : ""); this.removePeer(id); this.roster = this.roster.filter(x => x.id !== id); this.callbacks.removed(id);
       this.world?.remove(id);
-      this.hostId = String(msg.hostId || this.hostId); this.epoch = Number(msg.epoch) || this.epoch; this.callbacks.members(this.roster, this.selfId, this.hostId, this.epoch);
+      this.hostId = (typeof msg.hostId === "string" ? msg.hostId : this.hostId); this.epoch = Number(msg.epoch) || this.epoch; this.callbacks.members(this.roster, this.selfId, this.hostId, this.epoch);
       this.updatePeerStatus(); return;
     }
     if (msg.type === "authority") {
-      this.hostId = String(msg.hostId || ""); this.epoch = Number(msg.epoch) || this.epoch;
+      this.hostId = (typeof msg.hostId === "string" ? msg.hostId : ""); this.epoch = Number(msg.epoch) || this.epoch;
       this.gameResumeAt = Date.now() + 700;
       this.lastShipSequence.clear(); this.lastShotSequence = 0;
       this.lastRoundId = 0; this.lastRoundWireKey = ""; this.lastRoundSendAt = 0; this.seenEliminations.clear();
       this.world = this.isHost ? new CombatWorld(this.epoch) : null;
       if (this.world) {
         const checkpoint = msg.checkpoint as { state?: unknown; ageMs?: number } | null;
-        if (checkpoint?.state && Number.isFinite(checkpoint.ageMs) && (checkpoint.ageMs as number) >= 0 && (checkpoint.ageMs as number) <= 15_000) this.world.restore(checkpoint.state, Date.now(), checkpoint.ageMs as number);
+        if (checkpoint?.state && Number.isFinite(checkpoint.ageMs) && (checkpoint.ageMs as number) >= 0 && (checkpoint.ageMs as number) <= 15_000) this.world.restore(checkpoint.state, Date.now(), checkpoint.ageMs);
         this.world.epoch = this.epoch;
         for (const member of this.roster) { this.world.add(member); this.world.setProfile(member.id, member.profile); }
         this.startGameLoop();
@@ -553,7 +555,7 @@ export class MultiplayerSession {
       this.authorityTimer = window.setTimeout(() => this.updatePeerStatus(), 750); return;
     }
     if (msg.type === "signal") {
-      const from = String(msg.from || ""), data = msg.data as { description?: RTCSessionDescriptionInit; candidate?: RTCIceCandidateInit };
+      const from = (typeof msg.from === "string" ? msg.from : ""), data = msg.data as { description?: RTCSessionDescriptionInit; candidate?: RTCIceCandidateInit };
       if (!from || !data || typeof data !== "object") return;
       await this.connectPeer(from, false);
       const peer = this.peers.get(from); if (!peer) return;
@@ -631,7 +633,7 @@ export class MultiplayerSession {
         return;
       }
       if (m.type === "authority-commit" && id === this.hostId && m.epoch === this.epoch && this.validAuthorityMembers(m.members) && this.sameAuthorityMembers(m.members)) {
-        this.pendingAuthorityCommit = { epoch: this.epoch, hostId: this.hostId, members: [...m.members as string[]] };
+        this.pendingAuthorityCommit = { epoch: this.epoch, hostId: this.hostId, members: [...m.members] };
         this.tryAcceptAuthorityCommit(); return;
       }
       if (m.type === "checkpoint" && id === this.hostId && m.epoch === this.epoch && Number.isSafeInteger(m.sentAt)
@@ -676,7 +678,7 @@ export class MultiplayerSession {
       }
       if (m.type === "navigate" && this.isHost && m.epoch === this.epoch && this.validNavigationTarget(m.target)) { this.startRequestedTravel(id, m.target); return; }
       if (m.type === "fire" && this.isHost && m.epoch === this.epoch && Number.isSafeInteger(m.sequence) && Number.isInteger(m.gun) && (m.weapon === 0 || m.weapon === 1)
-        && Array.isArray(m.aimPoint) && m.aimPoint.length === 3 && m.aimPoint.every(v => typeof v === "number" && Number.isFinite(v))) {
+        && isUnknownArray(m.aimPoint) && m.aimPoint.length === 3 && m.aimPoint.every(v => typeof v === "number" && Number.isFinite(v))) {
         const sequence = m.sequence as number;
         const accepted = this.world?.fireShot(id, sequence, m.gun as number, Date.now(), m.aimPoint as [number, number, number], m.weapon) ?? false;
         this.sendReliable(id, { type: "shot-result", epoch: this.epoch, sequence, accepted }); return;
@@ -695,7 +697,7 @@ export class MultiplayerSession {
       let transfer = peer.topologyReceive;
       if (!transfer || transfer.revision !== m.revision || transfer.total !== m.total) {
         if (transfer && (m.revision as number) < transfer.revision) return;
-        transfer = { revision: m.revision as number, total: m.total as number, parts: new Array(m.total as number), bytes: 0, received: 0 };
+        transfer = { revision: m.revision as number, total: m.total as number, parts: new Array<string>(m.total as number), bytes: 0, received: 0 };
         peer.topologyReceive = transfer;
       }
       const index = m.index as number;
@@ -706,7 +708,7 @@ export class MultiplayerSession {
       if (transfer.bytes > MAX_TOPOLOGY_CHARS) { peer.topologyReceive = null; return; }
       if (transfer.received < transfer.total) return;
       try {
-        const value = JSON.parse(transfer.parts.join(""));
+        const value: unknown = JSON.parse(transfer.parts.join(""));
         if (!validTopology(value) || value.revision !== transfer.revision || (peer.topology && value.revision <= peer.topology.revision)) { peer.topologyReceive = null; return; }
         peer.topology = value; peer.positions = undefined; peer.positionsRevision = undefined; peer.lastPositionSequence = 0; peer.positionReceive.clear(); peer.topologyReceive = null;
         this.refreshSurfaceMap(id);
@@ -769,7 +771,7 @@ export class MultiplayerSession {
       this.lastShipSequence.set(m.playerId, sequence); this.callbacks.playerState(m.playerId, m.pose); return;
     }
     if (m.type === "ships" && id === this.hostId && m.epoch === this.epoch && Number.isSafeInteger(m.sequence)
-      && Array.isArray(m.poses) && m.poses.length <= 4) {
+      && isUnknownArray(m.poses) && m.poses.length <= 4) {
       const poses = m.poses as Array<{ id: string; pose: Pose }>;
       if (poses.some(item => !item || typeof item.id !== "string" || !this.validPose(item.pose)) || new Set(poses.map(item => item.id)).size !== poses.length) return;
       const sequence = m.sequence as number;
@@ -779,7 +781,7 @@ export class MultiplayerSession {
       return;
     }
     if (m.type === "shots" && id === this.hostId && m.epoch === this.epoch && Number.isSafeInteger(m.sequence) && (m.sequence as number) > this.lastShotSequence
-      && Array.isArray(m.shots) && m.shots.length <= 128 && Array.isArray(m.impacts) && m.impacts.length <= 128) {
+      && isUnknownArray(m.shots) && m.shots.length <= 128 && isUnknownArray(m.impacts) && m.impacts.length <= 128) {
       if (!m.shots.every(s => this.validShot(s)) || !m.impacts.every(s => this.validImpact(s))) return;
       this.lastShotSequence = m.sequence as number; this.callbacks.shotState(m.shots, m.impacts); return;
     }
@@ -800,7 +802,7 @@ export class MultiplayerSession {
     let assembly = peer.positionReceive.get(sequence);
     if (!assembly) {
       while (peer.positionReceive.size >= 3) peer.positionReceive.delete(peer.positionReceive.keys().next().value!);
-      assembly = { revision, sequence, totalBytes, chunks: new Array(total), received: 0, createdAt: now };
+      assembly = { revision, sequence, totalBytes, chunks: new Array<Uint8Array | undefined>(total), received: 0, createdAt: now };
       peer.positionReceive.set(sequence, assembly);
     }
     if (assembly.revision !== revision || assembly.totalBytes !== totalBytes || assembly.chunks.length !== total || assembly.chunks[index]) return null;
@@ -818,16 +820,16 @@ export class MultiplayerSession {
     const s = value as ShotSnapshot;
     return typeof s.id === "string" && s.id.length <= 64 && typeof s.ownerId === "string" && s.ownerId.length <= 64
       && Number.isInteger(s.gun) && s.gun >= 0 && s.gun <= 3 && (s.weapon === 0 || s.weapon === 1)
-      && Array.isArray(s.origin) && s.origin.length === 3 && s.origin.every(v => Number.isFinite(v) && Math.abs(v) <= MAX_COORDINATE)
-      && Array.isArray(s.position) && s.position.length === 3 && s.position.every(v => Number.isFinite(v) && Math.abs(v) <= MAX_COORDINATE)
-      && Array.isArray(s.direction) && s.direction.length === 3 && s.direction.every(v => Number.isFinite(v) && Math.abs(v) <= 1.01)
+      && isUnknownArray(s.origin) && s.origin.length === 3 && s.origin.every(v => Number.isFinite(v) && Math.abs(v) <= MAX_COORDINATE)
+      && isUnknownArray(s.position) && s.position.length === 3 && s.position.every(v => Number.isFinite(v) && Math.abs(v) <= MAX_COORDINATE)
+      && isUnknownArray(s.direction) && s.direction.length === 3 && s.direction.every(v => Number.isFinite(v) && Math.abs(v) <= 1.01)
       && Number.isFinite(s.speed) && s.speed >= 1 && s.speed <= 20_000 && LASER_SOUND_IDS.includes(s.sound) && Number.isSafeInteger(s.startedAt);
   }
   private validImpact(value: unknown): value is ImpactSnapshot {
     if (!value || typeof value !== "object") return false;
     const i = value as ImpactSnapshot;
     return typeof i.id === "string" && i.id.length <= 64 && (i.kind === "star" || i.kind === "ship")
-      && Array.isArray(i.position) && i.position.length === 3 && i.position.every(v => Number.isFinite(v) && Math.abs(v) <= MAX_COORDINATE);
+      && isUnknownArray(i.position) && i.position.length === 3 && i.position.every(v => Number.isFinite(v) && Math.abs(v) <= MAX_COORDINATE);
   }
 
   private validInput(value: unknown): value is FlightInput {
@@ -836,24 +838,24 @@ export class MultiplayerSession {
     return Number.isSafeInteger(x.sequence) && x.sequence > 0
       && [x.thrust, x.strafe, x.lift, x.roll, x.pitch, x.yaw].every(v => Number.isFinite(v) && Math.abs(v) <= 1)
       && [x.boost, x.brake, x.fire, x.active, x.invertY].every(v => typeof v === "boolean")
-      && (x.mouseMode === "capture" || x.mouseMode === "cursor") && Array.isArray(x.mouseSamples) && x.mouseSamples.length <= 8
-      && x.mouseSamples.every(sample => Array.isArray(sample) && sample.length === 2 && sample.every(v => Number.isFinite(v) && Math.abs(v) <= 500))
+      && (x.mouseMode === "capture" || x.mouseMode === "cursor") && isUnknownArray(x.mouseSamples) && x.mouseSamples.length <= 8
+      && x.mouseSamples.every(sample => isUnknownArray(sample) && sample.length === 2 && sample.every(v => Number.isFinite(v) && Math.abs(v) <= 500))
       && Number.isFinite(x.sensitivity) && x.sensitivity >= 0.2 && x.sensitivity <= 4
       && Number.isFinite(x.agility) && x.agility >= 0.1 && x.agility <= 4
-      && (x.ticks === undefined || (Array.isArray(x.ticks) && x.ticks.length <= 12 && x.ticks.every(t => Number.isSafeInteger(t.tick) && t.tick > 0
+      && (x.ticks === undefined || (isUnknownArray(x.ticks) && x.ticks.length <= 12 && x.ticks.every(t => Number.isSafeInteger(t.tick) && t.tick > 0
         && [t.thrust, t.strafe, t.lift, t.roll, t.pitch, t.yaw].every(v => Number.isFinite(v) && Math.abs(v) <= 1)
         && [t.boost, t.brake, t.active, t.invertY].every(v => typeof v === "boolean") && (t.mouseMode === "capture" || t.mouseMode === "cursor")
-        && Array.isArray(t.mouseDelta) && t.mouseDelta.length === 2 && t.mouseDelta.every(v => Number.isFinite(v) && Math.abs(v) <= 500)
+        && isUnknownArray(t.mouseDelta) && t.mouseDelta.length === 2 && t.mouseDelta.every(v => Number.isFinite(v) && Math.abs(v) <= 500)
         && Number.isFinite(t.sensitivity) && t.sensitivity >= 0.2 && t.sensitivity <= 4 && Number.isFinite(t.agility) && t.agility >= 0.1 && t.agility <= 4)));
   }
   private validPose(value: unknown): value is Pose {
     if (!value || typeof value !== "object") return false;
     const p = value as Pose;
-    return Array.isArray(p.position) && p.position.length === 3 && p.position.every(v => Number.isFinite(v) && Math.abs(v) <= MAX_COORDINATE)
-      && Array.isArray(p.rotation) && p.rotation.length === 4 && p.rotation.every(Number.isFinite)
-      && Array.isArray(p.velocity) && p.velocity.length === 3 && p.velocity.every(v => Number.isFinite(v) && Math.abs(v) <= 20_000)
-      && Array.isArray(p.spin) && p.spin.length === 3 && p.spin.every(v => Number.isFinite(v) && Math.abs(v) <= 20)
-      && Array.isArray(p.mouseSmoothing) && p.mouseSmoothing.length === 2 && p.mouseSmoothing.every(v => Number.isFinite(v) && Math.abs(v) <= 500)
+    return isUnknownArray(p.position) && p.position.length === 3 && p.position.every(v => Number.isFinite(v) && Math.abs(v) <= MAX_COORDINATE)
+      && isUnknownArray(p.rotation) && p.rotation.length === 4 && p.rotation.every(Number.isFinite)
+      && isUnknownArray(p.velocity) && p.velocity.length === 3 && p.velocity.every(v => Number.isFinite(v) && Math.abs(v) <= 20_000)
+      && isUnknownArray(p.spin) && p.spin.length === 3 && p.spin.every(v => Number.isFinite(v) && Math.abs(v) <= 20)
+      && isUnknownArray(p.mouseSmoothing) && p.mouseSmoothing.length === 2 && p.mouseSmoothing.every(v => Number.isFinite(v) && Math.abs(v) <= 500)
       && Number.isFinite(p.health) && p.health >= 0 && p.health <= 100 && Number.isFinite(p.shields) && p.shields >= 0 && p.shields <= 40
       && Number.isFinite(p.energy) && p.energy >= 0 && p.energy <= 1 && typeof p.boostLocked === "boolean"
       && Number.isFinite(p.boostHold) && p.boostHold >= 0 && p.boostHold <= 3 && Number.isFinite(p.regenDelay) && p.regenDelay >= 0 && p.regenDelay <= 1.5
@@ -930,7 +932,7 @@ export class MultiplayerSession {
 
   private readRelayStatus(value: unknown, servers: RTCIceServer[]): "ready" | "pending" | "unavailable" | "quota" | "direct-only" {
     if (value === "ready" || value === "pending" || value === "unavailable" || value === "quota" || value === "direct-only") return value;
-    return servers.some(server => (Array.isArray(server.urls) ? server.urls : [server.urls]).some(url => typeof url === "string" && /^turns?:/i.test(url))) ? "ready" : "direct-only";
+    return servers.some(server => (isUnknownArray(server.urls) ? server.urls : [server.urls]).some(url => typeof url === "string" && /^turns?:/i.test(url))) ? "ready" : "direct-only";
   }
 
   private roomServiceError(message: SignalMessage): string {
@@ -1148,9 +1150,9 @@ export class MultiplayerSession {
 
   private authorityMembers(): string[] { return this.roster.map(member => member.id).sort(); }
   private validAuthorityMembers(value: unknown): value is string[] {
-    return Array.isArray(value) && value.length === this.roster.length && value.length >= 1 && value.length <= 4
-      && value.every((id, index) => typeof id === "string" && /^[0-9a-f-]{36}$/i.test(id) && (index === 0 || value[index - 1] < id))
-      && this.sameAuthorityMembers(value);
+    return isUnknownArray(value) && value.length === this.roster.length && value.length >= 1 && value.length <= 4
+      && value.every((id, index) => typeof id === "string" && /^[0-9a-f-]{36}$/i.test(id) && (index === 0 || (typeof value[index - 1] === "string" && (value[index - 1] as string) < id)))
+      && this.sameAuthorityMembers(value as string[]);
   }
   private sameAuthorityMembers(value: string[]): boolean {
     const expected = this.authorityMembers(); return value.length === expected.length && value.every((id, index) => id === expected[index]);
@@ -1249,7 +1251,7 @@ export class MultiplayerSession {
     const now = Date.now(), age = this.surfaceClock.estimateHostTime(now) - sentAt;
     if (age < 0 || age > 15_000 || sentAt <= this.lastCheckpointWireAt || !state || typeof state !== "object") return;
     const checkpoint = state as RoomCheckpoint;
-    if (checkpoint.version !== 14) { this.callbacks.status("Incompatible room checkpoint. Everyone must update to the same OB Citizen build (protocol 14).", true); return; }
+    if (checkpoint.version !== 14) { this.callbacks.status("Incompatible room checkpoint. Everyone must update to the same Citizen build (protocol 14).", true); return; }
     if (!Number.isSafeInteger(checkpoint.epoch) || checkpoint.epoch !== this.epoch) return;
     const probe = new CombatWorld(checkpoint.epoch), surfaceProbe = new SurfaceAuthority({terrain:true});
     if (probe.restore(state, now, age) && surfaceProbe.restoreCheckpoint(checkpoint.surface, now, age)) {
@@ -1268,7 +1270,7 @@ export class MultiplayerSession {
     let transfer = this.checkpointReceive;
     if (!transfer || transfer.sentAt !== sentAt) {
       if (transfer && transfer.sentAt > sentAt) return;
-      transfer = this.checkpointReceive = { sentAt, total: m.total as number, parts: new Array(m.total as number), bytes: 0, received: 0 };
+      transfer = this.checkpointReceive = { sentAt, total: m.total as number, parts: new Array<string>(m.total as number), bytes: 0, received: 0 };
     }
     if (transfer.total !== m.total || transfer.parts[m.index as number] !== undefined) return;
     transfer.parts[m.index as number] = m.data; transfer.bytes += m.data.length; transfer.received++;
@@ -1364,8 +1366,8 @@ export class MultiplayerSession {
     await Promise.allSettled([...this.peers].map(async ([id, peer]) => {
       if (peer.pc.connectionState !== "connected" || typeof peer.pc.getStats !== "function") return;
       const report = await peer.pc.getStats();
-      const selectedId = [...report.values()].find(item => item.type === "transport" && item.selectedCandidatePairId)?.selectedCandidatePairId;
-      const pair = selectedId ? report.get(selectedId) : [...report.values()].find(item => item.type === "candidate-pair" && item.nominated && item.state === "succeeded");
+      const selectedId = connectionStats(report).find(item => item.type === "transport" && item.selectedCandidatePairId)?.selectedCandidatePairId;
+      const pair = selectedId ? connectionStatById(report, selectedId) : connectionStats(report).find(item => item.type === "candidate-pair" && item.nominated && item.state === "succeeded");
       if (this.isHost && this.epoch === epoch && this.surfaceAuthority === authority && pair?.type === "candidate-pair"
         && typeof pair.currentRoundTripTime === "number") authority.observeConnectionTiming(id, pair.currentRoundTripTime * 1000, now);
     }));
@@ -1501,13 +1503,13 @@ export class MultiplayerSession {
       this.callbacks.surfaceFireResult?.(sequence, m.accepted); return true;
     }
     if (!this.isHost || !this.authorityReady || this.world?.roundPhase !== "combat" || !Number.isSafeInteger(m.viewTime) || typeof m.arenaKey !== "string" || m.arenaKey.length > 128
-      || !Number.isSafeInteger(m.lifeId) || (m.lifeId as number) < 1 || !Array.isArray(m.direction) || m.direction.length !== 3
+      || !Number.isSafeInteger(m.lifeId) || (m.lifeId as number) < 1 || !isUnknownArray(m.direction) || m.direction.length !== 3
       || !m.direction.every(value => typeof value === "number" && Number.isFinite(value))) return true;
     let results = this.surfaceFireResults.get(id);
     if (!results) { results = new Map(); this.surfaceFireResults.set(id, results); }
     let accepted = results.get(sequence);
     if (accepted === undefined) {
-      accepted = !!this.surfaceAuthority?.fire(id, sequence, m.viewTime as number, m.direction as [number, number, number], this.issuedSurfaceTimes.get(id) ?? [], Date.now(), m.arenaKey, m.lifeId as number, m.kind as "normal" | "charged").accepted;
+      accepted = !!this.surfaceAuthority?.fire(id, sequence, m.viewTime, m.direction, this.issuedSurfaceTimes.get(id) ?? [], Date.now(), m.arenaKey, m.lifeId, m.kind as "normal" | "charged").accepted;
       results.set(sequence, accepted);
       while (results.size > 128) results.delete(results.keys().next().value!);
     }
@@ -1534,7 +1536,7 @@ export class MultiplayerSession {
 
   fireSurface(sequence: number, viewTime: number, arenaKey: string, lifeId: number, direction: [number, number, number], kind: "normal" | "charged" = "normal"): void {
     if (!this.active || !this.authorityReady || (this.isHost && this.world?.roundPhase !== "combat") || !Number.isSafeInteger(sequence) || sequence < 1 || !Number.isSafeInteger(viewTime)
-      || typeof arenaKey !== "string" || !Number.isSafeInteger(lifeId) || !Array.isArray(direction) || direction.length !== 3 || !direction.every(Number.isFinite)) return;
+      || typeof arenaKey !== "string" || !Number.isSafeInteger(lifeId) || !isUnknownArray(direction) || direction.length !== 3 || !direction.every(Number.isFinite)) return;
     if (this.isHost) {
       const now = Date.now(), issued = this.issuedSurfaceTimes.get(this.selfId) ?? [];
       this.surfaceAuthority?.observeConnectionTiming(this.selfId, 0, now);

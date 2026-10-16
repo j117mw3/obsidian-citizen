@@ -61,7 +61,7 @@ export class SurfaceCoverMotion {
       if(Math.hypot(...tangent)<1e-7)tangent=[1,0,0];tangent=unit(tangent);
       const turn=Math.min(angle,(authoritative?maxStep*2:maxStep)/radius);
       const advance=(heading:SurfaceVector)=>unit(from.map((v,k)=>v*Math.cos(turn)+heading[k]*Math.sin(turn)) as [number,number,number]);
-      let normal=advance(tangent),p=point(normal,radius);
+      let normal=advance(tangent);
       if(!authoritative) {
         const candidateAt=(n:SurfaceVector)=>{const candidate={...wall,normal:n,tangent:unit([-n[2],0,n[0]])};bindTerrainWall(candidate,this.base.terrain);return candidate;};
         const bodiesClear=(n:SurfaceVector)=>{const location=point(n,radius);return !players.some(player=>distance(location,player.position)<4&&touchesPlayer(candidateAt(n),player,radius));};

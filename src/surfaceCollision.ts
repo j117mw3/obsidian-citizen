@@ -11,7 +11,7 @@ const clamp = (value: number, low: number, high: number) => Math.max(low, Math.m
 export function surfaceWallBox(wall: SurfaceWall, arenaRadius: number = SURFACE.radius): SurfaceBox {
   const up = vector(wall.normal).normalize(), along = vector(wall.tangent).projectOnPlane(up).normalize();
   const across = new THREE.Vector3().crossVectors(up, along).normalize();
-  return { center: up.clone().multiplyScalar(wallGroundRadius(wall, arenaRadius) + (wall.height-wallBurial(wall)) / 2).toArray() as [number, number, number],
+  return { center: up.clone().multiplyScalar(wallGroundRadius(wall, arenaRadius) + (wall.height-wallBurial(wall)) / 2).toArray(),
     axes: [along.toArray(), up.toArray(), across.toArray()] as [number, number, number][], half: [wall.length / 2, (wall.height+wallBurial(wall)) / 2, (wall.thickness ?? SURFACE.wallThickness) / 2] };
 }
 
@@ -49,7 +49,7 @@ export function capsuleBoxContact(a: SurfaceVector, b: SurfaceVector, radius: nu
   if (distanceSq > 1e-12) {
     const distance = Math.sqrt(distanceSq), normal = new THREE.Vector3();
     axes.forEach((axis, index) => normal.addScaledVector(axis, difference[index] / distance));
-    return { normal: normal.toArray() as [number, number, number], penetration: radius - distance };
+    return { normal: normal.toArray(), penetration: radius - distance };
   }
   let penetration = Infinity, normal = new THREE.Vector3();
   for (let axis = 0; axis < 3; axis++) {
@@ -58,13 +58,13 @@ export function capsuleBoxContact(a: SurfaceVector, b: SurfaceVector, radius: nu
     if (positive < penetration) { penetration = positive; normal.copy(axes[axis]); }
     if (negative < penetration) { penetration = negative; normal.copy(axes[axis]).negate(); }
   }
-  return { normal: normal.toArray() as [number, number, number], penetration };
+  return { normal: normal.toArray(), penetration };
 }
 
 export function surfaceCapsuleWallContact(position: SurfaceVector, height: number, wall: SurfaceWall, orientation?: SurfaceVector, arenaRadius: number = SURFACE.radius): CapsuleBoxContact | null {
   const up = orientation ? vector(orientation).normalize() : vector(position).normalize();
   const a = vector(position).addScaledVector(up, SURFACE.playerRadius), b = vector(position).addScaledVector(up, height - SURFACE.playerRadius);
-  return capsuleBoxContact(a.toArray() as [number, number, number], b.toArray() as [number, number, number], SURFACE.playerRadius, surfaceWallBox(wall, arenaRadius));
+  return capsuleBoxContact(a.toArray(), b.toArray(), SURFACE.playerRadius, surfaceWallBox(wall, arenaRadius));
 }
 
 const wallIndices = new WeakMap<readonly SurfaceWall[], { radius: number; length: number; grid: SurfaceSpatialGrid<SurfaceWall>; order: Map<SurfaceWall, number> }>();
@@ -91,14 +91,14 @@ export function nearbySurfaceWalls(start: SurfaceVector, end: SurfaceVector, wal
     wallIndices.set(walls, index);
   }
   return index.grid.query(start.map((v, k) => Math.min(v, end[k]) - padding), start.map((v, k) => Math.max(v, end[k]) + padding))
-    .sort((a, b) => index!.order.get(a)! - index!.order.get(b)!).concat([...extras.values()]);
+    .sort((a, b) => index.order.get(a)! - index.order.get(b)!).concat([...extras.values()]);
 }
 
 /** Low ledges may support grounded feet only within the configured automatic step allowance. */
 export function surfaceSupportRadius(position: SurfaceVector, walls: readonly SurfaceWall[], arenaRadius: number = SURFACE.radius): number {
   const up = vector(position).normalize();
   let support: number = groundRadius(position,walls,arenaRadius);
-  const feet = up.clone().multiplyScalar(arenaRadius).toArray() as [number, number, number];
+  const feet = up.clone().multiplyScalar(arenaRadius).toArray();
   for (const wall of nearbySurfaceWalls(feet, feet, walls, arenaRadius, SURFACE.playerRadius + SURFACE.maximumStep)) {
     if (wall.height > SURFACE.maximumStep || wall.height < 0) continue;
     const normal = vector(wall.normal).normalize(), facing = up.dot(normal);

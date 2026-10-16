@@ -39,6 +39,9 @@ jobs:
             exit 1
           fi
 
+      - name: Lint
+        run: npm run lint
+
       - name: Build
         run: npm run build
 
@@ -49,6 +52,14 @@ jobs:
         run: |
           zip "citizen-${GITHUB_REF_NAME}.zip" main.js manifest.json styles.css
           sha256sum main.js manifest.json styles.css "citizen-${GITHUB_REF_NAME}.zip" > SHA256SUMS.txt
+
+      - name: Keep install archive and checksums
+        uses: actions/upload-artifact@v7
+        with:
+          name: citizen-${{ github.ref_name }}-verification
+          path: |
+            citizen-*.zip
+            SHA256SUMS.txt
 
       - name: Attest build provenance
         uses: actions/attest-build-provenance@v4
@@ -62,6 +73,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" main.js manifest.json styles.css "citizen-${GITHUB_REF_NAME}.zip" SHA256SUMS.txt \
-            --draft --verify-tag --title "OB Citizen $GITHUB_REF_NAME" \
+          gh release create "$GITHUB_REF_NAME" main.js manifest.json styles.css \
+            --draft --verify-tag --title "Citizen $GITHUB_REF_NAME" \
             --notes-file .github/release-notes.md

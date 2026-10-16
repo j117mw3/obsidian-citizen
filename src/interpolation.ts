@@ -18,7 +18,7 @@ export function interpolateRemotePose(samples: TimedPose[], now: number, delayMs
     const span = Math.max(1, after.at - before.at), t = Math.max(0, Math.min(1, (renderAt - before.at) / span));
     const position = before.pose.position.map((v, axis) => v + (after.pose.position[axis] - v) * t) as Pose["position"];
     const velocity = before.pose.velocity.map((v, axis) => v + (after.pose.velocity[axis] - v) * t) as Pose["velocity"];
-    const rotation = new THREE.Quaternion(...before.pose.rotation).normalize().slerp(new THREE.Quaternion(...after.pose.rotation).normalize(), t).toArray() as Pose["rotation"];
+    const rotation = new THREE.Quaternion(...before.pose.rotation).normalize().slerp(new THREE.Quaternion(...after.pose.rotation).normalize(), t).toArray();
     return { ...(t < 0.5 ? before.pose : after.pose), position, velocity, rotation };
   }
   const age = Math.max(0, Math.min(100, renderAt - latest.at)) / 1000;
@@ -27,5 +27,5 @@ export function interpolateRemotePose(samples: TimedPose[], now: number, delayMs
   rotation.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), latest.pose.spin[0] * age));
   rotation.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), latest.pose.spin[1] * age));
   rotation.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), latest.pose.spin[2] * age));
-  return { ...latest.pose, position, rotation: rotation.toArray() as Pose["rotation"] };
+  return { ...latest.pose, position, rotation: rotation.toArray() };
 }

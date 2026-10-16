@@ -300,7 +300,9 @@ export class PilotAudio {
     this.setRemoteAudioActive(shouldPlay);
     if (!shouldPlay || !ctx) return;
     const l = ctx.listener;
-    l.setPosition(...listener.position); l.setOrientation(...listener.forward, ...listener.up);
+    [l.positionX, l.positionY, l.positionZ].forEach((param, index) => param.setValueAtTime(listener.position[index], ctx.currentTime));
+    [l.forwardX, l.forwardY, l.forwardZ].forEach((param, index) => param.setValueAtTime(listener.forward[index], ctx.currentTime));
+    [l.upX, l.upY, l.upZ].forEach((param, index) => param.setValueAtTime(listener.up[index], ctx.currentTime));
     const live = new Set<string>();
     for (const player of players) {
       if (!player.active) continue;
@@ -348,7 +350,7 @@ export class PilotAudio {
     this.sweep(weapon === 1 ? 460 : 720, weapon === 1 ? 220 : 360, 0.08, "triangle", 0.045, 0, this.laserBus);
   }
 
-  private place(panner: PannerNode, p: [number, number, number]): void { panner.setPosition(p[0], p[1], p[2]); }
+  private place(panner: PannerNode, p: [number, number, number]): void { [panner.positionX, panner.positionY, panner.positionZ].forEach((param, index) => param.setValueAtTime(p[index], this.ctx!.currentTime)); }
   private createRemoteVoice(player: RemoteAudioState): RemoteVoice | null {
     const ctx = this.ctx, engineBus = this.remoteEngineBus, boostBus = this.remoteAfterburnerBus; if (!ctx || !engineBus || !boostBus) return null;
     const engine = ctx.createOscillator(), engineSub = ctx.createOscillator(), engineFilter = ctx.createBiquadFilter(), engineGain = ctx.createGain(), enginePan = ctx.createPanner();

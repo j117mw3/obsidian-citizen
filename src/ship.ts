@@ -32,7 +32,7 @@ const IMPORTED_MODEL_SCALE = 0.8;
 function normalizeImportedShip(kind: "dart" | "bulwark"): Ship {
   const model = buildImportedShip(kind), group = new THREE.Group(), normalized = new THREE.Group();
   normalized.scale.setScalar(IMPORTED_MODEL_SCALE); normalized.add(model.group); group.add(normalized);
-  return { group, lights: model.lights, flames: model.flames, muzzles: model.muzzles.map(muzzle => muzzle.multiplyScalar(IMPORTED_MODEL_SCALE)), outline: model.outline, dispose: model.dispose };
+  return { group, lights: model.lights, flames: model.flames, muzzles: model.muzzles.map(muzzle => muzzle.multiplyScalar(IMPORTED_MODEL_SCALE)), outline: model.outline, dispose: () => model.dispose() };
 }
 export function shipMuzzles(style: ShipId): readonly [number, number, number][] {
   return style === "dart-interceptor" ? DART_MUZZLES : style === "bulwark-gunship" ? BULWARK_MUZZLES : SHIP_MUZZLES;

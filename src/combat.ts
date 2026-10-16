@@ -1,3 +1,4 @@
+import { isUnknownArray } from "./validation";
 import * as THREE from "three";
 import type { AnonymousPlayer, FlightInput, FlightTick, ImpactSnapshot, Pose, ShotSnapshot } from "./multiplayer";
 import { MULTIPLAYER_SHIP_SCALE, shipMuzzles } from "./ship";
@@ -114,7 +115,7 @@ export class CombatWorld {
     const sequence = Number.isSafeInteger(input.sequence) && input.sequence > 0 ? input.sequence : p.receivedInputSequence + 1;
     if (sequence <= p.receivedInputSequence && !input.ticks?.length) return;
     const normalized: FlightInput = { ...FULL, ...input, sequence,
-      mouseMode: input.mouseMode === "cursor" ? "cursor" : "capture", mouseSamples: Array.isArray(input.mouseSamples) ? input.mouseSamples.slice(0, 8) : [],
+      mouseMode: input.mouseMode === "cursor" ? "cursor" : "capture", mouseSamples: isUnknownArray(input.mouseSamples) ? input.mouseSamples.slice(0, 8) : [],
       sensitivity: Number.isFinite(input.sensitivity) ? clamp(input.sensitivity, 0.2, 4) : 1, agility: Number.isFinite(input.agility) ? clamp(input.agility, 0.1, 4) : 1 };
     p.receivedInputSequence = Math.max(p.receivedInputSequence, sequence); p.inputSequence = p.receivedInputSequence;
     p.inputAt = now;
@@ -196,7 +197,7 @@ export class CombatWorld {
     const end = target.addScaledVector(direction, -stop);
     const look = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, -1), direction);
     const duration = clamp(800 + end.distanceTo(p.pos) / 180 * 1000, 1200, 6000);
-    p.travel = { from: p.pos.toArray() as [number, number, number], to: end.toArray() as [number, number, number],
+    p.travel = { from: p.pos.toArray(), to: end.toArray(),
       rotationFrom: [p.rot.x, p.rot.y, p.rot.z, p.rot.w], rotationTo: [look.x, look.y, look.z, look.w], startedAt: now, duration };
     p.vel.set(0, 0, 0);
     return true;
@@ -298,7 +299,7 @@ export class CombatWorld {
     const presentation = new THREE.Quaternion().setFromEuler(new THREE.Euler(shooter.tilt, 0, shooter.bank));
     const cannonRotation = shooter.rot.clone().multiply(presentation);
     const muzzle = new THREE.Vector3(...shipMuzzles(shooter.profile.ship)[gun]).multiplyScalar(MULTIPLAYER_SHIP_SCALE).applyQuaternion(cannonRotation);
-    const pos = shooter.pos.clone().add(muzzle), origin = pos.toArray() as [number, number, number];
+    const pos = shooter.pos.clone().add(muzzle), origin = pos.toArray();
     const target = aimPoint ? new THREE.Vector3(...aimPoint) : shooter.pos.clone().addScaledVector(forward, 900);
     const direction = target.sub(pos), range = direction.length();
     if (range < 1e-3) direction.copy(forward);
@@ -343,7 +344,7 @@ export class CombatWorld {
       }
       if (hitPlayer || hitStar) {
         const impactPos = start.clone().addScaledVector(segment, firstT);
-        this.impacts.push({ id: `${shot.id}:impact:${++this.impactSequence}`, position: impactPos.toArray() as [number, number, number], kind: hitPlayer ? "ship" : "star", at: now });
+        this.impacts.push({ id: `${shot.id}:impact:${++this.impactSequence}`, position: impactPos.toArray(), kind: hitPlayer ? "ship" : "star", at: now });
         if (hitPlayer) {
           const wasAlive = hitPlayer.health > 0;
           const shotDistance = shot.travelled + Math.sqrt(lengthSq) * firstT;
@@ -419,18 +420,18 @@ export class CombatWorld {
        inputTick: p.inputTick, receivedInputTick: p.receivedInputTick, tickQueue: [...p.tickQueue.values()].map(item => ({ ...item, mouseDelta: [...item.mouseDelta] as [number, number] })), fireCooldownDuration: p.fireCooldownDuration,
        mouseX: p.mouseX, mouseY: p.mouseY, mouseQueue: p.mouseQueue.map(item => ({ ...item })), bank: p.bank, tilt: p.tilt,
       travel: p.travel ? { from: p.travel.from, to: p.travel.to, rotationFrom: p.travel.rotationFrom, rotationTo: p.travel.rotationTo, elapsed: Math.max(0, Math.min(p.travel.duration, now - p.travel.startedAt)), duration: p.travel.duration } : null,
-    })), shots: this.projectiles.map(s => ({ id: s.id, ownerId: s.ownerId, gun: s.gun, weapon: s.weapon, origin: s.origin, position: s.pos.toArray() as [number, number, number], direction: s.direction.toArray() as [number, number, number], speed: s.speed, remaining: s.remaining, travelled: s.travelled, sound: s.sound, startedAt: s.startedAt })) };
+    })), shots: this.projectiles.map(s => ({ id: s.id, ownerId: s.ownerId, gun: s.gun, weapon: s.weapon, origin: s.origin, position: s.pos.toArray(), direction: s.direction.toArray(), speed: s.speed, remaining: s.remaining, travelled: s.travelled, sound: s.sound, startedAt: s.startedAt })) };
   }
 
   restore(value: unknown, now: number, ageMs = 0): boolean {
     if (!value || typeof value !== "object") return false;
     const state = value as RoomCheckpoint;
-    if (state.version !== 14 || !Array.isArray(state.players) || state.players.length > 4 || !Number.isSafeInteger(state.epoch)
-      || !Number.isSafeInteger(state.at) || !Number.isFinite(ageMs) || ageMs < 0 || ageMs > 15_000 || !Array.isArray(state.shots) || state.shots.length > 128) return false;
+    if (state.version !== 14 || !isUnknownArray(state.players) || state.players.length > 4 || !Number.isSafeInteger(state.epoch)
+      || !Number.isSafeInteger(state.at) || !Number.isFinite(ageMs) || ageMs < 0 || ageMs > 15_000 || !isUnknownArray(state.shots) || state.shots.length > 128) return false;
     const next = new Map<string, Fighter>();
     for (const item of state.players) {
       if (!item || typeof item !== "object" || typeof item.id !== "string" || !Number.isInteger(item.slot) || item.slot < 0 || item.slot > 3 || !this.validVec(item.position, 1_000_000) || !this.validVec(item.velocity, 20_000) || !this.validVec(item.spin, 20)
-        || !Array.isArray(item.rotation) || item.rotation.length !== 4 || !item.rotation.every(Number.isFinite) || item.rotation.every(v => v === 0)
+        || !isUnknownArray(item.rotation) || item.rotation.length !== 4 || !item.rotation.every(Number.isFinite) || item.rotation.every(v => v === 0)
         || !Number.isFinite(item.health) || item.health < 0 || item.health > HULL_MAX || !Number.isFinite(item.shields) || item.shields < 0 || item.shields > SHIELD_MAX
         || !Number.isFinite(item.energy) || item.energy < 0 || item.energy > 1 || typeof item.boostLocked !== "boolean" || !this.validInput(item.input)
          || ![item.shieldDelay, item.damagePause, item.heat, item.ammunition, item.deaths, item.regenDelay, item.emptyWait, item.respawnAt, item.protectedUntil, item.resumeAt, item.fireAt, item.lastFireSequence, item.weaponSequence, item.inputSequence, item.receivedInputSequence, item.inputTick, item.receivedInputTick, item.fireCooldownDuration, item.mouseX, item.mouseY, item.bank, item.tilt].every(Number.isFinite)
@@ -441,13 +442,13 @@ export class CombatWorld {
          || !Number.isSafeInteger(item.inputSequence) || item.inputSequence < 0 || !Number.isSafeInteger(item.receivedInputSequence) || item.receivedInputSequence < item.inputSequence
          || !Number.isSafeInteger(item.inputTick) || item.inputTick < 0 || !Number.isSafeInteger(item.receivedInputTick) || item.receivedInputTick < item.inputTick || item.receivedInputTick - item.inputTick > 120
          || (item.fireCooldownDuration !== 160 && item.fireCooldownDuration !== 500)
-         || !Array.isArray(item.tickQueue) || item.tickQueue.length > 120 || item.tickQueue.some(tick => !this.validFlightTick(tick) || tick.tick <= item.inputTick || tick.tick > item.inputTick + 120)
-        || Math.abs(item.mouseX) > 500 || Math.abs(item.mouseY) > 500 || !Array.isArray(item.mouseQueue) || item.mouseQueue.length > 48
+         || !isUnknownArray(item.tickQueue) || item.tickQueue.length > 120 || item.tickQueue.some(tick => !this.validFlightTick(tick) || tick.tick <= item.inputTick || tick.tick > item.inputTick + 120)
+        || Math.abs(item.mouseX) > 500 || Math.abs(item.mouseY) > 500 || !isUnknownArray(item.mouseQueue) || item.mouseQueue.length > 48
         || item.mouseQueue.some(sample => !sample || !Number.isSafeInteger(sample.sequence) || sample.sequence < 1 || !Number.isFinite(sample.dx) || Math.abs(sample.dx) > 500 || !Number.isFinite(sample.dy) || Math.abs(sample.dy) > 500 || typeof sample.last !== "boolean")
         || typeof item.active !== "boolean" || (item.docked !== undefined && typeof item.docked !== "boolean") || typeof item.resumeAfterRespawn !== "boolean" || next.has(item.id)
         || (item.travel !== null && (!item.travel || !this.validVec(item.travel.from, 1_000_000) || !this.validVec(item.travel.to, 1_000_000)
-          || !Array.isArray(item.travel.rotationFrom) || item.travel.rotationFrom.length !== 4 || !item.travel.rotationFrom.every(Number.isFinite)
-          || !Array.isArray(item.travel.rotationTo) || item.travel.rotationTo.length !== 4 || !item.travel.rotationTo.every(Number.isFinite)
+          || !isUnknownArray(item.travel.rotationFrom) || item.travel.rotationFrom.length !== 4 || !item.travel.rotationFrom.every(Number.isFinite)
+          || !isUnknownArray(item.travel.rotationTo) || item.travel.rotationTo.length !== 4 || !item.travel.rotationTo.every(Number.isFinite)
           || !Number.isFinite(item.travel.elapsed) || !Number.isFinite(item.travel.duration) || item.travel.duration < 1200 || item.travel.duration > 6000
           || item.travel.elapsed < 0 || item.travel.elapsed > item.travel.duration))) return false;
       const p = { id: item.id, slot: item.slot, pos: new THREE.Vector3(...item.position), vel: new THREE.Vector3(...item.velocity), rot: new THREE.Quaternion(...item.rotation).normalize(), spin: new THREE.Vector3(...item.spin), input: { ...item.input },
@@ -459,7 +460,7 @@ export class CombatWorld {
         mouseX: item.mouseX, mouseY: item.mouseY, mouseQueue: item.mouseQueue.map(sample => ({ ...sample })),
         lastFireSequence: item.lastFireSequence, bank: item.bank, tilt: item.tilt, kills: 0, profile: DEFAULT_PILOT_PROFILE, travel: item.travel ? { from: [...item.travel.from] as [number, number, number], to: [...item.travel.to] as [number, number, number],
           rotationFrom: [...item.travel.rotationFrom] as [number, number, number, number], rotationTo: [...item.travel.rotationTo] as [number, number, number, number],
-          startedAt: now - item.travel.elapsed - ageMs, duration: item.travel.duration } : null } as Fighter;
+          startedAt: now - item.travel.elapsed - ageMs, duration: item.travel.duration } : null };
       next.set(p.id, p);
     }
     const shots: Projectile[] = [];
@@ -476,9 +477,9 @@ export class CombatWorld {
     const round = state.round;
     if (!round || !Number.isSafeInteger(round.roundId) || round.roundId < 1 || !["combat", "supernova", "waiting", "countdown"].includes(round.phase)
       || !Number.isFinite(round.phaseRemainingMs) || round.phaseRemainingMs < 0 || typeof round.winnerId !== "string"
-      || !Array.isArray(round.scores) || round.scores.length > 64 || !Array.isArray(round.layoutRequirements) || round.layoutRequirements.length > 4
-      || !Array.isArray(round.layoutBlocked) || round.layoutBlocked.length > 4
-      || !Array.isArray(round.recentEliminations) || round.recentEliminations.length > 12) return false;
+      || !isUnknownArray(round.scores) || round.scores.length > 64 || !isUnknownArray(round.layoutRequirements) || round.layoutRequirements.length > 4
+      || !isUnknownArray(round.layoutBlocked) || round.layoutBlocked.length > 4
+      || !isUnknownArray(round.recentEliminations) || round.recentEliminations.length > 12) return false;
     const phaseLimit = round.phase === "supernova" ? 8000 : round.phase === "waiting" ? 15_000 : round.phase === "countdown" ? 3000 : 0;
     if (round.phaseRemainingMs > phaseLimit) return false;
     const scoreIds = new Set<string>();
@@ -515,7 +516,7 @@ export class CombatWorld {
   }
 
   shotSnapshots(): ShotSnapshot[] {
-    return this.projectiles.map(s => ({ id: s.id, ownerId: s.ownerId, gun: s.gun, weapon: s.weapon, origin: s.origin, position: s.pos.toArray() as [number, number, number], direction: s.direction.toArray() as [number, number, number], speed: s.speed, sound: s.sound, startedAt: s.startedAt }));
+    return this.projectiles.map(s => ({ id: s.id, ownerId: s.ownerId, gun: s.gun, weapon: s.weapon, origin: s.origin, position: s.pos.toArray(), direction: s.direction.toArray(), speed: s.speed, sound: s.sound, startedAt: s.startedAt }));
   }
 
   impactSnapshots(now: number): ImpactSnapshot[] {
@@ -524,8 +525,8 @@ export class CombatWorld {
 
   poses(now: number): { id: string; pose: Pose }[] {
     return [...this.players.values()].map(p => ({ id: p.id, pose: {
-      position: p.pos.toArray() as Pose["position"], rotation: [p.rot.x, p.rot.y, p.rot.z, p.rot.w], velocity: p.vel.toArray() as Pose["velocity"],
-      spin: p.spin.toArray() as Pose["spin"], mouseSmoothing: [p.mouseX, p.mouseY],
+      position: p.pos.toArray(), rotation: [p.rot.x, p.rot.y, p.rot.z, p.rot.w], velocity: p.vel.toArray(),
+      spin: p.spin.toArray(), mouseSmoothing: [p.mouseX, p.mouseY],
       health: p.health, shields: p.shields, energy: p.energy, boostLocked: p.boostLocked, boostHold: p.emptyWait, regenDelay: p.regenDelay,
       damagePause: p.damagePause, weapon: p.weapon, weaponSequence: p.weaponSequence, inputSequence: p.inputSequence, inputTick: p.inputTick, heat: p.heat, overheated: p.overheated, ammunition: p.ammunition,
       weaponCooldown: Math.max(0, p.fireAt - now), weaponCooldownDuration: p.fireCooldownDuration, deaths: p.deaths,
@@ -536,23 +537,23 @@ export class CombatWorld {
     } }));
   }
 
-  private validVec(value: unknown, max: number): value is [number, number, number] { return Array.isArray(value) && value.length === 3 && value.every(v => Number.isFinite(v) && Math.abs(v) <= max); }
+  private validVec(value: unknown, max: number): value is [number, number, number] { return isUnknownArray(value) && value.length === 3 && value.every(v => typeof v === "number" && Number.isFinite(v) && Math.abs(v) <= max); }
   private validInput(value: unknown): value is FlightInput {
     if (!value || typeof value !== "object") return false;
     const i = value as FlightInput;
-    return [i.thrust, i.strafe, i.lift, i.roll, i.pitch, i.yaw].every(v => Number.isFinite(v) && Math.abs(v) <= 1)
+    return [i.thrust, i.strafe, i.lift, i.roll, i.pitch, i.yaw].every(v => typeof v === "number" && Number.isFinite(v) && Math.abs(v) <= 1)
       && [i.boost, i.brake, i.fire, i.active, i.invertY].every(v => typeof v === "boolean")
-      && (i.mouseMode === "capture" || i.mouseMode === "cursor") && Array.isArray(i.mouseSamples) && i.mouseSamples.length <= 8
-      && i.mouseSamples.every(sample => Array.isArray(sample) && sample.length === 2 && sample.every(v => Number.isFinite(v) && Math.abs(v) <= 500))
+      && (i.mouseMode === "capture" || i.mouseMode === "cursor") && isUnknownArray(i.mouseSamples) && i.mouseSamples.length <= 8
+      && i.mouseSamples.every(sample => isUnknownArray(sample) && sample.length === 2 && sample.every(v => typeof v === "number" && Number.isFinite(v) && Math.abs(v) <= 500))
       && Number.isFinite(i.sensitivity) && i.sensitivity >= 0.2 && i.sensitivity <= 4 && Number.isFinite(i.agility) && i.agility >= 0.1 && i.agility <= 4
-      && (i.ticks === undefined || (Array.isArray(i.ticks) && i.ticks.length <= 12 && i.ticks.every(tick => this.validFlightTick(tick))));
+      && (i.ticks === undefined || (isUnknownArray(i.ticks) && i.ticks.length <= 12 && i.ticks.every(tick => this.validFlightTick(tick))));
   }
   private validFlightTick(value: unknown): value is FlightTick {
     if (!value || typeof value !== "object") return false;
     const tick = value as FlightTick;
-    return Number.isSafeInteger(tick.tick) && tick.tick > 0 && [tick.thrust, tick.strafe, tick.lift, tick.roll, tick.pitch, tick.yaw].every(v => Number.isFinite(v) && Math.abs(v) <= 1)
+    return Number.isSafeInteger(tick.tick) && tick.tick > 0 && [tick.thrust, tick.strafe, tick.lift, tick.roll, tick.pitch, tick.yaw].every(v => typeof v === "number" && Number.isFinite(v) && Math.abs(v) <= 1)
       && [tick.boost, tick.brake, tick.active, tick.invertY].every(v => typeof v === "boolean")
-      && (tick.mouseMode === "capture" || tick.mouseMode === "cursor") && Array.isArray(tick.mouseDelta) && tick.mouseDelta.length === 2 && tick.mouseDelta.every(v => Number.isFinite(v) && Math.abs(v) <= 500)
+      && (tick.mouseMode === "capture" || tick.mouseMode === "cursor") && isUnknownArray(tick.mouseDelta) && tick.mouseDelta.length === 2 && tick.mouseDelta.every(v => typeof v === "number" && Number.isFinite(v) && Math.abs(v) <= 500)
       && Number.isFinite(tick.sensitivity) && tick.sensitivity >= 0.2 && tick.sensitivity <= 4 && Number.isFinite(tick.agility) && tick.agility >= 0.1 && tick.agility <= 4;
   }
 }

@@ -1,22 +1,22 @@
+import "./obsidian-shim";
+import { proxyStats } from "./browser-http";
 import { proxyIceConnection } from "./network-impairment";
 import { runRealtimeSurfaceCase } from "./surface-realtime-case";
 import type { SurfaceLatencyCase, SurfaceLatencyScenario, SurfaceLatencyStance } from "./surface-latency-harness";
 
 const query = new URLSearchParams(location.search), token = query.get("udp"), relay = query.get("relay");
 const status = document.getElementById("status")!, progress = document.getElementById("progress")!, output = document.getElementById("results")!, profile = document.getElementById("profile")!;
-const Native = globalThis.RTCPeerConnection;
+const Native = window.RTCPeerConnection;
 let running: AbortController | null = null, rtt = -1;
 const results: unknown[] = [];
 async function initialize(): Promise<void> {
   if (!token || relay !== `${location.origin}/relay` || !/^http:\/\/127\.0\.0\.1:\d+$/.test(location.origin) || !Native) throw new Error("Use the loopback UDP server's URL; native WebRTC is required");
-  const response = await fetch(`/udp/stats?token=${encodeURIComponent(token)}`);
-  if (!response.ok) throw new Error("UDP fixture unavailable");
-  const stats = await response.json();
+  const stats = await proxyStats(`/udp/stats?token=${encodeURIComponent(token)}`);
   if (![0, 50, 100, 150, 200].includes(stats.profile.rtt) || stats.profile.jitter !== 25 || stats.profile.loss !== 0.01) throw new Error("Acceptance requires ±25 ms one-way jitter and 1% UDP loss");
   rtt = stats.profile.rtt;
   (document.querySelector('#sample-mode option[value="attempts"]') as HTMLOptionElement).disabled = rtt <= 100;
   profile.textContent = `${rtt} ms nominal RTT; ±25 ms one-way jitter; 1% real UDP loss`;
-  globalThis.RTCPeerConnection = proxyIceConnection(Native, token, () => { status.textContent = "UDP registration failed; the case cannot pass."; });
+  window.RTCPeerConnection = proxyIceConnection(Native, token, () => { status.textContent = "UDP registration failed; the case cannot pass."; });
   document.getElementById("start")!.removeAttribute("disabled"); document.getElementById("matrix")!.removeAttribute("disabled");
   status.textContent = "Ready. Four logical clients will use native WebRTC in this one browser context.";
 }
@@ -38,7 +38,7 @@ async function run(matrix: boolean): Promise<void> {
     for (const [index, config] of cases.entries()) {
       status.textContent = `Running case ${index + 1}/${cases.length}; ${shots < 500 ? "SMOKE ONLY" : sampleMode === "attempts" ? "degraded stability sample" : "acceptance sample"}`;
       const result = await runRealtimeSurfaceCase(config, relay, abort.signal, text => { progress.textContent = text; }, sampleMode);
-      const proxy = await (await fetch(`/udp/stats?token=${encodeURIComponent(token!)}`)).json();
+      const proxy = await proxyStats(`/udp/stats?token=${encodeURIComponent(token!)}`);
       results.push({ ...result, proxy }); output.textContent = JSON.stringify(results, null, 2);
       if (!result.passed) { status.textContent = `FAIL case ${index + 1}/${cases.length}; thresholds are unchanged. Inspect the result before continuing.`; return; }
     }

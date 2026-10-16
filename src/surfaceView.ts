@@ -18,7 +18,7 @@ export function worldToSurface(position: SurfaceVector, center: SurfaceVector): 
 export function surfaceBlasterDirection(state: SurfacePlayerState): Vec3 {
   const pose = surfaceViewPose(state);
   return new THREE.Vector3(...pose.eye).addScaledVector(new THREE.Vector3(...pose.look), SURFACE_BLASTER_ZERO_DISTANCE)
-    .sub(new THREE.Vector3(...pose.muzzle)).normalize().toArray() as Vec3;
+    .sub(new THREE.Vector3(...pose.muzzle)).normalize().toArray();
 }
 
 /** Shared eye, rolled camera frame, and physical muzzle, all in node-relative surface units. */
@@ -33,8 +33,8 @@ export function surfaceViewPose(state: SurfacePlayerState): { eye: Vec3; muzzle:
   rotation.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), -Math.max(-1, Math.min(1, state.lean / 0.35)) * 8 * Math.PI / 180));
   const eye = new THREE.Vector3(...state.position).addScaledVector(up, state.crouched ? SURFACE.crouchedEyeHeight : SURFACE.standingEyeHeight).addScaledVector(right, state.lean);
   const muzzle = new THREE.Vector3(...SURFACE_MUZZLE_OFFSET).applyQuaternion(rotation).add(eye);
-  return { eye: eye.toArray() as Vec3, muzzle: muzzle.toArray() as Vec3, up: up.toArray() as Vec3,
-    right: new THREE.Vector3(1, 0, 0).applyQuaternion(rotation).toArray() as Vec3,
-    cameraUp: new THREE.Vector3(0, 1, 0).applyQuaternion(rotation).toArray() as Vec3,
-    look: look.toArray() as Vec3, rotation: rotation.toArray() as [number, number, number, number] };
+  return { eye: eye.toArray(), muzzle: muzzle.toArray(), up: up.toArray(),
+    right: new THREE.Vector3(1, 0, 0).applyQuaternion(rotation).toArray(),
+    cameraUp: new THREE.Vector3(0, 1, 0).applyQuaternion(rotation).toArray(),
+    look: look.toArray(), rotation: rotation.toArray() };
 }

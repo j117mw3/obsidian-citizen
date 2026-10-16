@@ -71,7 +71,7 @@ export function buildCockpit(ship: ShipId = "classic"): Cockpit {
   }
   // Instrument panels use canvas-backed textures so the readings are live in the 3D cockpit.
   for (const x of [-COCKPIT_SCREEN_CENTER_X, COCKPIT_SCREEN_CENTER_X]) {
-    const canvas = document.createElement("canvas"); canvas.width = 640; canvas.height = 200;
+    const canvas = createEl("canvas"); canvas.width = 640; canvas.height = 200;
     const context = canvas.getContext("2d"); if (!context) continue;
     const texture = own(new THREE.CanvasTexture(canvas)); texture.colorSpace = THREE.SRGBColorSpace;
     const material = own(new THREE.MeshBasicMaterial({ map: texture, depthTest: false, depthWrite: false, side: THREE.DoubleSide }));

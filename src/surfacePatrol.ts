@@ -3,7 +3,7 @@ import * as THREE from "three";
 import { createSurfacePlayerState, stepSurfacePlayer, surfacePoseClear, type SurfacePlayerState } from "./surfacePhysics";
 import type { SurfaceArena, SurfaceVector } from "./surface";
 export interface SurfacePatrol { index:number; state:SurfacePlayerState; home:SurfaceVector; goal:SurfaceVector; leash:number; random:number; wait:number; stuck:number; repath:number; returningHome:boolean }
-const tuple=(v:THREE.Vector3)=>v.toArray() as [number,number,number];
+const tuple=(v:THREE.Vector3)=>v.toArray();
 const distance=(a:THREE.Vector3,b:THREE.Vector3,r:number)=>Math.acos(Math.max(-1,Math.min(1,a.dot(b))))*r;
 function random(p:SurfacePatrol):number{p.random=(Math.imul(p.random,1664525)+1013904223)>>>0;return p.random/4294967296;}
 function valid(normal:THREE.Vector3,p:SurfacePatrol,arena:SurfaceArena):boolean{

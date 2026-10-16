@@ -1,3 +1,5 @@
+import { connectionStats, connectionStatById } from "../src/rtcStats";
+import { browserPost } from "./browser-http";
 // Four real room clients and native WebRTC connections, sharing one browser event
 // loop. Only fixture poses/resources are controlled; transport and host timing are real.
 import * as THREE from "three";
@@ -13,8 +15,8 @@ import { latencyTargetState, latencyWalls, latencyOracle, type SurfaceLatencyCas
 import type { GraphData, SimNode } from "../src/types";
 
 type Attempt = { sequence: number; at: number; representedAt: number; oracle: boolean; accepted?: boolean; reason?: string; dispositionAt?: number; hits: Set<string>; viewExhausted: boolean; snapshotAgeMs: number; estimatedOffsetMs: number };
-const fixture = (value: unknown): any => value;
-const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
+import { fixture, requireFixture } from "./fixture-access";
+const sleep = (ms: number) => new Promise<void>(resolve => window.setTimeout(resolve, ms));
 const unit = (value: THREE.Vector3) => value.lengthSq() ? value.normalize() : value.set(0, 1, 0);
 
 export async function runRealtimeSurfaceCase(config: SurfaceLatencyCase, relay: string, signal: AbortSignal, progress: (value: string) => void, sampleMode: "accepted" | "attempts" = "accepted") {
@@ -70,12 +72,12 @@ export async function runRealtimeSurfaceCase(config: SurfaceLatencyCase, relay: 
           const attempt = attempts.get(sequence);
           if (attempt && attempt.dispositionAt === undefined) { attempt.dispositionAt = Date.now(); attempt.accepted ??= accepted; }
         },
-      }, () => ({ data, nodes }), () => relay);
+      }, () => ({ data, nodes }), () => relay, browserPost);
       sessions.push(session);
       if (index === 0) await session.create("Oracle Host"); else await session.join(sessions[0].room, `Oracle ${index}`);
     }
     const bootUntil = Date.now() + 30000;
-    while (!sessions.every(session => session.members.length === 4 && [...fixture(session).peers.values()].filter((peer: any) => peer.pc.connectionState === "connected").length === 3)) {
+    while (!sessions.every(session => session.members.length === 4 && [...fixture(session).peers.values()].filter((peer) => peer.pc.connectionState === "connected").length === 3)) {
       assertRunning(); if (Date.now() > bootUntil) throw new Error("Four-client WebRTC mesh did not become ready"); await sleep(100);
     }
     const host = fixture(sessions[0]), hub = sessions[0].localTopology?.nodes.find(node => node.dockable);
@@ -86,14 +88,14 @@ export async function runRealtimeSurfaceCase(config: SurfaceLatencyCase, relay: 
     arenaKey = `${ids[0]}/${hub.id}`;
     for (const id of ids) {
       authority.addPlayer(id, { position: [0, 0, 38 * SURFACE.worldRadius / SURFACE.radius], rotation: [0, 0, 0, 1], velocity: [0, 0, 0] });
-      const flightPlayer = host.world.players.get(id); flightPlayer.active = true; flightPlayer.input.active = true;
+      const flightPlayer = requireFixture(host.world.players.get(id)); flightPlayer.active = true; flightPlayer.input.active = true;
       if (!authority.dock(id, ids[0], hub.id, startAt) || !host.world.setSurfaceDocked(id, true, undefined, startAt)) throw new Error("Fixture docking failed");
     }
-    fixture(authority.world).arenas.get(arenaKey).arena.walls = walls.map((wall, index) => ({ ...wall, connectionId: `n-00000000-0000-4000-8000-${String(Math.floor(index / 2)).padStart(12, "0")}` }));
-    fixture(authority.world).arenas.get(arenaKey).arena.pickups.forEach((pickup: any) => { if (pickup.kind === "small-health") pickup.placement = "cover"; });
+    requireFixture(fixture(authority.world).arenas.get(arenaKey)).arena.walls = walls.map((wall, index) => ({ ...wall, connectionId: `n-00000000-0000-4000-8000-${String(Math.floor(index / 2)).padStart(12, "0")}` }));
+    requireFixture(fixture(authority.world).arenas.get(arenaKey)).arena.pickups.forEach((pickup) => { if (pickup.kind === "small-health") pickup.placement = "cover"; });
     const realUpdate = authority.world.updatePlayer.bind(authority.world);
     authority.world.updatePlayer = (id, controls, dt, now) => {
-      const player = fixture(authority!.world).players.get(id);
+      const player = requireFixture(fixture(authority!.world).players.get(id));
       player.health = 100; player.armor = 0; player.protectedUntil = 0;
       const result = realUpdate(id, controls, dt, now);
       if (id === ids[2]) player.surface = latencyTargetState(config, now);
@@ -108,7 +110,7 @@ export async function runRealtimeSurfaceCase(config: SurfaceLatencyCase, relay: 
         attempt.accepted = result.accepted; attempt.reason = result.reason;
         if (result.reason) rejected[result.reason] = (rejected[result.reason] ?? 0) + 1;
         if (result.reason === "view-time" && viewTimeRejections.length < 1000) {
-          const measuredRttMs = fixture(authority).connectionTiming.get(args[0])?.measuredRtt(args[5]) ?? null;
+          const measuredRttMs = fixture(requireFixture(authority)).connectionTiming.get(args[0])?.measuredRtt(args[5]) ?? null;
           const viewTime = Number(args[2]), issued = args[4].filter(time => Number.isSafeInteger(time) && time <= args[5]).slice().sort((a, b) => a - b);
           const before = issued.filter(time => time <= viewTime).at(-1), after = issued.find(time => time >= viewTime);
           viewTimeRejections.push({ sequence: args[1], hostAgeMs: args[5] - viewTime, requestDelayMs: args[5] - attempt.at,
@@ -123,7 +125,7 @@ export async function runRealtimeSurfaceCase(config: SurfaceLatencyCase, relay: 
             }) });
         }
       }
-      if (result.projectile) maxRewindMs = Math.max(maxRewindMs, fixture(authority).projectiles.find((shot: any) => shot.id === result.projectile!.id)?.rewindMs ?? 0);
+      if (result.projectile) maxRewindMs = Math.max(maxRewindMs, fixture(requireFixture(authority)).projectiles.find((shot) => shot.id === result.projectile!.id)?.rewindMs ?? 0);
       return result;
     };
     const realStep = authority.step.bind(authority);
@@ -131,11 +133,11 @@ export async function runRealtimeSurfaceCase(config: SurfaceLatencyCase, relay: 
       const wallNow = Date.now(); cadence.simulationSteps++; cadence.firstStepAt ||= wallNow;
       if (cadence.lastStepAt) cadence.maxStepGapMs = Math.max(cadence.maxStepGapMs, wallNow - cadence.lastStepAt);
       cadence.lastStepAt = wallNow;
-      const starts = new Map<string, [number, number, number]>(fixture(authority).projectiles.filter((shot: any) => !shot.stoppedAt).map((shot: any) => [shot.id, [...shot.position]]));
+      const starts = new Map<string, [number, number, number]>(fixture(requireFixture(authority)).projectiles.filter((shot) => !shot.stoppedAt).map((shot) => [shot.id, [...shot.position]]));
       realStep(dt, now);
-      for (const shot of fixture(authority).projectiles) {
+      for (const shot of fixture(requireFixture(authority)).projectiles) {
         const start = starts.get(shot.id);
-        if (!start || !shot.stoppedAt || !fixture(authority).hitConfirmations.some((hit: any) => hit.at === now && hit.sequence === shot.sequence && hit.ownerId === shot.ownerId)) continue;
+        if (!start || !shot.stoppedAt || !fixture(requireFixture(authority)).hitConfirmations.some((hit) => hit.at === now && hit.sequence === shot.sequence && hit.ownerId === shot.ownerId)) continue;
         const blocker = traceSurfaceSegment(start, shot.position, walls, []); if (blocker && blocker.t < 1 - 1e-6) blockerViolations++;
       }
     };
@@ -165,7 +167,7 @@ export async function runRealtimeSurfaceCase(config: SurfaceLatencyCase, relay: 
           const forward = unit(new THREE.Vector3(...state.forward).projectOnPlane(up)), right = unit(new THREE.Vector3().crossVectors(forward, up));
           const point = new THREE.Vector3(...state.position).addScaledVector(up, state.crouched ? 0.7 : 1.2).addScaledVector(right, state.lean)
             .addScaledVector(new THREE.Vector3(...state.velocity), config.distance / SURFACE_BLASTER.boltSpeed).addScaledVector(right, Math.sin((sequence + 1) * 2.399963) * 0.3);
-          const aim = point.sub(new THREE.Vector3(...pose.muzzle)).normalize().toArray() as [number, number, number], representedAt = Math.floor(displayed.representedAt);
+          const aim = point.sub(new THREE.Vector3(...pose.muzzle)).normalize().toArray(), representedAt = Math.floor(displayed.representedAt);
           sequence++; attempts.set(sequence, { sequence, at: now, representedAt, oracle: latencyOracle(config, state, representedAt, pose.muzzle, aim, sequence, shooter.surface, walls, ids[1]), hits: new Set(),
             viewExhausted: displayed.exhausted, snapshotAgeMs: now - snapshot.hostTime, estimatedOffsetMs: estimates[1] - receivedAt[1] });
           sessions[1].fireSurface(sequence, representedAt, shooter.arenaKey, shooter.lifeId, aim); nextFire = now + 600;
@@ -183,8 +185,8 @@ export async function runRealtimeSurfaceCase(config: SurfaceLatencyCase, relay: 
     const duplicateHits = rows.reduce((sum, row) => sum + Math.max(0, row.hits.size - 1), 0);
     const transport = [];
     for (const session of sessions) for (const peer of fixture(session).peers.values()) {
-      const report = await peer.pc.getStats(), selected = [...report.values()].find((item: any) => item.type === "transport" && item.selectedCandidatePairId) as any;
-      const pair = selected && report.get(selected.selectedCandidatePairId), remote = pair && report.get(pair.remoteCandidateId);
+      const report = await peer.pc.getStats(), selected = connectionStats(report).find((item) => item.type === "transport" && item.selectedCandidatePairId);
+      const pair = selected && connectionStatById(report, selected.selectedCandidatePairId ?? ""), remote = pair && connectionStatById(report, pair.remoteCandidateId);
       transport.push({ state: peer.pc.connectionState, proxy: remote?.address === "127.0.0.1", rttMs: Math.round((pair?.currentRoundTripTime ?? 0) * 1000) });
     }
     const eligible = required >= 500, sampleSatisfied = sampleMode === "attempts" ? count >= required : accepted >= required;
@@ -198,6 +200,6 @@ export async function runRealtimeSurfaceCase(config: SurfaceLatencyCase, relay: 
         simulationHz: (cadence.simulationSteps - 1) * 1000 / Math.max(1, cadence.lastStepAt - cadence.firstStepAt) },
       rejectionReasons: rejected, viewTimeRejections, mismatchSequences: mismatches.slice(0, 12).map(row => row.sequence), spreadSeedPlayerId: ids[1], transport };
   } finally {
-    running = false; clearInterval(simulationTimer); for (const session of sessions) session.leave();
+    running = false; window.clearInterval(simulationTimer); for (const session of sessions) session.leave();
   }
 }

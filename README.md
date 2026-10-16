@@ -1,22 +1,22 @@
-# OB Citizen
+# Citizen
 
-OB Citizen turns your notes into a 3D constellation you can explore, fly through, and use as the setting for optional multiplayer space and first-person combat. Maintained by **J117W3**.
+Citizen turns your notes into a 3D constellation you can explore, fly through, and use as the setting for optional multiplayer space and first-person combat. Maintained by **J117W3**.
 
 ## A fork taking a different direction
 
-This project combines Hunter / JusVibin's original [Constellation Graph](https://github.com/xjusvibin/obsidian-constellation-graph) foundation with J117W3's multiplayer, cockpit, docking, and planetary arena work. Hunter's graph, flight, spacecraft, and audio work remains credited, and the original MIT copyright notice is retained. OB Citizen is an independently maintained fork: its direction is a playable space and surface sandbox built around a private note constellation. It is a community project and is not affiliated with Obsidian.
+This project combines Hunter / JusVibin's original [Constellation Graph](https://github.com/xjusvibin/obsidian-constellation-graph) foundation with J117W3's multiplayer, cockpit, docking, and planetary arena work. Hunter's graph, flight, spacecraft, and audio work remains credited, and the original MIT copyright notice is retained. Citizen is an independently maintained fork: its direction is a playable space and surface sandbox built around a private note constellation. It is a community project and is not affiliated with Obsidian.
 
 ## Download and install
 
-Download [OB Citizen 0.7.5](https://github.com/j117mw3/obsidian-citizen/releases/tag/0.7.5). Every published update from **0.5.1 through 0.7.5** has its own entry on the [Releases page](https://github.com/j117mw3/obsidian-citizen/releases), with individual plugin files, an install ZIP, checksums, and version-specific notes. Earlier 0.3.x releases remain available. Choose the same version on every multiplayer computer.
+Download [Citizen 0.7.6](https://github.com/j117mw3/obsidian-citizen/releases/tag/0.7.6). The three release assets are `main.js`, `manifest.json`, and `styles.css`; copy them into the plugin folder. Install ZIP and checksum records are retained as GitHub Actions workflow artifacts. Every published update from **0.5.1 through 0.7.5** has its own entry on the [Releases page](https://github.com/j117mw3/obsidian-citizen/releases), with individual plugin files, an install ZIP, checksums, and version-specific notes. Earlier 0.3.x releases remain available. Choose the same version on every multiplayer computer.
 
 **Install the current release (0.7.2 and newer):** back up your settings, close Obsidian, and extract the ZIP's `main.js`, `manifest.json`, and `styles.css` directly into `<vault>/.obsidian/plugins/citizen/`. Requires desktop Obsidian 1.7.2 or newer.
 
 **Historical releases (0.7.1 and older):** these archived packages retain the `constellation-graph` ID and install into `<vault>/.obsidian/plugins/constellation-graph/`. They share Hunter's plugin identity and must not be installed over his version unless you intend to replace it. Their original packages have not been renamed or rebuilt. See the [archive instructions](docs/historical-builds.md) for verification scope and source-history limitations.
 
-**Plugin identity and settings:** starting with 0.7.2, this independent fork uses the unique `citizen` plugin ID so it cannot overwrite Hunter's plugin. It installs into `<vault>/.obsidian/plugins/citizen/`. Testers moving from the archived `constellation-graph` builds can back up and disable the old plugin, then copy only its `data.json` into the new folder while Obsidian is closed to retain preferences. Keep the original folder as a backup. Saved graph tabs may need reopening with the **OB Citizen: Open graph** command. The installer does not migrate or delete settings automatically.
+**Plugin identity and settings:** starting with 0.7.2, this independent fork uses the unique `citizen` plugin ID so it cannot overwrite Hunter's plugin. It installs into `<vault>/.obsidian/plugins/citizen/`. Testers moving from the archived `constellation-graph` builds can back up and disable the old plugin, then copy only its `data.json` into the new folder while Obsidian is closed to retain preferences. Keep the original folder as a backup. Saved graph tabs may need reopening with the **Citizen: Open graph** command. The installer does not migrate or delete settings automatically.
 
-The independent [OB Citizen directory listing](https://community.obsidian.md/plugins/citizen) is live, with Hunter / JusVibin credited as a contributor. Automated review currently flags the abbreviated display name as containing part of “Obsidian”; directory installation is not yet approved. Use the GitHub release for manual installation while that review finding is resolved.
+The independent [Citizen directory listing](https://community.obsidian.md/plugins/citizen) is live, with Hunter / JusVibin credited as a contributor. Version 0.7.6 adopts Citizen to resolve the earlier abbreviated-name rejection. See `docs/verification-0.7.6.md` for the actual review result. Use the GitHub release for manual installation while that review finding is resolved.
 
 ## Current version: 0.7.5
 
@@ -26,7 +26,7 @@ The independent [OB Citizen directory listing](https://community.obsidian.md/plu
 - Fight four host-controlled planet bots in solo or multiplayer. They patrol, attack after spotting players, pursue recent attackers briefly, and drop one collectible **+30 health** item when defeated.
 - Recognizable health-cross and shield pickups show their health amount. Player kills alone count toward the **ten-kill** round win; bot kills do not increase score.
 - Rounds pause the fight for the supernova and preserve each pilot’s space position or docked planet position and facing into the next round.
-- Version 0.7.1 strengthened terrain relief and fixed linked-wall steering; **0.7.2** adds shared planet combat, bot health drops, clearer pickups, ten-kill rounds, and pose-preserving round changes. **0.7.3** keeps displayed bot feet on uneven terrain; **0.7.4** renames the plugin to OB Citizen. It uses the same **room protocol 14** and checkpoint format as 0.7.2.
+- Version 0.7.1 strengthened terrain relief and fixed linked-wall steering; **0.7.2** adds shared planet combat, bot health drops, clearer pickups, ten-kill rounds, and pose-preserving round changes. **0.7.3** keeps displayed bot feet on uneven terrain; **0.7.4** used the historical OB Citizen display name; **0.7.6** uses Citizen. It uses the same **room protocol 14** and checkpoint format as 0.7.2.
 
 The [changelog](CHANGELOG.md) records the 0.5.x through 0.7.x development milestones. Each published version has its own GitHub entry with update notes and package files. The 0.5.1–0.7.1 tags preserve recovered plugin files because matching historical TypeScript source snapshots were not saved; 0.7.2 through 0.7.5 are built from their tagged source. Automated checks for 0.7.5 are recorded in [its verification notes](docs/verification-0.7.5.md); native rendering, audio, cross-computer gameplay, and large-arena performance acceptance remain separate. Large terrain layouts can take several seconds to prepare.
 
@@ -46,14 +46,14 @@ While docked, the planet and cover now occlude graph stars, links and world effe
 
 These views use a synthetic vault with four fictional notes; no personal vault names or paths are shown.
 
-![OB Citizen graph in a synthetic vault](docs/screenshots/synthetic-graph.png)
+![Citizen graph in a synthetic vault](docs/screenshots/synthetic-graph.png)
 
 ![Spacecraft Hangar and audio choices](docs/screenshots/synthetic-hangar.png)
 
 
 ## Use
 
-- Ribbon icon (orbit) or the command **OB Citizen: Open graph**.
+- Ribbon icon (orbit) or the command **Citizen: Open graph**.
 - It updates live as you add, remove, rename and link notes. Your selection and any hidden groups are kept.
 
 ### Mouse
@@ -225,7 +225,7 @@ For `/surface-lifecycle.html`, start a dedicated server with `node dev/serve-net
 
 ## Licence and third-party notices
 
-OB Citizen is J117W3's fork of [Constellation Graph by JusVibin](https://github.com/xjusvibin/obsidian-constellation-graph). The original copyright and MIT notices are preserved. Screenshots above are synthetic-vault views; they do not depict the new surface arenas.
+Citizen is J117W3's fork of [Constellation Graph by JusVibin](https://github.com/xjusvibin/obsidian-constellation-graph). The original copyright and MIT notices are preserved. Screenshots above are synthetic-vault views; they do not depict the new surface arenas.
 
 MIT, see `LICENSE`. The bundled `main.js` includes:
 
@@ -235,3 +235,9 @@ MIT, see `LICENSE`. The bundled `main.js` includes:
 - [ws](https://github.com/websockets/ws), MIT licence, used by the separate signaling service.
 
 Full licence text for each travels with its package under `node_modules` and is preserved at the end of `main.js`.
+
+### Review behavior disclosures
+
+Citizen enumerates local Markdown filenames and link metadata to build the note graph. Note names, paths, tags, and contents stay local; multiplayer shares anonymous topology only. The Copy code button writes the room code to the clipboard only when clicked; the plugin does not read the clipboard.
+
+Run `npm run lint` to check all production and browser-fixture TypeScript plus the CSS review rules. Browser-only HTTP adapters under `dev/` are not bundled into the plugin.

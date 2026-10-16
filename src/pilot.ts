@@ -109,7 +109,6 @@ const WARP_MAX_MS = 6000;
 const WARP_SPEED = 7;      // warp speed, in cruise speeds
 
 const FIRE_GAP = 0.16;     // seconds between shots
-const BOLT_SPEED = 1500;   // scene units per second
 const BOLT_LENGTH = 22;    // how long a bolt is
 const BOLT_FADE = 0.12;    // seconds a bolt lingers after it lands
 const MAX_BOLTS = 10;
@@ -384,14 +383,14 @@ export class PilotController {
     this.weaponHud = this.hud.createDiv({ cls: "cg-pilot-weapon-dock", attr: { "aria-hidden": "true" } });
     const makeWeaponSlot = (kind: "blaster" | "cannon") => {
       const slot = this.weaponHud.createDiv({ cls: `cg-weapon-slot cg-weapon-${kind}` });
-      const timer = document.createElement("span"); timer.className = "cg-weapon-time"; timer.hidden = true;
-      const icon = document.createElement("span"); icon.className = "cg-weapon-icon";
-      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg"); svg.setAttribute("viewBox", "0 0 32 32"); svg.setAttribute("aria-hidden", "true");
-      const arc = document.createElementNS("http://www.w3.org/2000/svg", "circle"); arc.setAttribute("cx", "16"); arc.setAttribute("cy", "16"); arc.setAttribute("r", "13"); arc.setAttribute("class", "cg-weapon-cooldown-arc"); arc.setAttribute("stroke-dasharray", "81.68");
-      const shape = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      const timer = createSpan(); timer.className = "cg-weapon-time"; timer.hidden = true;
+      const icon = createSpan(); icon.className = "cg-weapon-icon";
+      const svg = createSvg("svg"); svg.setAttribute("viewBox", "0 0 32 32"); svg.setAttribute("aria-hidden", "true");
+      const arc = createSvg("circle"); arc.setAttribute("cx", "16"); arc.setAttribute("cy", "16"); arc.setAttribute("r", "13"); arc.setAttribute("class", "cg-weapon-cooldown-arc"); arc.setAttribute("stroke-dasharray", "81.68");
+      const shape = createSvg("path");
       shape.setAttribute("d", kind === "blaster" ? "M16 6l2.4 7.2L26 16l-7.6 2.8L16 26l-2.4-7.2L6 16l7.6-2.8z" : "M7 11h11l2 3h5v4h-5l-2 3H7v-3H5v-4h2z");
       shape.setAttribute("class", "cg-weapon-glyph"); svg.append(arc, shape); icon.append(svg);
-      const status = document.createElement("span"); status.className = "cg-weapon-status";
+      const status = createSpan(); status.className = "cg-weapon-status";
       if (kind === "blaster") slot.append(timer, icon, status); else slot.append(icon, timer, status);
       return { slot, timer, arc, status };
     };
@@ -550,10 +549,10 @@ export class PilotController {
 
   updateNearbyAudio(players: RemoteAudioState[], enabled: boolean): void {
     this.audio.setRemoteGainScale(1);
-    const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion).toArray() as [number, number, number];
-    const up = new THREE.Vector3(0, 1, 0).applyQuaternion(this.camera.quaternion).toArray() as [number, number, number];
+    const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion).toArray();
+    const up = new THREE.Vector3(0, 1, 0).applyQuaternion(this.camera.quaternion).toArray();
     this.audio.setNearbyAudio(enabled);
-    this.audio.updateRemoteAudio({ position: this.pos.toArray() as [number, number, number], forward, up }, players,
+    this.audio.updateRemoteAudio({ position: this.pos.toArray(), forward, up }, players,
       this.active && this.health > 0 && !this.hangarOpen && !this.watchingId && this.roomVisible && !document.hidden);
   }
 
@@ -792,7 +791,7 @@ export class PilotController {
   }
 
   shipSnapshot(): { position: [number, number, number]; rotation: [number, number, number, number]; velocity: [number, number, number] } {
-    return { position: this.pos.toArray() as [number, number, number], rotation: this.quat.toArray() as [number, number, number, number], velocity: this.vel.toArray() as [number, number, number] };
+    return { position: this.pos.toArray(), rotation: this.quat.toArray(), velocity: this.vel.toArray() };
   }
 
   resumeFromSurface(ship: { position: [number, number, number]; rotation: [number, number, number, number] }): void {
@@ -932,7 +931,7 @@ export class PilotController {
     const held = controlsEnabled && this.health > 0 && this.keys.has("KeyJ");
     if (!held) { this.dockHeld = 0; this.dockTargetKey = ""; this.dockSent = false; }
     if (this.clock < this.dockMessageUntil) { this.dockingPrompt.textContent = this.dockMessage; return; }
-    if (held && this.dockSent) { this.dockingPrompt.textContent = "Docking requested · release J before retrying"; return; }
+    if (held && this.dockSent) { this.dockingPrompt.textContent = "Docking requested · release the docking key before retrying"; return; }
     const target = this.host.dockingTarget?.(), speed = this.vel.length();
     let message = "Dock · Aim the ship at a main sphere";
     const ready = !!target && target.distance >= 0 && target.distance <= 12 && speed <= 10;
@@ -1428,6 +1427,7 @@ export class PilotController {
     this.blasterStatus.textContent = this.overheated ? `HOT · ${Math.round(this.heat * 100)}%` : `${Math.round(this.heat * 100)}% HEAT`;
     this.cannonStatus.textContent = this.ammunition <= 0 ? "DRY" : `${this.ammunition}/36`;
     this.energyFill.classList.toggle("cg-low", this.boostLocked);
+    this.energyFill.parentElement?.classList.toggle("cg-energy-low", this.boostLocked);
     this.destruction.hidden = this.health > 0;
     if (this.health <= 0) this.destruction.textContent = `SHIP DESTROYED · RESPAWNING IN ${Math.ceil(this.respawnLeft / 1000)}s`;
     const text = this.health <= 0 ? "DESTROYED" : this.protectionLeft > 0 ? "SPAWN PROTECTED" : this.boosting ? "AFTERBURNER" : this.boostLocked ? (this.holdLeft > 0 ? `EMPTY ${this.holdLeft.toFixed(1)}s` : "RECHARGING") : "";
@@ -1488,7 +1488,7 @@ export class PilotController {
       const sequence = ++this.fireSequence;
       const from = this.muzzle(gun, new THREE.Vector3());
       this.bolts.push({ from, origin: from.clone(), node: -1, point, travelled: 0, speed: weaponStats(this.weapon).speed + this.vel.length(), ctrl: false, landed: false, fade: 0, weapon: this.weapon, sequence, sentAt: this.clock, confirmed: false });
-      this.host.onFire(sequence, gun, this.weapon, point.toArray() as [number, number, number]);
+      this.host.onFire(sequence, gun, this.weapon, point.toArray());
     } else {
       const i = this.host.pickAt(this.aimX, this.aimY, FIRE_SLACK);
       const from = this.muzzle(gun, new THREE.Vector3());

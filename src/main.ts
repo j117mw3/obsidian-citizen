@@ -1,3 +1,4 @@
+import { isRecord } from "./validation";
 import { Plugin } from "obsidian";
 import { ConstellationSettings, DEFAULT_SETTINGS, sanitizeSettings } from "./settings";
 import { ConstellationSettingTab } from "./settingsTab";
@@ -12,11 +13,11 @@ export default class ConstellationPlugin extends Plugin {
   private pendingReset = false;
 
   async onload(): Promise<void> {
-    const saved = await this.loadData();
+    const saved: unknown = await this.loadData();
     this.settings = sanitizeSettings(saved);
-    if (saved && (saved.settingsSchemaVersion ?? 0) < this.settings.settingsSchemaVersion) await this.saveData(this.settings);
+    if (isRecord(saved) && (typeof saved.settingsSchemaVersion !== "number" || saved.settingsSchemaVersion < this.settings.settingsSchemaVersion)) await this.saveData(this.settings);
     this.registerView(VIEW_TYPE, leaf => new ConstellationView(leaf, this));
-    this.addRibbonIcon("orbit", "Open OB Citizen", () => void this.activate());
+    this.addRibbonIcon("orbit", "Open Citizen", () => void this.activate());
     this.addCommand({ id: "open", name: "Open graph", callback: () => void this.activate() });
     this.addSettingTab(new ConstellationSettingTab(this.app, this));
     // wait until the workspace has been restored, otherwise the saved layout would open over it

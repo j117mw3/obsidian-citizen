@@ -194,7 +194,7 @@ export class SurfacePilot {
     this.container.closest(".cg-root")?.classList.add("cg-surfacing");
     this.canvas.classList.add("cg-surface-canvas");
     this.camera.near = 0.02; this.camera.fov = this.settings.surfaceFov; this.camera.updateProjectionMatrix();
-    this.canvas.requestPointerLock?.();
+    void this.canvas.requestPointerLock?.();
     this.updateView(0);
     this.updateHud();
   }
@@ -210,7 +210,7 @@ export class SurfacePilot {
     const color = normalizeSurfaceLaserColor(value) ?? "#8CECFF";
     this.chargeEffect.setColor(color);
     this.emitterMaterial.color.set(color);
-    (this.muzzleFlash.material as THREE.MeshBasicMaterial).color.set(color);
+    (this.muzzleFlash.material).color.set(color);
   }
 
   /** Only call after actual character damage; never for a wall/planet impact or predicted shot. */
@@ -286,7 +286,7 @@ export class SurfacePilot {
         this.playStateChangeSounds(previous, view, this.currentHostTime());
         this.state = view;
         if (view.surface.grounded && Math.hypot(...view.surface.velocity) > 1 && this.stepSoundTimer <= 0) {
-          this.audio.play("footstep", this.camera.position.toArray() as [number, number, number]); this.stepSoundTimer = view.surface.crouched ? 0.52 : 0.4;
+          this.audio.play("footstep", this.camera.position.toArray()); this.stepSoundTimer = view.surface.crouched ? 0.52 : 0.4;
         }
         input.yawDelta = 0; input.pitchDelta = 0;
         this.accumulator -= STEP;
@@ -372,7 +372,7 @@ export class SurfacePilot {
       ? Math.sin(this.headBobTime * 11) * 0.012 * Math.min(1, speed / SURFACE.walkSpeed) : 0;
     this.point.set(...surfaceToWorld(view.eye, center)).addScaledVector(this.up, bob * WORLD_SCALE);
     this.camera.position.copy(this.point);
-    this.audio.updateListener(this.camera.position.toArray() as [number, number, number], this.look.toArray() as [number, number, number], this.cameraUp.toArray() as [number, number, number]);
+    this.audio.updateListener(this.camera.position.toArray(), this.look.toArray(), this.cameraUp.toArray());
     this.viewModel.position.set(...surfaceToWorld(view.eye, center));
     this.viewModel.quaternion.copy(this.camera.quaternion);
     this.viewModel.translateY(-this.recoil * 0.035 * WORLD_SCALE);
@@ -503,7 +503,7 @@ export class SurfacePilot {
     const origin = new THREE.Vector3(...surfaceToWorld(pose.muzzle, this.callbacks.arenaCenter?.(this.arena) ?? this.arena.center));
     const direction = new THREE.Vector3(...surfaceBlasterDirection(this.state.surface));
     const previous = this.state;
-    const view = this.callbacks.fire(origin.toArray() as [number, number, number], direction.toArray() as [number, number, number], ++this.fireSequence, this.callbacks.hostViewTime?.() ?? Date.now(), kind);
+    const view = this.callbacks.fire(origin.toArray(), direction.toArray(), ++this.fireSequence, this.callbacks.hostViewTime?.() ?? Date.now(), kind);
     if (view) { this.playStateChangeSounds(previous, view, this.currentHostTime()); this.state = view; this.updateHud(); }
   }
 
@@ -553,7 +553,7 @@ export class SurfacePilot {
     if (!this.active || (event.button !== 0 && event.button !== 2)) return;
     this.container.focus({ preventScroll: true });
     this.callbacks.prepareSpaceAudio?.();
-    if (!this.pointerLocked) { this.canvas.requestPointerLock?.(); return; }
+    if (!this.pointerLocked) { void this.canvas.requestPointerLock?.(); return; }
     if (event.button === 2) this.beginCharge();
     else { this.heldFire = true; this.fire(); }
     event.preventDefault();

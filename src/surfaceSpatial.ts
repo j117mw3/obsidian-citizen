@@ -57,7 +57,7 @@ export class SurfacePointSlots {
     };
     visit(this.root);
     if (!best) return null;
-    const selected = best as PointNode; selected.active = false;
+    const selected = best; selected.active = false;
     for (let node: PointNode | undefined = selected; node; node = node.parent) node.count--;
     return selected.point;
   }
