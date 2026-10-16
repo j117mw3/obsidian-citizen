@@ -4,7 +4,7 @@ Citizen turns your notes into a 3D constellation you can explore, fly through, a
 
 ## A fork taking a different direction
 
-This project combines JusVibin's original [Constellation Graph](https://github.com/xjusvibin/obsidian-constellation-graph) foundation with J117W3's multiplayer, cockpit, docking, and planetary arena work. Hunter's graph, flight, spacecraft, and audio work remains credited, and the original MIT copyright notice is retained. Citizen is an independently maintained fork: its direction is a playable space and surface sandbox built around a private note constellation. It is a community project and is not affiliated with Obsidian.
+This project combines JusVibin's original [Constellation Graph](https://github.com/xjusvibin/obsidian-constellation-graph) foundation with J117W3's multiplayer, cockpit, docking, and planetary arena work. JusVibin's graph, flight, spacecraft, and audio work remains credited, and the original MIT copyright notice is retained. Citizen is an independently maintained fork: its direction is a playable space and surface sandbox built around a private note constellation. It is a community project and is not affiliated with Obsidian.
 
 ## Download and install
 
@@ -12,11 +12,11 @@ Download [Citizen 0.7.6](https://github.com/j117mw3/obsidian-citizen/releases/ta
 
 **Install the current release (0.7.2 and newer):** back up your settings, close Obsidian, and copy the release files `main.js`, `manifest.json`, and `styles.css` directly into `<vault>/.obsidian/plugins/citizen/`. Requires desktop Obsidian 1.7.2 or newer.
 
-**Historical releases (0.7.1 and older):** these archived packages retain the `constellation-graph` ID and install into `<vault>/.obsidian/plugins/constellation-graph/`. They share Hunter's plugin identity and must not be installed over his version unless you intend to replace it. Their original packages have not been renamed or rebuilt. See the [archive instructions](docs/historical-builds.md) for verification scope and source-history limitations.
+**Historical releases (0.7.1 and older):** these archived packages retain the `constellation-graph` ID and install into `<vault>/.obsidian/plugins/constellation-graph/`. They share JusVibin's plugin identity and must not be installed over his version unless you intend to replace it. Their original packages have not been renamed or rebuilt. See the [archive instructions](docs/historical-builds.md) for verification scope and source-history limitations.
 
-**Plugin identity and settings:** starting with 0.7.2, this independent fork uses the unique `citizen` plugin ID so it cannot overwrite Hunter's plugin. It installs into `<vault>/.obsidian/plugins/citizen/`. Testers moving from the archived `constellation-graph` builds can back up and disable the old plugin, then copy only its `data.json` into the new folder while Obsidian is closed to retain preferences. Keep the original folder as a backup. Saved graph tabs may need reopening with the **Citizen: Open graph** command. The installer does not migrate or delete settings automatically.
+**Plugin identity and settings:** starting with 0.7.2, this independent fork uses the unique `citizen` plugin ID so it cannot overwrite JusVibin's plugin. It installs into `<vault>/.obsidian/plugins/citizen/`. Testers moving from the archived `constellation-graph` builds can back up and disable the old plugin, then copy only its `data.json` into the new folder while Obsidian is closed to retain preferences. Keep the original folder as a backup. Saved graph tabs may need reopening with the **Citizen: Open graph** command. The installer does not migrate or delete settings automatically.
 
-The independent [Citizen directory listing](https://community.obsidian.md/plugins/citizen) is live, with Hunter / JusVibin credited as a contributor. Version 0.7.6 passed the published directory review: **Health Excellent**, **Review Passed**, with no source or CSS warnings and a byte-for-byte reproducible build. The local vault graph and user-triggered room-code copying retain their behavior disclosures. See [the verification record](docs/verification-0.7.6.md).
+The independent [Citizen directory listing](https://community.obsidian.md/plugins/citizen) is live, with JusVibin credited as a contributor. Version 0.7.6 passed the published directory review: **Health Excellent**, **Review Passed**, with no source or CSS warnings and a byte-for-byte reproducible build. The local vault graph and user-triggered room-code copying retain their behavior disclosures. See [the verification record](docs/verification-0.7.6.md).
 
 ## Current version: 0.7.6
 
