@@ -8,7 +8,7 @@ This project combines JusVibin's original [Constellation Graph](https://github.c
 
 ## Download and install
 
-Download [Citizen 0.7.7](https://github.com/j117mw3/obsidian-citizen/releases/tag/0.7.7). The release includes `main.js`, `manifest.json`, `styles.css`, an install ZIP, checksums, and build provenance. Every published update from **0.5.1 through 0.7.7** has its own entry on the [Releases page](https://github.com/j117mw3/obsidian-citizen/releases), with individual plugin files, an install ZIP, checksums, and version-specific notes. Earlier 0.3.x releases remain available. Choose the same version on every multiplayer computer.
+Download [Citizen 0.7.8](https://github.com/j117mw3/obsidian-citizen/releases/tag/0.7.8). The release includes `main.js`, `manifest.json`, `styles.css`, an install ZIP and checksums. Every published update from **0.5.1 through 0.7.8** has its own entry on the [Releases page](https://github.com/j117mw3/obsidian-citizen/releases), with individual plugin files, an install ZIP, checksums, and version-specific notes. Earlier 0.3.x releases remain available. Choose the same version on every multiplayer computer.
 
 **Install the current release (0.7.2 and newer):** back up your settings, close Obsidian, and copy the release files `main.js`, `manifest.json`, and `styles.css` directly into `<vault>/.obsidian/plugins/citizen/`. Requires desktop Obsidian 1.7.2 or newer.
 
@@ -18,7 +18,7 @@ Download [Citizen 0.7.7](https://github.com/j117mw3/obsidian-citizen/releases/ta
 
 The independent [Citizen directory listing](https://community.obsidian.md/plugins/citizen) is live, with JusVibin credited as a contributor. Version 0.7.6 passed the published directory review: **Health Excellent**, **Review Passed**, with no source or CSS warnings and a byte-for-byte reproducible build. The local vault graph and user-triggered room-code copying retain their behavior disclosures. See [the verification record](docs/verification-0.7.6.md).
 
-## Current version: 0.7.7
+## Current version: 0.7.8
 
 - Fly eight spacecraft with cockpit instruments, boost, blasters, sound choices, and a pane-responsive Hangar.
 - Invite up to three friends to optional private rooms with host-authoritative combat, rounds, checkpoints, and host transfer.
@@ -26,9 +26,9 @@ The independent [Citizen directory listing](https://community.obsidian.md/plugin
 - Fight four host-controlled planet bots in solo or multiplayer. They patrol, attack after spotting players, pursue recent attackers briefly, and drop one collectible **+30 health** item when defeated.
 - Recognizable health-cross and shield pickups show their health amount. Player kills alone count toward the **ten-kill** round win; bot kills do not increase score.
 - Rounds pause the fight for the supernova and preserve each pilot’s space position or docked planet position and facing into the next round.
-- Version 0.7.1 strengthened terrain relief and fixed linked-wall steering; **0.7.2** adds shared planet combat, bot health drops, clearer pickups, ten-kill rounds, and pose-preserving round changes. **0.7.3** keeps displayed bot feet on uneven terrain; **0.7.4** used the historical OB Citizen display name; **0.7.6** uses Citizen; **0.7.7** grounds displayed patrols on the rendered terrain and updates flight docking controls. It uses the same **room protocol 14** and checkpoint format as 0.7.2.
+- Version 0.7.1 strengthened terrain relief and fixed linked-wall steering; **0.7.2** adds shared planet combat, bot health drops, clearer pickups, ten-kill rounds, and pose-preserving round changes. **0.7.3** keeps displayed bot feet on uneven terrain; **0.7.4** used the historical OB Citizen display name; **0.7.6** uses Citizen; **0.7.7** grounds displayed patrols on the rendered terrain and updates flight docking controls. **0.7.8** adds physical hills/craters, bounded sky occlusion, pointer-lock and first-docking fixes, one multiplayer planet per hub, and safer ship departures. It uses **room protocol 15** and checkpoint format 15; all multiplayer participants must update.
 
-The [changelog](CHANGELOG.md) records the 0.5.x through 0.7.x development milestones. Each published version has its own GitHub entry with update notes and package files. The 0.5.1–0.7.1 tags preserve recovered plugin files because matching historical TypeScript source snapshots were not saved; 0.7.2 through 0.7.7 are built from their tagged source. Automated checks for 0.7.7 are recorded in [its verification notes](docs/verification-0.7.7.md); native rendering, audio, cross-computer gameplay, and large-arena performance acceptance remain separate. Large terrain layouts can take several seconds to prepare.
+The [changelog](CHANGELOG.md) records the 0.5.x through 0.7.x development milestones. Each published version has its own GitHub entry with update notes and package files. The 0.5.1–0.7.1 tags preserve recovered plugin files because matching historical TypeScript source snapshots were not saved; 0.7.2 through 0.7.8 are built from their tagged source. Unpublished local candidates 0.7.8–0.7.14 were consolidated into public 0.7.8; their original labels remain in [historical verification records](docs/local-candidate-history.md). Automated checks for the current release are recorded in [its verification notes](docs/release-0.7.8.md); native rendering, audio, cross-computer gameplay, and large-arena performance acceptance remain separate. Large terrain layouts can take several seconds to prepare.
 
 In **Pilot mode**, aim your ship at a main sphere, approach within **14 world units of its surface**, use **X** to brake below speed **10**, and **hold F for 1.5 seconds**. The flight HUD shows range, readiness and hold progress. Only main nodes accept docking. Wait three seconds after damage; the host also enforces arena capacity and safe spawn availability. On the surface, hold **F** for two seconds at either pole to return to your ship.
 

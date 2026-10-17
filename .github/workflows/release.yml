@@ -86,6 +86,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "Release already exists; retain its verified packages and publication status."
+            exit 0
+          fi
           gh release create "$RELEASE_TAG" main.js manifest.json styles.css \
             "citizen-${RELEASE_TAG}.zip" SHA256SUMS.txt \
             --draft --verify-tag --title "Citizen $RELEASE_TAG" \

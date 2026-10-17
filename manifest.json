@@ -1,7 +1,7 @@
 {
   "id": "citizen",
   "name": "Citizen",
-  "version": "0.7.14",
+  "version": "0.7.8",
   "minAppVersion": "1.7.2",
   "description": "Explore your notes as a 3D constellation, fly a spaceship, and dock on procedural planets. Includes optional private multiplayer, first-person arenas, and solo training patrols.",
   "author": "J117W3",
