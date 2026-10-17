@@ -3,7 +3,7 @@ import { deriveRoomKeys, makeRoomCode, parseRoomCode, seal, unseal, type RoomKey
 import { RelayChannel, cleanRelayUrl, type PostFn } from "./relay";
 import { DEFAULT_PILOT_PROFILE, validPilotProfile, type PilotProfile } from "./pilotProfile";
 
-export const ROOM_PROTOCOL = 14;
+export const ROOM_PROTOCOL = 15;
 export interface RoomMember { id: string; name: string; joinedAt: number; slot: number; profile: PilotProfile }
 export const ROOM_CAPACITY = 4;
 
@@ -178,7 +178,7 @@ export class RelayRoom {
     const msg = await unseal(this.keys, text) as Record<string, unknown> | null;
     if (!msg || typeof msg !== "object" || msg.v !== 1 || typeof msg.k !== "string" || typeof msg.n !== "string" || msg.n.length > 64) return;
     if (msg.protocol !== ROOM_PROTOCOL && msg.k !== "hello") {
-      this.cb.status("This room uses a different multiplayer protocol. Everyone must update to the same Citizen build.", true); return;
+      this.cb.status("This room requires Citizen protocol 15. Everyone must update to a matching build.", true); return;
     }
     if (msg.k === "hello" && msg.protocol !== ROOM_PROTOCOL) {
       if (typeof msg.id === "string" && uuid.test(msg.id)) void this.send({ k: "incompatible", protocol: ROOM_PROTOCOL, to: msg.id });
@@ -192,7 +192,7 @@ export class RelayRoom {
       case "hello": return this.onHello(msg);
       case "roster": return this.onRoster(msg);
       case "full": if (msg.to === this.id) this.failPending("That room already has four pilots."); return;
-      case "incompatible": if (msg.to === this.id) this.failPending("This room uses a different multiplayer protocol. Everyone must update to the same Citizen build."); return;
+      case "incompatible": if (msg.to === this.id) this.failPending("This room requires Citizen protocol 15. Everyone must update to a matching build."); return;
       case "signal": if (msg.to === this.id && typeof msg.from === "string" && uuid.test(msg.from) && this.list.some(m => m.id === msg.from)) this.cb.signal(msg.from, msg.data); return;
       case "profile": return this.onProfile(msg);
       case "bye": return this.onBye(msg);
@@ -213,7 +213,7 @@ export class RelayRoom {
   }
 
   private onRoster(msg: Record<string, unknown>): void {
-    if (msg.protocol !== ROOM_PROTOCOL) { this.failPending("This room uses a different multiplayer protocol. Everyone must update to the same Citizen build."); return; }
+    if (msg.protocol !== ROOM_PROTOCOL) { this.failPending("This room requires Citizen protocol 15. Everyone must update to a matching build."); return; }
     if (!validMembers(msg.members)) return;
     const members = msg.members;
     if (!members.some(m => m.id === this.id)) return;

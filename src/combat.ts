@@ -410,7 +410,7 @@ export class CombatWorld {
   }
 
   snapshot(now: number): RoomCheckpoint {
-    return { version: 14, epoch: this.epoch, at: now, round: { roundId: this.roundId, phase: this.phase, phaseRemainingMs: Math.max(0, this.phaseUntil - now), winnerId: this.winnerId,
+    return { version: 15, epoch: this.epoch, at: now, round: { roundId: this.roundId, phase: this.phase, phaseRemainingMs: Math.max(0, this.phaseUntil - now), winnerId: this.winnerId,
       scores: [...this.scoreRecords].map(([playerId, score]) => ({ playerId, ...score })), layoutRequirements: this.layoutRequirements.map(item => ({ ...item })), layoutBlocked: [...this.layoutBlocked], recentEliminations: this.recentEliminations.slice(-12) }, players: [...this.players.values()].map(p => ({
       id: p.id, slot: p.slot, position: p.pos.toArray(), rotation: [p.rot.x, p.rot.y, p.rot.z, p.rot.w], velocity: p.vel.toArray(), spin: p.spin.toArray(), input: { ...p.input },
       health: p.health, shields: p.shields, shieldDelay: p.shieldDelay, damagePause: p.damagePause, weapon: p.weapon, heat: p.heat, overheated: p.overheated, ammunition: p.ammunition, deaths: p.deaths,
@@ -426,7 +426,7 @@ export class CombatWorld {
   restore(value: unknown, now: number, ageMs = 0): boolean {
     if (!value || typeof value !== "object") return false;
     const state = value as RoomCheckpoint;
-    if (state.version !== 14 || !isUnknownArray(state.players) || state.players.length > 4 || !Number.isSafeInteger(state.epoch)
+    if (state.version !== 15 || !isUnknownArray(state.players) || state.players.length > 4 || !Number.isSafeInteger(state.epoch)
       || !Number.isSafeInteger(state.at) || !Number.isFinite(ageMs) || ageMs < 0 || ageMs > 15_000 || !isUnknownArray(state.shots) || state.shots.length > 128) return false;
     const next = new Map<string, Fighter>();
     for (const item of state.players) {
@@ -559,7 +559,7 @@ export class CombatWorld {
 }
 
 export interface RoomCheckpoint {
-  version: 14; epoch: number; at: number; surface?: unknown;
+  version: 15; epoch: number; at: number; surface?: unknown;
   round: { roundId: number; phase: RoundPhase; phaseRemainingMs: number; winnerId: string; scores: Array<{ playerId: string; kills: number; deaths: number }>; layoutRequirements: LayoutRequirement[]; layoutBlocked: string[]; recentEliminations: EliminationEvent[] };
   players: Array<{ id: string; slot: number; position: [number, number, number]; rotation: [number, number, number, number]; velocity: [number, number, number]; spin: [number, number, number]; input: FlightInput;
     health: number; shields: number; shieldDelay: number; damagePause: number; weapon: 0 | 1; heat: number; overheated: boolean; ammunition: number; deaths: number; energy: number; boostLocked: boolean; regenDelay: number; emptyWait: number; respawnAt: number; protectedUntil: number; resumeAt: number; fireAt: number; active: boolean; docked?: boolean; resumeAfterRespawn: boolean;

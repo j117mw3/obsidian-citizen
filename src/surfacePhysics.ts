@@ -42,7 +42,7 @@ export function validSurfacePlayerState(value: unknown): value is SurfacePlayerS
   if (!Number.isFinite(arenaRadius) || arenaRadius < 27 || arenaRadius > 1000) return false;
   const relief = typeof state.terrainHash === "string" && /^[0-9a-f]{8}$/.test(state.terrainHash);
   if (state.terrainHash !== undefined && !relief) return false;
-  const lower = relief ? -.8 : 0, upper = relief ? 1.6 : 0;
+  const lower = relief ? -1.5 : 0, upper = relief ? 3 : 0;
   const triple = (input: unknown, bound: number): input is [number, number, number] => Array.isArray(input) && input.length === 3
     && input.every(number => typeof number === "number" && Number.isFinite(number) && Math.abs(number) <= bound);
   if (!triple(state.position, arenaRadius + upper + SURFACE.jumpHeight + 0.2) || !triple(state.velocity, 40) || !triple(state.forward, 1.1)

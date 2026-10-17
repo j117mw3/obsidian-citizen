@@ -1,27 +1,41 @@
 import * as THREE from 'three';
 import {cubeTerrainNormal,terrainHeight,terrainQuery,type TerrainDefinition} from './surfaceTerrain';
 import type {SurfaceVector} from './surface';
+interface TerrainPatchData {positions:Float32Array;indices:Uint32Array}
+const patchCache=new WeakMap<TerrainDefinition,Map<string,TerrainPatchData>>();
+function cachedPatches(definition:TerrainDefinition):Map<string,TerrainPatchData>{let cache=patchCache.get(definition);if(!cache){cache=new Map();patchCache.set(definition,cache);}return cache;}
 /** Local quadtree patches share one draw. Skirts close LOD boundaries without a sphere filling craters. */
 export function* prepareTerrainMesh(def:TerrainDefinition,observer?:SurfaceVector):Generator<void,THREE.BufferGeometry> {
- const positions:number[]=[],indices:number[]=[],grid=16,r=def.radius,patches=Array.from({length:6},()=>new Map<string,{base:number;level:number;column:number;row:number}>());
+ const positions:number[]=[],indices:number[]=[],grid=16,r=def.radius,cache=cachedPatches(def),patches=Array.from({length:6},()=>new Map<string,{base:number;level:number;column:number;row:number}>());let cacheHits=0;
  const eye=observer?new THREE.Vector3(...observer):undefined,horizon=Math.sqrt(2*r*5)*1.6+16;
- const append=(n:SurfaceVector,depth=0)=>{const h=terrainHeight(def,n);positions.push(...n.map(v=>v*(r+h-depth)));};
  const patch=function*(face:number,u:number,v:number,size:number,level:number):Generator<void,void>{
   const center=cubeTerrainNormal(face,u+size/2,v+size/2),distance=eye?eye.distanceTo(new THREE.Vector3(...center).multiplyScalar(r)):Infinity;
   const span=r*size*1.5,near=distance<span+horizon,nearest=Math.max(0,distance-span*.6),targetEdge=.95+Math.max(0,nearest-25)*.05;
   if(eye&&near&&r*size/grid>targetEdge&&level<10){for(let y=0;y<2;y++)for(let x=0;x<2;x++)yield* patch(face,u+x*size/2,v+y*size/2,size/2,level+1);return;}
-  const base=positions.length/3,column=Math.round((u+1)/size),row=Math.round((v+1)/size);patches[face].set(`${level}/${column}/${row}`,{base,level,column,row});
-  for(let y=0;y<=grid;y++)for(let x=0;x<=grid;x++)append(cubeTerrainNormal(face,u+x*size/grid,v+y*size/grid));
-  for(let y=0;y<grid;y++)for(let x=0;x<grid;x++){const a=base+y*(grid+1)+x,b=a+1,c=a+grid+1,d=c+1;indices.push(a,b,c,b,d,c);}
-  const edge:number[]=[];for(let x=0;x<=grid;x++)edge.push(x);for(let y=1;y<=grid;y++)edge.push(y*(grid+1)+grid);for(let x=grid-1;x>=0;x--)edge.push(grid*(grid+1)+x);for(let y=grid-1;y>0;y--)edge.push(y*(grid+1));
-  const skirt=positions.length/3,depth=Math.max(.04,r*(size/grid)**2);
-  for(const index of edge){const y=Math.floor(index/(grid+1)),x=index%(grid+1);append(cubeTerrainNormal(face,u+x*size/grid,v+y*size/grid),depth);}
-  for(let i=0;i<edge.length;i++){const j=(i+1)%edge.length;indices.push(base+edge[i],skirt+i,base+edge[j],base+edge[j],skirt+i,skirt+j);}
+  const column=Math.round((u+1)/size),row=Math.round((v+1)/size),key=`${face}/${level}/${column}/${row}`;let data=cache.get(key);
+  if(data)cacheHits++;
+  else{
+   const patchPositions:number[]=[],patchIndices:number[]=[],patchAppend=(n:SurfaceVector,depth=0)=>{const h=terrainHeight(def,n);patchPositions.push(...n.map(v=>v*(r+h-depth)));};
+   for(let y=0;y<=grid;y++)for(let x=0;x<=grid;x++)patchAppend(cubeTerrainNormal(face,u+x*size/grid,v+y*size/grid));
+   for(let y=0;y<grid;y++)for(let x=0;x<grid;x++){const a=y*(grid+1)+x,b=a+1,c=a+grid+1,d=c+1;patchIndices.push(a,b,c,b,d,c);}
+   const edge:number[]=[];for(let x=0;x<=grid;x++)edge.push(x);for(let y=1;y<=grid;y++)edge.push(y*(grid+1)+grid);for(let x=grid-1;x>=0;x--)edge.push(grid*(grid+1)+x);for(let y=grid-1;y>0;y--)edge.push(y*(grid+1));
+   const skirt=(grid+1)*(grid+1),depth=Math.max(.04,r*(size/grid)**2);
+   for(const index of edge){const y=Math.floor(index/(grid+1)),x=index%(grid+1);patchAppend(cubeTerrainNormal(face,u+x*size/grid,v+y*size/grid),depth);}
+   for(let i=0;i<edge.length;i++){const j=(i+1)%edge.length;patchIndices.push(edge[i],skirt+i,edge[j],edge[j],skirt+i,skirt+j);}
+   data={positions:new Float32Array(patchPositions),indices:new Uint32Array(patchIndices)};
+   if(cache.size>=4096)cache.delete(cache.keys().next().value!);cache.set(key,data);
+  }
+  const base=positions.length/3;patches[face].set(`${level}/${column}/${row}`,{base,level,column,row});
+  for(const value of data.positions)positions.push(value);for(const value of data.indices)indices.push(value+base);
   yield;
  };
  for(let face=0;face<6;face++)yield* patch(face,-1,-1,2,0);
- // Cube-face UV mappings and perimeter skirts use outward winding.
- const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geometry.setIndex(indices);geometry.computeBoundingSphere();geometry.userData.terrainHash=def.hash;geometry.userData.terrainGrid=grid;geometry.userData.terrainPatchLookup=patches;return geometry;
+ // Convert in bounded slices so the final LOD transition cannot monopolize one animation frame.
+ const positionData=new Float32Array(positions.length),indexData=new Uint32Array(indices.length),slice=65536;
+ for(let start=0;start<positions.length;start+=slice){const end=Math.min(start+slice,positions.length);for(let i=start;i<end;i++)positionData[i]=positions[i];yield;}
+ for(let start=0;start<indices.length;start+=slice){const end=Math.min(start+slice,indices.length);for(let i=start;i<end;i++)indexData[i]=indices[i];yield;}
+ const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.BufferAttribute(positionData,3));geometry.setIndex(new THREE.BufferAttribute(indexData,1));
+ geometry.boundingSphere=new THREE.Sphere(new THREE.Vector3(),r+3.1);geometry.userData.terrainHash=def.hash;geometry.userData.terrainGrid=grid;geometry.userData.terrainPatchLookup=patches;geometry.userData.terrainPatchCacheHits=cacheHits;return geometry;
 }
 export function buildTerrainMesh(def:TerrainDefinition,observer?:SurfaceVector):THREE.BufferGeometry {
  const preparation=prepareTerrainMesh(def,observer);let step=preparation.next();while(!step.done)step=preparation.next();return step.value;
@@ -63,9 +77,10 @@ export function updateTerrainPresentation(root:THREE.Group,definition:TerrainDef
  let next:THREE.BufferGeometry;
  if(observer&&previous){
    let preparation=root.userData.terrainPreparation as {iterator:Generator<void,THREE.BufferGeometry>;observer:SurfaceVector}|undefined;
-   if(!preparation){preparation={iterator:prepareTerrainMesh(definition,observer),observer:[...observer]};root.userData.terrainPreparation=preparation;}
-   const deadline=performance.now()+2;let step=preparation.iterator.next();
+   if(!preparation||Math.hypot(...observer.map((value,k)=>value-(preparation?.observer[k]??value)))>=12){preparation={iterator:prepareTerrainMesh(definition,observer),observer:[...observer]};root.userData.terrainPreparation=preparation;}
+   const started=performance.now(),deadline=started+2;let step=preparation.iterator.next();
    while(!step.done&&performance.now()<deadline)step=preparation.iterator.next();
+   root.userData.terrainPreparationFrameMs=performance.now()-started;
    if(!step.done)return;
    next=step.value;observer=preparation.observer;delete root.userData.terrainPreparation;
  }else next=buildTerrainMesh(definition,observer);

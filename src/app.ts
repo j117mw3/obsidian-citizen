@@ -9,6 +9,7 @@ import { PLAYER_KILLS_TO_WIN, type EliminationEvent, type RoundSnapshot } from "
 import { version as CLIENT_VERSION } from "../manifest.json";
 import { PilotHangar } from "./hangar";
 import type { PilotProfile } from "./pilotProfile";
+import { surfaceDockFailureMessage } from "./docking";
 
 let instances = 0;
 
@@ -117,7 +118,10 @@ export class ConstellationApp {
       onNavigationTarget: target => { if (this.inRoom) this.multiplayerStatus.textContent = target ? `Star marked. ${this.renderer.pilotActive ? "Press G to travel there." : "Enter Pilot mode (P), then press G to travel."}` : "Navigation target cleared."; },
       onFastTravel: target => this.network?.requestFastTravel(target),
       onFire: (sequence, gun, weapon, aimPoint) => this.network?.fire(sequence, gun, weapon, aimPoint),
-      onSurfaceDock: target => this.network?.requestSurfaceDock(target),
+      onSurfaceDock: target => {
+        if (this.network?.active) this.network.requestSurfaceDock(target);
+        else this.renderer.setSurfaceDockResult?.(false, "not-ready");
+      },
       onSurfaceInput: (input, arenaKey, lifeId) => this.network?.sendSurfaceInput(input, arenaKey, lifeId),
       onSurfaceCharge: (active, arenaKey, lifeId) => this.network?.chargeSurface(active, arenaKey, lifeId),
       onSurfaceFire: (sequence, viewTime, arenaKey, lifeId, direction, kind) => this.network?.fireSurface(sequence, viewTime, arenaKey, lifeId, direction, kind),
@@ -135,6 +139,7 @@ export class ConstellationApp {
     });
 
     // toolbar
+    const topStack = el("div", "cg-top-stack");
     const top = el("div", "cg-top", { role: "toolbar", "aria-label": "Graph controls" });
     this.search = el("input", "cg-search", { type: "search", placeholder: "Search notes…", "aria-label": "Search notes", autocomplete: "off", spellcheck: "false" });
     this.pauseBtn = this.button("cg-btn", "Pause motion", "⏸");
@@ -158,7 +163,8 @@ export class ConstellationApp {
     actions.append(this.pauseBtn, resetBtn, this.animBtn, this.novaBtn, this.pilotBtn, this.hangarBtn, this.multiplayerBtn, this.listBtn, this.helpBtn);
     top.append(searchRow, actions);
     if (this.flat) { this.pauseBtn.hidden = true; resetBtn.hidden = true; this.animBtn.hidden = true; this.novaBtn.hidden = true; this.pilotBtn.hidden = true; }
-    this.root.appendChild(top);
+    topStack.appendChild(top);
+    this.root.appendChild(topStack);
     this.multiplayerPanel = el("aside", "cg-multiplayer", { "aria-label": "Multiplayer room" });
     this.multiplayerPanel.hidden = true;
     this.multiplayerPanel.appendChild(el("h2", "", {}, "Fly together"));
@@ -185,7 +191,7 @@ export class ConstellationApp {
     this.multiplayerStatus = el("p", "cg-multiplayer-status", { role: "status", "aria-live": "polite" }, "Ready to connect to hosted rooms.");
     this.multiplayerPlayers = el("ul", "cg-multiplayer-players", { "aria-label": "Players in this room" });
     this.multiplayerPanel.append(roomActions, this.multiplayerStatus, this.multiplayerPlayers);
-    this.root.appendChild(this.multiplayerPanel);
+    topStack.appendChild(this.multiplayerPanel);
     this.stats = el("div", "cg-stats");
     this.motionNote = el("div", "cg-motion-note");
     this.root.append(this.stats, this.motionNote);
@@ -271,6 +277,7 @@ export class ConstellationApp {
       status: (text, error) => { this.multiplayerStatus.textContent = text; this.multiplayerStatus.classList.toggle("cg-error", !!error); },
       members: (members, selfId) => this.onMembers(members, selfId),
       topology: (id, topology) => { this.renderer.setRemoteTopology(id, topology); this.remoteIds.add(id); },
+      localTopology: (id, topology) => this.renderer.setLocalTopology(id, topology),
       positions: (id, positions) => this.renderer.setRemotePositions(id, positions),
       message: (from, message) => this.onNetworkMessage(from, message),
       playerState: (id, pose) => {
@@ -284,7 +291,7 @@ export class ConstellationApp {
       shotResult: (sequence, accepted) => this.renderer.reconcileLocalShot(sequence, accepted),
       surfaceState: (snapshot, estimatedHostTime, rttMs) => this.renderer.setSurfaceSnapshot?.(snapshot, estimatedHostTime, rttMs),
       surfaceFireResult: (sequence, accepted) => this.renderer.reconcileSurfaceFire?.(sequence, accepted),
-      surfaceDockResult: (_sequence, accepted, reason) => { this.renderer.setSurfaceDockResult?.(accepted,reason); if (!accepted) this.multiplayerStatus.textContent = reason==="preparation"?"Planet preparation failed: no accessible combat layout. Try a different main node.":"The host rejected docking. Move closer to a main node and slow down."; },
+      surfaceDockResult: (_sequence, accepted, reason) => { this.renderer.setSurfaceDockResult?.(accepted, reason); if (!accepted) this.multiplayerStatus.textContent = surfaceDockFailureMessage(reason); },
       surfaceColor: (_sequence, accepted, color) => { this.renderer.setSurfaceLaserColor?.(color); if (!accepted) this.multiplayerStatus.textContent = `Laser color rejected; keeping ${color}.`; },
       round: state => this.onRoundState(state),
       elimination: event => this.onElimination(event),
@@ -317,7 +324,6 @@ export class ConstellationApp {
     if (idx >= 0) this.showDetail(idx); else this.detail.hidden = true;
     this.runSearch();
     this.network?.setLocalGraph(data);
-    if (this.network?.active) this.renderer.setLocalTopology(this.network.localPlayerId, this.network.localTopology);
   }
 
   setActive(id: string | null): void { this.renderer.setActive(id ? this.renderer.indexOf(id) : -1); }
@@ -344,6 +350,13 @@ export class ConstellationApp {
     this.mqs.forEach(m => m.removeEventListener("change", this.onMq));
     this.renderer.destroy();
     this.root.remove();
+  }
+
+  startPerformanceCapture(scenario: import("./performanceCapture").PerformanceScenario, installedBundleSha256: string | null): boolean {
+    return this.renderer.startPerformanceCapture?.(scenario,installedBundleSha256,report=>{
+      const blob=new Blob([JSON.stringify(report,null,2)+"\n"],{type:"application/json"}),url=URL.createObjectURL(blob),anchor=createEl("a");
+      anchor.href=url;anchor.download=`citizen-performance-${scenario}-${new Date().toISOString().replace(/[:.]/g,"-")}.json`;document.body.appendChild(anchor);anchor.click();anchor.remove();window.setTimeout(()=>URL.revokeObjectURL(url),1000);
+    })??false;
   }
 
   focus(): void { this.stage.focus(); }

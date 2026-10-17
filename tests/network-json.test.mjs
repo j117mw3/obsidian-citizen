@@ -5,9 +5,14 @@ import { zlibSync } from "fflate";
 
 const built = await build({ entryPoints: ["src/networkJson.ts"], bundle: true, platform: "node", format: "esm", target: "node22", write: false });
 const wire = await import(`data:text/javascript;base64,${Buffer.from(built.outputFiles[0].text).toString("base64")}`);
+test("protocol 15 compressed network frames use a new envelope magic",()=>{
+ const json=JSON.stringify({type:"terrain-version-three",padding:"x".repeat(1200)}),packet=wire.encodeNetworkJson(json);
+ assert.ok(packet instanceof ArrayBuffer);assert.equal(new DataView(packet).getUint32(0,true),0x43475a46);assert.equal(wire.decodeNetworkJson(packet),json);
+ const old=packet.slice(0);new DataView(old).setUint32(0,0x43475a45,true);assert.equal(wire.decodeNetworkJson(old),null);
+});
 const packUnchecked = (text, declaredSize = Buffer.byteLength(text)) => {
   const payload = zlibSync(Buffer.from(text)), packet = new Uint8Array(payload.length + 8);
-  const view = new DataView(packet.buffer); view.setUint32(0, 0x43475a45, true); view.setUint32(4, declaredSize, true); packet.set(payload, 8); return packet.buffer;
+  const view = new DataView(packet.buffer); view.setUint32(0, 0x43475a46, true); view.setUint32(4, declaredSize, true); packet.set(payload, 8); return packet.buffer;
 };
 test("network compression preserves complete Unicode JSON and leaves small commands as strings", () => {
   const command = JSON.stringify({ type: "surface-fire-result", epoch: 2, sequence: 1, accepted: false });
@@ -30,6 +35,6 @@ test("compressed network frames reject corrupt, truncated, oversized, invalid UT
   assert.equal(wire.decodeNetworkJson(packUnchecked("x".repeat(128000))), "x".repeat(128000));
   assert.throws(() => wire.encodeNetworkJson("x".repeat(128001)));
   const invalidUtf8 = new Uint8Array([0xc3, 0x28]), compressed = zlibSync(invalidUtf8), invalidPacket = new Uint8Array(compressed.length + 8);
-  const view = new DataView(invalidPacket.buffer); view.setUint32(0, 0x43475a45, true); view.setUint32(4, 2, true); invalidPacket.set(compressed, 8);
+  const view = new DataView(invalidPacket.buffer); view.setUint32(0, 0x43475a46, true); view.setUint32(4, 2, true); invalidPacket.set(compressed, 8);
   assert.equal(wire.decodeNetworkJson(invalidPacket.buffer), null);
 });

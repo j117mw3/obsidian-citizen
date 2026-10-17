@@ -5,6 +5,7 @@ import type { FlightInput, ImpactSnapshot, Pose, ShotSnapshot } from "./multipla
 import type { NavigationTarget } from "./multiplayer";
 import type { SurfaceInput } from "./surfacePhysics";
 import type { SurfaceNetworkSnapshot } from "./surfaceAuthority";
+import type { SurfaceDockReason } from "./docking";
 
 export interface RawNode {
   id: string;
@@ -88,7 +89,8 @@ export interface RendererCallbacks {
 
 /** The 3D renderer and the list-only fallback expose the same surface, so the UI never has to care which it has. */
 export interface GraphRenderer {
-  setSurfaceDockResult?(accepted: boolean, reason?: "preparation"): void;
+  startPerformanceCapture?(scenario: import("./performanceCapture").PerformanceScenario, installedBundleSha256: string | null, complete: (report: object) => void): boolean;
+  setSurfaceDockResult?(accepted: boolean, reason?: SurfaceDockReason): void;
   readonly nodes: SimNode[];
   readonly inMultiplayer: boolean;
   readonly selectedIndex: number;

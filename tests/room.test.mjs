@@ -46,6 +46,18 @@ test("room codes are ten characters, formatted for people, and reject old or mal
   assert.equal(cryptoApi.parseRoomCode("00000-11111"), null);
 });
 
+test("older encrypted room protocol traffic receives a clear current-protocol error", async () => {
+  const bus = makeBus(), statuses = [];
+  const host = new roomApi.RelayRoom("https://ntfy.sh", { roster() {}, signal() {}, status(text, error) { statuses.push({ text, error }); } }, bus.transportFactory);
+  await host.create("Synthetic Host");
+  const oldClientMessage = await cryptoApi.seal(host.keys, { v: 1, n: "old-protocol-message", protocol: 14, k: "profile" });
+  await host.onText(oldClientMessage);
+  assert.equal(statuses.length, 1);
+  assert.match(statuses[0].text, /Citizen protocol 15/);
+  assert.equal(statuses[0].error, true);
+  host.leave();
+});
+
 test("ntfy discovery is encrypted, joins with the full validated roster, and fragments setup within relay limits", async () => {
   const bus = makeBus(), markers = ["PRIVATE_TITLE_CobaltVault", "PRIVATE_PATH_Secrets/Bluebird.md", "PRIVATE_TAG_Clinical"];
   let resolveSignal;

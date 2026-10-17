@@ -4,7 +4,7 @@ import { build } from "esbuild";
 import * as THREE from "three";
 
 const built = await build({
-  entryPoints: ["src/surface.ts", "src/surfacePhysics.ts", "src/surfaceWorld.ts", "src/surfaceCombat.ts", "src/surfaceHistory.ts", "src/surfaceColor.ts", "src/surfaceAuthority.ts", "src/surfaceVisuals.ts", "src/surfaceInput.ts", "src/surfaceView.ts", "src/surfaceCollision.ts", "src/surfacePresentation.ts", "src/renderer.ts"], bundle: true, platform: "node", format: "esm", target: "node22", outdir: "test-bundles", entryNames: "[name]", write: false,
+  entryPoints: ["src/surface.ts", "src/surfacePhysics.ts", "src/surfaceWorld.ts", "src/surfaceCombat.ts", "src/surfaceHistory.ts", "src/surfaceColor.ts", "src/surfaceAuthority.ts", "src/surfaceVisuals.ts", "src/surfaceInput.ts", "src/surfaceView.ts", "src/surfaceCollision.ts", "src/surfacePresentation.ts", "src/surfaceGeometry.ts", "src/renderer.ts"], bundle: true, platform: "node", format: "esm", target: "node22", outdir: "test-bundles", entryNames: "[name]", write: false,
 });
 const load = name => import(`data:text/javascript;base64,${Buffer.from(built.outputFiles.find(file => file.path.endsWith(`${name}.js`)).text).toString("base64")}`);
 const surface = await load("surface");
@@ -20,20 +20,167 @@ const viewModule = await load("surfaceView");
 const rendering = await load("renderer");
 const collision = await load("surfaceCollision");
 const presentation = await load("surfacePresentation");
+const geometry = await load("surfaceGeometry");
+
+const roomBundle = await build({ entryPoints: ["src/multiplayer.ts", "src/combat.ts", "src/app.ts", "src/flight.ts"], bundle: true, platform: "node", format: "esm", target: "node22", outdir: "test-bundles", write: false });
+const loadRoom = name => import(`data:text/javascript;base64,${Buffer.from(roomBundle.outputFiles.find(file => file.path.endsWith(`${name}.js`)).text).toString("base64")}`);
+const roomNetwork = await loadRoom("multiplayer"), roomCombat = await loadRoom("combat");
+const { ConstellationApp } = await loadRoom("app");
+const flightModule = await loadRoom("flight");
 
 const pilotBundle = await build({ entryPoints: ["src/surfacePilot.ts"], bundle: true, platform: "node", format: "esm", target: "node22", write: false });
 const { SurfacePilot } = await import(`data:text/javascript;base64,${Buffer.from(pilotBundle.outputFiles[0].text).toString("base64")}`);
 
-test("moving solo, local-room and remote-room planets share one frame center with the camera, weapon and effects", () => {
+test("identical local topology notifications do not rebuild planets but changed owners or publications do", () => {
+  const renderer = Object.create(rendering.ConstellationRenderer.prototype); let rebuilds = 0;
+  Object.assign(renderer, { localPlayerId: "", localTopology: null, rebuildLocalSurfaceVisuals() { rebuilds++; } });
+  const topology = { revision: 1, nodes: [], links: [] };
+  renderer.setLocalTopology("owner", topology); renderer.setLocalTopology("owner", topology);
+  assert.equal(rebuilds, 1);
+  renderer.setLocalTopology("owner", { ...topology, revision: 2 }); assert.equal(rebuilds, 2);
+  renderer.setLocalTopology("other", topology); assert.equal(rebuilds, 3);
+  renderer.setLocalTopology("", null); renderer.setLocalTopology("", null); assert.equal(rebuilds, 4);
+});
+
+test("application join republishes to the renderer before its first docking attempt", async () => {
+  const data = { groups: [{ key: "g", color: "#123456", count: 1 }], nodes: [{ id: "Private/Main.md", group: "g", deg: 0 }], links: [] };
+  let rendered = null;
+  const session = new roomNetwork.MultiplayerSession({ localTopology: (_id, topology) => { rendered = topology; } }, () => ({ nodes: [], data }));
+  session.join = async () => {
+    Object.assign(session, { selfId: "22222222-2222-4222-8222-222222222222", hostId: "11111111-1111-4111-8111-111111111111", revision: 1 });
+    session.topology = roomNetwork.makeAnonymousTopology(data, session.ids, 1); rendered = session.localTopology;
+  };
+  const app = Object.create(ConstellationApp.prototype);
+  Object.assign(app, { network: session, data, flat: false, updateRoomServiceInfo() {}, multiplayerConsent: { checked: true },
+    multiplayerName: { value: "Guest" }, multiplayerCode: { value: "ABCD1234" },
+    multiplayerStatus: { textContent: "", classList: { remove() {}, add() {} } }, host: {}, pilotProfile: () => ({}) });
+  await app.startRoom("join");
+  assert.equal(session.localTopology.revision, 2); assert.equal(rendered, session.localTopology);
+});
+
+test("authoritative local-room synchronization replaces the anonymous planet instead of adding a private-ID copy", () => {
+  const renderer = Object.create(rendering.ConstellationRenderer.prototype), owner = "local", hub = "n-anonymous-main";
+  const nodes = [{ id: "Private/Main.md", gi: 0, deg: 0, index: 0, x: 0, y: 0, z: 0 }];
+  Object.assign(renderer, { multiplayer: true, localPlayerId: owner, localTopology: { revision: 1, nodes: [{ id: hub, dockable: true }], links: [] },
+    sim: { nodes, srcs: [], dsts: [] }, localSurfaceGroups: new Map(), roomSurfaceArenas: new Map(), scene: new THREE.Scene() });
+  renderer.rebuildLocalSurfaceVisuals();
+  const previous = renderer.localSurfaceGroups.get(hub).group;
+  const disposed = new Set(), resources = new Set();
+  previous.traverse(object => { if (object.geometry) resources.add(object.geometry); for (const material of Array.isArray(object.material) ? object.material : object.material ? [object.material] : []) resources.add(material); });
+  for (const resource of resources) resource.addEventListener("dispose", () => disposed.add(resource));
+  const arena = { key: `${owner}/${hub}`, ownerId: owner, hubId: hub, revision: 1, center: [0, 0, 0], arena: geometry.generateDirectedSurfaceArena(hub, [], new Map(), true) };
+  renderer.synchronizeSurfaceArenaVisual(arena, []);
+  const meshes = []; renderer.scene.traverse(object => { if (object.name === "surface-planet") meshes.push(object); });
+  assert.equal(meshes.length, 1, "one authoritative hub must have exactly one planet mesh");
+  assert.deepEqual([...renderer.localSurfaceGroups.keys()], [hub]);
+  assert.equal(previous.parent, null);
+  assert.equal(disposed.size, resources.size, "replacement disposes all previous geometry and materials");
+  assert.equal(renderer.surfacePlanetMesh(arena), meshes[0]);
+  renderer.disposeSurfaceGroup(renderer.localSurfaceGroups.get(hub).group);
+});
+
+test("room snapshots, moving cover and topology republication retain one authoritative terrain mesh", () => {
+  const renderer = Object.create(rendering.ConstellationRenderer.prototype), owner = "local", hub = "n-anonymous-main";
+  const connections = Array.from({ length: 6 }, (_, i) => `n-neighbour-${i}`);
+  const nodes = [hub, ...connections].map((_id, i) => ({ id: `Private/${i}.md`, gi: 0, deg: i ? 1 : 6, index: i, x: 100 + i * 5, y: 20, z: -30 }));
+  const topology = { revision: 1, nodes: [hub, ...connections].map(id => ({ id, dockable: id === hub })), links: connections.map(id => [hub, id]) };
+  const arena = { key: `${owner}/${hub}`, ownerId: owner, hubId: hub, revision: 1, center: [100, 20, -30], arena: geometry.generateDirectedSurfaceArena(hub, connections, new Map(), true) };
+  const envelopes = [];
+  Object.assign(renderer, { multiplayer: true, localPlayerId: owner, localTopology: topology, navigationTarget: null,
+    sim: { nodes, srcs: [], dsts: [], setSurfaceEnvelope: (...args) => envelopes.push(args) }, worldNodes: nodes.map(node => ({ ...node })),
+    localSurfaceGroups: new Map(), roomSurfaceArenas: new Map(), scene: new THREE.Scene(), roomCoverMotion: new Map(),
+    roomSurfaceEpoch: 1, roomSurfaceSnapshotSequence: 0, roomSurfaceHistory: new history.SurfaceHistory(), surfacePrediction: new surfaceInput.SurfacePrediction(),
+    roomSurfacePlayers: new Map(), roomSurfaceBotShots: [], networkSurfaceBolts: new Map(), surfaceDisplayCenters: new Map(),
+    surfacePilot: { active: true, surfacePosition: [0, arena.arena.radius, 0] }, roomSurfaceLocalArena: null, remoteMaps: new Map(),
+    syncSurfaceBotVisuals() {}, updateRemoteSurfaceAudio() {}, performanceCapture: null });
+  renderer.rebuildLocalSurfaceVisuals();
+  let sequence = 0;
+  const receive = value => {
+    const base = value.arena.walls[0].normal, angle = ++sequence * .003;
+    const normal = [base[0] * Math.cos(angle) - base[2] * Math.sin(angle), base[1], base[0] * Math.sin(angle) + base[2] * Math.cos(angle)];
+    const bytes = Buffer.alloc(14); bytes.writeUInt16LE(0, 0); normal.forEach((n, k) => bytes.writeFloatLE(n, 2 + k * 4));
+    renderer.setSurfaceSnapshot({ epoch: 1, sequence, hostTime: 1000 + sequence * 50, players: [], bots: [], botShots: [], botDrops: [],
+      arenas: [value], pickups: [], projectiles: [], damageCues: [], hitConfirmations: [], cover: [{ arenaKey: value.key, poses: bytes.toString("base64") }] }, 1000 + sequence * 50, 0);
+    renderer.roomSurfaceLocalView = { arenaKey: value.key };
+    renderer.moveRoomCover(1 / 60); renderer.resolveSurfaceDisplayFrames();
+  };
+  receive(arena);
+  const root = renderer.localSurfaceGroups.get(hub).group, mesh = renderer.surfacePlanetMesh(arena), displayedGeometry = mesh.geometry;
+  const cover = root.getObjectByName("surface-wall-instances"), firstWall = Array.from(cover.instanceMatrix.array.slice(0, 16));
+  for (let frame = 0; frame < 30; frame++) {
+    renderer.worldNodes[0].x += frame % 2 ? 2 : -3; renderer.worldNodes[0].z += .5;
+    receive(arena);
+    assert.equal(renderer.localSurfaceGroups.size, 1); assert.equal(renderer.localSurfaceGroups.get(hub).group, root);
+    assert.equal(renderer.surfacePlanetMesh(arena), mesh); assert.equal(mesh.geometry, displayedGeometry);
+    assert.deepEqual(root.position.toArray(), [renderer.worldNodes[0].x, renderer.worldNodes[0].y, renderer.worldNodes[0].z]);
+    assert.deepEqual(renderer.surfaceDisplayCenter(arena), root.position.toArray());
+    let planets = 0; renderer.scene.traverse(object => { if (object.name === "surface-planet") planets++; }); assert.equal(planets, 1);
+  }
+  assert.notDeepEqual(Array.from(cover.instanceMatrix.array.slice(0, 16)), firstWall, "linked walls continue moving on the unique group");
+  const outlines = root.getObjectByName("surface-wall-outlines");
+  for (let col = 0; col < 4; col++) assert.deepEqual(Array.from(outlines.geometry.getAttribute(`wallColumn${col}`).array.slice(0, 4)), Array.from(cover.instanceMatrix.array.slice(col * 4, col * 4 + 4)));
+  assert.equal(renderer.localSurfaceCollisionRadius(0), arena.arena.radius * viewModule.SURFACE_WORLD_SCALE);
+  assert.equal(renderer.localSurfaceCollisionRadius(1), undefined);
+  assert.ok(envelopes.every(([id]) => id === nodes[0].id), "simulation envelopes use local IDs only");
+  let oldGeometryDisposed = false; displayedGeometry.addEventListener("dispose", () => { oldGeometryDisposed = true; });
+  const revised = { ...arena, revision: 2 }; receive(revised);
+  assert.equal(oldGeometryDisposed, true); assert.equal(root.parent, null); assert.equal(renderer.localSurfaceGroups.size, 1);
+  renderer.setLocalTopology(owner, { ...topology, revision: 2 }); receive(revised);
+  assert.deepEqual([...renderer.localSurfaceGroups.keys()], [hub]);
+  let planets = 0; renderer.scene.traverse(object => { if (object.name === "surface-planet") planets++; }); assert.equal(planets, 1);
+  renderer.disposeSurfaceGroup(renderer.localSurfaceGroups.get(hub).group);
+});
+
+test("leaving and rejoining switches planet identities without retaining scene copies", () => {
+  const renderer = Object.create(rendering.ConstellationRenderer.prototype), owner = "local", privateId = "Private/Main.md", hub = "n-anonymous-main";
+  const nodes = [{ id: privateId, group: "g", gi: 0, deg: 0, index: 0, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0 }];
+  Object.assign(renderer, { multiplayer: false, localPlayerId: "", localTopology: null, localSurfaceGroups: new Map(), scene: new THREE.Scene(),
+    sim: { nodes, srcs: [], dsts: [] }, worldNodes: nodes, settings: { glow: 1 }, cb: {}, pilot: { active: false, setOptions() {}, setRoomAuthority() {} },
+    surfacePilot: { active: false }, remoteMaps: new Map(), remoteShips: new Map(), roomSurfaceArenas: new Map(),
+    container: { classList: { toggle() {} } }, pilotCollisionGrid: { rebuild() {} }, indicatorLayer: { replaceChildren() {} },
+    uniforms: { uNova: {}, uPulse: {}, uCollapse: {} }, bloom: {},
+    setHover() {}, setSelected() {}, setNavigationTarget() {}, applyMapTransform() {}, refreshWorldNodes() {}, clearRoomSurfacePresentation() {} });
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    renderer.setLocalTopology(owner, { revision: attempt, nodes: [{ id: hub, dockable: true }], links: [] });
+    renderer.setMultiplayer(true);
+    assert.deepEqual([...renderer.localSurfaceGroups.keys()], [hub]);
+    assert.equal(renderer.localSurfaceCollisionRadius(0), renderer.localSurfaceGroups.get(hub).group.userData.radius * viewModule.SURFACE_WORLD_SCALE);
+    const occupied = renderer.localSurfaceGroups.get(hub).group;
+    renderer.setMultiplayer(false);
+    assert.equal(occupied.parent, null); assert.deepEqual([...renderer.localSurfaceGroups.keys()], [privateId]);
+    assert.equal(renderer.localSurfaceCollisionRadius(0), renderer.localSurfaceGroups.get(privateId).group.userData.radius * viewModule.SURFACE_WORLD_SCALE);
+    assert.equal(renderer.localSurfaceCollisionRadius(1), undefined);
+    let count = 0; renderer.scene.traverse(object => { if (object.name === "surface-planet") count++; }); assert.equal(count, 1);
+  }
+  renderer.disposeSurfaceGroup(renderer.localSurfaceGroups.get(privateId).group);
+});
+
+test("solo departure refreshes moving node positions and respects neighbouring large planet envelopes", () => {
+  const renderer = Object.create(rendering.ConstellationRenderer.prototype), centre = [100, 0, 0], resumed = [];
+  const nodes = [{ id: "Private/Main.md", x: 100, y: 0, z: 0 }, { id: "Private/Neighbour.md", x: 100, y: 10, z: 0 }];
+  const neighbour = new THREE.Group(); neighbour.userData.radius = 60;
+  Object.assign(renderer, { multiplayer: false, surfacePilot: { active: false }, localTopology: null,
+    sim: { nodes }, worldNodes: nodes, localSurfaceGroups: new Map([[nodes[1].id, { index: 1, group: neighbour }]]),
+    remoteMaps: new Map(), pilotCollisionGrid: new (flightModule.StarCollisionGrid)(), lastPilotObstacleRefresh: Infinity,
+    camera: new THREE.PerspectiveCamera(), clearSurfaceCombat() {}, removeParkedSurfaceShip() {}, rebuildLocalSurfaceVisuals() {},
+    controls: {}, setPilot: (_on, ship) => resumed.push(ship) });
+  renderer.pilotCollisionGrid.rebuild([new Float32Array([0, 0, 0])]);
+  renderer.returnToSurfaceShip(identityShip([100, 35, 0]), centre);
+  const position = new THREE.Vector3(...resumed[0].position), other = new THREE.Vector3(100, 10, 0);
+  assert.ok(position.distanceTo(other) > 60 * viewModule.SURFACE_WORLD_SCALE + .7, "departure must clear the neighbour's actual radius, not a stale/default sphere");
+});
+
+test("moving solo, local-room and remote-room planets share one frame center with distinct local and anonymous IDs", () => {
   for (const owner of ["solo", "local", "remote"]) for (const pole of [1, -1]) {
     const renderer = Object.create(rendering.ConstellationRenderer.prototype), pilot = Object.create(SurfacePilot.prototype);
-    const arena = { key: `${owner}/hub`, ownerId: owner, hubId: "hub", revision: 1, center: [100, 20, -30], arena: surface.generateSurfaceArena("hub", ["a", "b", "c", "d", "e", "f"]) };
-    const root = visuals.createSurfaceArenaVisual(arena.arena), node = { id: "hub", x: 100, y: 20, z: -30 };
-    const remote = { initialized: true, nodeIds: ["hub"], current: new Float32Array(arena.center), surfaceGroups: new Map([["hub", root]]) };
+    const privateId = "Private/Main.md", hubId = owner === "solo" ? privateId : "n-anonymous-main";
+    const arena = { key: `${owner}/${hubId}`, ownerId: owner, hubId, revision: 1, center: [100, 20, -30], arena: surface.generateSurfaceArena(hubId, ["a", "b", "c", "d", "e", "f"]) };
+    const root = visuals.createSurfaceArenaVisual(arena.arena), node = { id: privateId, x: 100, y: 20, z: -30 };
+    const remote = { initialized: true, nodeIds: [hubId], current: new Float32Array(arena.center), surfaceGroups: new Map([[hubId, root]]) };
     Object.assign(renderer, { multiplayer: owner !== "solo", localPlayerId: "local", surfaceDisplayCenters: new Map(),
       surfaceWorld: { listArenas: () => [arena], getPlayer: () => ({ arenaKey: arena.key }) }, roomSurfaceArenas: new Map([[arena.key, arena]]),
-      idIndex: new Map([["hub", 0]]), worldNodes: [node], sim: { nodes: [node] }, localTopology: { nodes: [{ id: "hub" }] },
-      localSurfaceGroups: new Map([["hub", { group: root, index: 0 }]]), remoteMaps: new Map([["remote", remote]]),
+      idIndex: new Map([[privateId, 0]]), worldNodes: [node], sim: { nodes: [node] }, localTopology: { nodes: [{ id: hubId }] },
+      localSurfaceGroups: new Map([[hubId, { group: root, index: 0 }]]), remoteMaps: new Map([["remote", remote]]),
       updateParkedSurfaceShip: () => {}, roomSurfaceLocalView: null });
     const state = physics.createSurfacePlayerState([0, pole, 0], [1, 0, 0]);
     Object.assign(pilot, { state: { surface: state }, arena, callbacks: { arenaCenter: value => renderer.surfaceDisplayCenter(value) },
@@ -48,6 +195,7 @@ test("moving solo, local-room and remote-room planets share one frame center wit
       renderer.resolveSurfaceDisplayFrames(); pilot.updateView([1 / 30, 1 / 60, 1 / 144][frame % 3]);
       const center = owner === "remote" ? Array.from(remote.current) : [node.x, node.y, node.z];
       assert.ok(root.position.distanceTo(new THREE.Vector3(...center)) < 1e-9);
+      assert.equal(renderer.surfacePlanetMesh(arena)?.parent, root, "occupied detail protection and ground sampling select the displayed group");
       const pose = viewModule.surfaceViewPose(state), expectedEye = new THREE.Vector3(...viewModule.surfaceToWorld(pose.eye, center));
       assert.ok(pilot.camera.position.distanceTo(expectedEye) < 1e-9, `${owner}/${pole} frame ${frame}`);
       assert.ok(pilot.viewModel.position.distanceTo(expectedEye) < 1e-9);
@@ -164,6 +312,74 @@ test("solo main-node meshes and docking eligibility do not depend on a multiplay
   renderer.localTopology = { nodes: [{ id: "anonymous-leaf", dockable: false }, { id: "anonymous-main", dockable: true }], links: [["anonymous-leaf", "anonymous-main"]] };
   renderer.rebuildLocalSurfaceVisuals();
   assert.deepEqual([...renderer.localSurfaceGroups.keys()], ["anonymous-main"], "room geometry keeps anonymous identities and host-published eligibility");
+  for (const entry of renderer.localSurfaceGroups.values()) renderer.disposeSurfaceGroup(entry.group);
+});
+
+test("complete fresh-room startup republishes topology and docks on the first request", async () => {
+  const renderer = Object.create(rendering.ConstellationRenderer.prototype), requests = [];
+  const owner = "11111111-1111-4111-8111-111111111111", hub = "n-33333333-3333-4333-8333-333333333333";
+  const nodes = [{ id: "Private/Main.md", gi: 0, deg: 0, index: 0, x: 0, y: 0, z: 0 }];
+  Object.assign(renderer, { multiplayer: false, localPlayerId: "", localTopology: null, localSurfaceGroups: new Map(), scene: new THREE.Scene(),
+    sim: { nodes, srcs: [], dsts: [] }, worldNodes: nodes, settings: {}, cb: { onSurfaceDock: target => requests.push(target), onPilot() {} },
+    pilot: { active: true, shipSnapshot: () => identityShip([0, 0, 12]), setOptions() {}, showDockMessage() {} }, surfacePilot: { active: false },
+    remoteMaps: new Map(), remoteShips: new Map(), container: { classList: { toggle() {} } },
+    setHover() {}, setSelected() {}, applyMapTransform() {}, refreshWorldNodes() {},
+  });
+  // ConstellationApp.onMembers publishes topology before switching game mode.
+  renderer.setLocalTopology(owner, { revision: 1, nodes: [{ id: hub, dockable: true }], links: [] });
+  renderer.setMultiplayer(true);
+  renderer.requestSurfaceDock(null, -1);
+  assert.deepEqual(requests, [{ ownerId: owner, starId: hub, revision: 1 }]);
+  assert.deepEqual([...renderer.localSurfaceGroups.keys()], [hub]);
+
+  // Continue through actual host validation and snapshot presentation. Only
+  // GPU/audio/DOM effects are stubbed; room admission and controller switching run.
+  const dockResults = [], world = new roomCombat.CombatWorld(1), surfaceHost = new authority.SurfaceAuthority({ terrain: true });
+  const data = { groups: [{ key: "g", color: "#123456", count: 1 }], nodes: [{ id: nodes[0].id, name: "Private", group: "g", deg: 0 }], links: [] };
+  const host = new roomNetwork.MultiplayerSession({ surfaceDockResult: (...args) => dockResults.push(args),
+    localTopology: (id, topology) => renderer.setLocalTopology(id, topology),
+    surfaceState: (snapshot, now, rtt) => renderer.setSurfaceSnapshot(snapshot, now, rtt) }, () => ({ nodes, data: {} }));
+  Object.assign(host, { selfId: owner, hostId: owner, epoch: 1, authorityReady: true, world, surfaceAuthority: surfaceHost, surfaceRoundId: world.currentRoundId,
+    topology: renderer.localTopology, roster: [{ id: owner, name: "Host", slot: 0 }] });
+  world.add(host.roster[0]); world.players.get(owner).active = true; world.players.get(owner).pos.set(0, 0, 12);
+  surfaceHost.addPlayer(owner, identityShip([0, 0, 12]));
+  surfaceHost.setOwnerMap(owner, { ...renderer.localTopology, nodes: [{ id: hub, group: 0, degree: 0, dockable: true }] }, new Float32Array([0, 0, 0]));
+  // The room transport and initial onMembers transition are already represented
+  // above. Exercise the real post-create application path that the old test omitted.
+  Object.assign(host, { revision: 1, ids: new Map([[nodes[0].id, hub]]), roomCode: "ABCD1234", graph: () => ({ nodes, data }), create: async () => {} });
+  const app = Object.create(ConstellationApp.prototype);
+  Object.assign(app, { network: host, renderer, data, flat: false, updateRoomServiceInfo() {},
+    multiplayerConsent: { checked: true }, multiplayerName: { value: "Host" }, multiplayerCode: { value: "" },
+    multiplayerStatus: { textContent: "", classList: { remove() {}, add() {} } }, host: {}, pilotProfile: () => ({}) });
+  await app.startRoom("create");
+  assert.equal(host.localTopology.revision, 2);
+  assert.equal(renderer.localTopology, host.localTopology, "renderer receives the actual post-create publication");
+  let entered = 0, returned = 0;
+  Object.assign(renderer, { roomSurfaceEpoch: 0, roomSurfaceSnapshotSequence: 0, roomSurfacePlayers: new Map(), roomSurfaceBotShots: [], roomCoverMotion: new Map(),
+    roomSurfaceHistory: new history.SurfaceHistory(), surfacePrediction: new surfaceInput.SurfacePrediction(), networkSurfaceBolts: new Map(),
+    controls: {}, parkedNormal: new THREE.Vector3(), parkedRotation: new THREE.Quaternion(), surfaceDisplayCenters: new Map(),
+    applyRoomCover: arena => arena, synchronizeSurfaceArenaVisual() {}, syncSurfaceBotVisuals() {}, updateRemoteSurfaceAudio() {},
+    createParkedSurfaceShip() {}, placeLocalParkedSurfaceShip() {}, removeParkedSurfaceShip() {},
+  });
+  Object.assign(renderer.surfacePilot, { clearHeldInputs() {}, applyCombatEvents() {},
+    enter(id, player, arena) { assert.equal(id, owner); assert.equal(arena.key, player.arenaKey); this.active = true; entered++; },
+    completeExit(ship) { this.active = false; renderer.pilot.active = true; returned++; assert.ok(ship.position.every(Number.isFinite)); },
+  });
+  renderer.pilot.exit = () => { renderer.pilot.active = false; };
+  renderer.cb.onSurfaceDock = target => host.requestSurfaceDock(target);
+  renderer.requestSurfaceDock(null, -1); host.publishSurfaceState(Date.now());
+  assert.deepEqual(dockResults, [[1, true, undefined]]); assert.equal(entered, 1); assert.equal(renderer.surfacePilot.active, true);
+  assert.equal(host.pendingSurfaceDock, null); assert.equal(renderer.controls.enabled, false);
+  const now = Date.now(), controls = { ...surfaceInput.neutralSurfaceInput(), interact: true };
+  const local = surfaceHost.world.players.get(owner), arena = surfaceHost.world.getArena(local.arenaKey);
+  local.surface = physics.createSurfacePlayerState([0, 1, 0], [1, 0, 0], arena.arena.radius, arena.arena.terrain);
+  for (let tick = 1; tick <= 120; tick++) {
+    const at = now + Math.round(tick * 1000 / 60);
+    assert.equal(surfaceHost.setInput(owner, tick, controls, at), true);
+    host.stepSurfaceAuthority(1 / 60, at);
+  }
+  host.publishSurfaceState(now + 2000);
+  assert.equal(returned, 1); assert.equal(world.isSurfaceDocked(owner), false); assert.equal(renderer.pilot.active, true);
   for (const entry of renderer.localSurfaceGroups.values()) renderer.disposeSurfaceGroup(entry.group);
 });
 
@@ -1250,6 +1466,33 @@ test("surface undocking chooses a collision-free pole departure among ordinary n
   assert.deepEqual(player.ship.velocity, [0, 0, 0]);
 });
 
+test("room departures at both poles clear moving large neighbours for forced and held-key exits", () => {
+  for (const pole of [-1, 1]) for (const forced of [false, true]) {
+    const { room, pilot } = surfaceRoomPair(), neighbourOwner = "55555555-5555-4555-8555-555555555555", hub = "n-66666666-6666-4666-8666-666666666666";
+    const satellites = Array.from({ length: 32 }, (_, i) => `n-neighbour-${i}`);
+    const topology = { revision: 1, nodes: [hub, ...satellites].map((id, i) => ({ id, group: 0, degree: i ? 1 : 32, dockable: !i })), links: satellites.map(id => [hub, id]) };
+    const positions = new Float32Array(topology.nodes.flatMap((_node, i) => i ? [100 + i * 20, 100, 100] : [0, pole * 80, 0]));
+    room.setOwnerMap(neighbourOwner, topology, positions);
+    positions[1] = pole * 8; room.setOwnerMap(neighbourOwner, topology, positions);
+    const player = room.world.players.get(pilot); player.health = 73; player.exitPole = pole;
+    if (forced) assert.equal(room.forceUndock(pilot), true);
+    else {
+      const arena = room.world.getArena(player.arenaKey);
+      player.surface = physics.createSurfacePlayerState([0, pole, 0], [1, 0, 0], arena.arena.radius, arena.arena.terrain);
+      for (let tick = 1; tick <= 120; tick++) {
+        const now = 4000 + Math.round(tick * 1000 / 60);
+        assert.equal(room.setInput(pilot, tick, { ...neutralSurfaceInput, interact: true }, now), true); room.step(1 / 60, now);
+      }
+    }
+    const returned = room.world.getPlayer(pilot); assert.equal(returned.mode, "ship"); assert.equal(returned.health, 73);
+    const location = new THREE.Vector3(...returned.ship.position), radius = geometry.surfaceRadiusForConnections(32) * viewModule.SURFACE_WORLD_SCALE;
+    assert.ok(location.distanceTo(new THREE.Vector3(0, pole * 8, 0)) > radius + .7);
+    const before = location.clone(); room.departureGrid.resolve(location, new THREE.Vector3());
+    assert.ok(location.distanceTo(before) < 1e-8, "the first collision update requires no manual escape");
+    assert.deepEqual(returned.ship.velocity, [0, 0, 0]);
+  }
+});
+
 test("capsule clearance includes rounded caps and distinguishes standing from crouched overhead volume", () => {
   const ceiling = { center: [0, 28.7, 0], axes: [[1, 0, 0], [0, 1, 0], [0, 0, 1]], half: [2, 0.1, 2] };
   assert.ok(collision.capsuleBoxContact([0, 27.3, 0], [0, 28.5, 0], 0.3, ceiling));
@@ -1344,9 +1587,12 @@ test("surface label visibility follows the opaque sphere at both poles, horizon 
   assert.equal(visuals.surfaceSphereOccludes(eye,eye.clone().add(new THREE.Vector3(10,0,0)),center,radius),false,"objects along the unobstructed tangent stay visible");
   assert.equal(visuals.surfaceSphereOccludes(eye,eye,center,radius),false);
   const renderer=Object.create(rendering.ConstellationRenderer.prototype);
-  const arena={key:"solo/occlusion",center,arena:{radius:radius*27/6}};
+  const arena={key:"solo/occlusion",center,arena:{radius:radius*27/6,walls:[]}};
   Object.assign(renderer,{surfacePilot:{active:true},multiplayer:false,camera:{position:eye},surfaceWorld:{listArenas:()=>[arena]},surfaceDisplayCenters:new Map([[arena.key,center]])});
-  assert.equal(renderer.isSurfacePointOccluded(origin),true);renderer.surfacePilot.active=false;assert.equal(renderer.isSurfacePointOccluded(origin),false);
+  assert.equal(renderer.isSurfacePointOccluded(origin),true);
+  assert.equal(renderer.isSurfacePointOccluded(origin.clone().add(new THREE.Vector3(0,pole*(radius+10000),0))),false);
+  assert.equal(renderer.isSurfacePointOccluded(eye.clone().add(new THREE.Vector3(10,0,0))),false);
+  renderer.surfacePilot.active=false;assert.equal(renderer.isSurfacePointOccluded(origin),false);
  }
 });
 

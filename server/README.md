@@ -26,7 +26,7 @@ No domain purchase is needed because Cloudflare supplies HTTPS for the `workers.
 
 ### Current protocol and legacy service boundary
 
-Citizen 0.7.2 uses protocol 14 and checkpoint format 14 for public-relay rooms. Older protocol versions cannot join protocol-14 rooms. The hosted Worker still accepts the historical protocol-4 WebSocket route for older releases, and the Node.js/Docker service below also implements that older signaling protocol. These legacy services do not create or join current public-relay rooms. The plugin's **Custom relay** setting expects an HTTPS ntfy-compatible relay, not a WebSocket signaling server.
+The 0.7.8 source candidate uses protocol 15 and checkpoint format 15 for public-relay rooms; published Citizen 0.7.7 clients remain on protocol 14. Clients must match the room's protocol and checkpoint versions. The hosted Worker still accepts the historical protocol-4 WebSocket route for older releases, and the Node.js/Docker service below also implements that older signaling protocol. These legacy services do not create or join current public-relay rooms. The plugin's **Custom relay** setting expects an HTTPS ntfy-compatible relay, not a WebSocket signaling server.
 ## Legacy protocol-4 Node.js service
 
 The plugin uses direct WebRTC data channels for map and flight traffic. This Node.js service only creates in-memory rooms, relays WebRTC setup messages, issues short-lived TURN credentials, and keeps the host's latest small combat checkpoint so a remaining participant can take over. It does not log gameplay messages or credentials. A room and its checkpoint disappear when its last participant leaves or the service restarts.

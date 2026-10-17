@@ -21,7 +21,7 @@ import { interpolateRemotePose } from "./interpolation";
 import { StarCollisionGrid } from "./flight";
 import { SurfaceCoverMotion } from "./surfaceCover";
 import { decodeCoverPoses, type SurfaceCoverPacket } from "./surfaceCoverWire";
-import { createSurfaceArenaVisual, createSurfaceBotDropVisual, updateSurfaceCoverVisual, setSurfacePickupVisibility, SurfaceBoltGraphic, renderOccludedSurfaceWorld, surfaceSphereOccludes } from "./surfaceVisuals";
+import { createSurfaceArenaVisual, createSurfaceBotDropVisual, updateSurfaceCoverVisual, setSurfacePickupVisibility, SurfaceBoltGraphic, renderOccludedSurfaceWorld } from "./surfaceVisuals";
 import { selectMainNodeIds, SURFACE, type SurfaceBotView, type SurfaceBotShotView, type SurfaceBotDropView } from "./surface";
 import { surfaceShotDamage, type SurfaceShotKind, SURFACE_BLASTER } from "./surfaceCombat";
 import { SurfacePilot } from "./surfacePilot";
@@ -35,10 +35,15 @@ import { interpolateSurfaceBotState, presentSurfacePlayers } from "./surfacePres
 import { poseSurfaceOperativeOnTerrain } from "./surfaceBotPresentation";
 import type { SurfaceNetworkSnapshot, SurfacePlayerSnapshot, SurfaceProjectileSnapshot } from "./surfaceAuthority";
 import { DEFAULT_SURFACE_LASER_COLOR, normalizeSurfaceLaserColor } from "./surfaceColor";
-import { PILOT_DOCK_RANGE_WORLD_UNITS } from "./docking";
+import { PILOT_DOCK_RANGE_WORLD_UNITS, surfaceDockFailureMessage, type SurfaceDockReason } from "./docking";
 import { stepSurfacePlayer } from "./surfacePhysics";
 import { SurfacePrediction } from "./surfaceInput";
 import { SURFACE_WORLD_SCALE, surfaceToWorld, surfaceViewPose, worldToSurface } from "./surfaceView";
+import { emptyOcclusionStats, isSurfaceSegmentOccluded } from "./surfaceOcclusion";
+import { PerformanceCapture, performanceOverrides, type PerformanceFrame, type PerformanceMetadata, type PerformanceScenario } from "./performanceCapture";
+import { GpuFrameTimer } from "./gpuFrameTimer";
+import { SurfaceSkyPresentation, skyDetailImproves, type SkyCaptureEvidence } from "./surfaceSky";
+import { version as CITIZEN_VERSION } from "../manifest.json";
 
 THREE.ColorManagement.enabled = false; // we feed sRGB values straight to the screen
 
@@ -164,6 +169,17 @@ export class ConstellationRenderer implements GraphRenderer {
   private degraded = false;
   private raf = 0;
   private last = 0;
+  private performanceCapture: PerformanceCapture | null = null;
+  private performanceCaptureTimer = 0;
+  private performanceCaptureComplete: ((report: object) => void) | null = null;
+  private lastTerrainMs = 0;
+  private occlusionStats = emptyOcclusionStats();
+  private gpuTimer: GpuFrameTimer;
+  private skyPresentation = new SurfaceSkyPresentation();
+  private distantLodEnabled = false;
+  private skyBaseline: SkyCaptureEvidence | null = null;
+  private capturePoseStable = true;
+  private captureArenaKey: string | null = null;
   private fitDone = false;
   private autoFrame = true; // also keep the zoom fitted, until the reader zooms or orbits themselves
   private rotateBlockedUntil = 0; // after you let go of the camera it stays still for a moment before drifting again
@@ -202,6 +218,8 @@ export class ConstellationRenderer implements GraphRenderer {
   private surfacePilot!: SurfacePilot;
   private surfaceWorld = new SurfaceWorld({terrain:true});
   private surfaceTopologyRevision = 1;
+  private cachedSurfaceTopology:SurfaceTopology|null=null;
+  private cachedSurfaceTopologyRevision=0;
   private surfaceMapAccumulator = 0;
   private surfaceDisplayCenters = new Map<string, [number, number, number]>();
   private parkedSurfaceShip: Ship | null = null;
@@ -264,6 +282,7 @@ export class ConstellationRenderer implements GraphRenderer {
   constructor(private container: HTMLElement, private cb: RendererCallbacks, settings: ConstellationSettings) {
     this.settings = settings;
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: "high-performance" });
+    this.gpuTimer = new GpuFrameTimer(this.renderer.getContext());
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.renderer.setClearColor(0x05070c, 1);
     this.renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
@@ -309,7 +328,7 @@ export class ConstellationRenderer implements GraphRenderer {
       requestFastTravel: target => this.cb.onFastTravel?.(target),
       groupLabel: gi => this.groups[gi]?.label ?? "",
       nodeRadius: i => baseRadius(this.worldNodes[i]?.deg ?? 0),
-      nodeCollisionRadius: i => this.localSurfaceGroups.has(this.sim.nodes[i]?.id) ? (this.localSurfaceGroups.get(this.sim.nodes[i]?.id)!.group.userData.radius ?? SURFACE.radius) * SURFACE_WORLD_SCALE : undefined,
+      nodeCollisionRadius: i => this.localSurfaceCollisionRadius(i),
       solid: i => { const n = this.sim.nodes[i]; return !!n && !this.hidden.has(n.gi) && this.alpha[i] > 0.3; },
       clusters: () => this.clusterShells(),
       bounds: () => this.worldBounds(),
@@ -459,7 +478,7 @@ export class ConstellationRenderer implements GraphRenderer {
   /** The camera drifts only when nothing needs a steady target: not while you hover, select, drag or have just let go. */
   private updateRotate(): void {
     this.controls.autoRotate = effectiveAutoRotate(this.settings) && !this.paused && this.selected < 0 && this.hover < 0
-      && !this.userActive && !this.drag && !this.pilot.active && performance.now() >= this.rotateBlockedUntil;
+        && !this.userActive && !this.drag && !this.pilot.active && !this.surfacePilot.active && performance.now() >= this.rotateBlockedUntil;
   }
 
   setPaused(p: boolean): void { this.paused = p; this.updateRotate(); }
@@ -489,6 +508,7 @@ export class ConstellationRenderer implements GraphRenderer {
   }
 
   setMultiplayer(active: boolean): void {
+    const enteringRoom = active && !this.multiplayer;
     if (!active && this.multiplayer && this.surfacePilot?.active && this.roomSurfaceLocalView && this.roomSurfaceLocalArena) {
       const center = this.roomSurfaceLocalArena.center, stored = this.roomSurfaceLocalView.ship, scale = SURFACE_WORLD_SCALE;
       const ship = { position: stored.position.map((value, axis) => center[axis] + (value - center[axis]) * scale) as [number, number, number],
@@ -523,6 +543,9 @@ export class ConstellationRenderer implements GraphRenderer {
     }
     if (!active) this.setNavigationTarget(null);
     this.applyMapTransform(); this.refreshWorldNodes();
+    // onMembers supplies topology before enabling the room. Replace solo IDs
+    // and geometry now that docking must use the anonymous room topology.
+    if (enteringRoom) this.rebuildLocalSurfaceVisuals();
     this.pilot.setOptions(pilotOptions(this.settings, active));
     this.container.classList.toggle("cg-room-active", active);
     this.remoteShips.forEach(remote => remote.ship.group.scale.setScalar(active ? 0.68 : 0.34));
@@ -576,6 +599,7 @@ export class ConstellationRenderer implements GraphRenderer {
   }
 
   setLocalTopology(playerId: string, topology: AnonymousTopology | null): void {
+    if (playerId === this.localPlayerId && topology === this.localTopology) return;
     if (this.navigationTarget?.ownerId === this.localPlayerId && this.navigationTarget.revision !== topology?.revision) this.setNavigationTarget(null);
     this.localPlayerId = playerId; this.localTopology = topology;
     this.rebuildLocalSurfaceVisuals();
@@ -676,14 +700,14 @@ export class ConstellationRenderer implements GraphRenderer {
     if (arena.ownerId === this.localPlayerId || arena.ownerId === "solo") {
       const index = arena.ownerId === "solo" ? this.idIndex.get(arena.hubId) : this.localTopology?.nodes.findIndex(node => node.id === arena.hubId);
       if (index === undefined || index < 0) return;
-      const id = this.sim.nodes[index]?.id;
-      if (!id) return;
-      let entry = this.localSurfaceGroups.get(id);
+      const simulationId = this.sim.nodes[index]?.id;
+      if (!simulationId) return;
+      let entry = this.localSurfaceGroups.get(arena.hubId);
       if (!entry || entry.group.userData.arenaSeed !== arena.arena.seed || entry.group.userData.geometryRevision !== arena.revision) {
         if (entry) this.disposeSurfaceGroup(entry.group);
         const group = createSurfaceArenaVisual(arena.arena); this.scene.add(group);
-        entry = { group, index }; this.localSurfaceGroups.set(id, entry);
-        this.sim.setSurfaceEnvelope?.(id, arena.arena.radius ?? SURFACE.radius);
+        entry = { group, index }; this.localSurfaceGroups.set(arena.hubId, entry);
+        this.sim.setSurfaceEnvelope?.(simulationId, arena.arena.radius ?? SURFACE.radius);
       }
       entry.group.userData.geometryRevision = arena.revision;
       entry.group.visible = true;
@@ -732,12 +756,21 @@ export class ConstellationRenderer implements GraphRenderer {
     return this.surfaceDisplayCenters?.get(arena.key) ?? arena.center;
   }
 
+  /** Scene keys follow the active topology; simulation envelopes retain local note IDs. */
+  private localSurfaceGroupAt(index: number): THREE.Group | undefined {
+    const id = this.multiplayer ? this.localTopology?.nodes[index]?.id : this.sim.nodes[index]?.id;
+    return id ? this.localSurfaceGroups.get(id)?.group : undefined;
+  }
+
+  private localSurfaceCollisionRadius(index: number): number | undefined {
+    const group = this.localSurfaceGroupAt(index);
+    return group ? (group.userData.radius ?? SURFACE.radius) * SURFACE_WORLD_SCALE : undefined;
+  }
+
   private surfacePlanetMesh(arena: SurfaceArenaView): THREE.Mesh | null {
     let group: THREE.Group | undefined;
     if (arena.ownerId === "solo" || arena.ownerId === this.localPlayerId) {
-      const index = arena.ownerId === "solo" ? this.idIndex?.get(arena.hubId) : this.localTopology?.nodes.findIndex(node => node.id === arena.hubId);
-      const nodeId = index === undefined || index < 0 ? undefined : this.sim?.nodes[index]?.id;
-      group = nodeId ? this.localSurfaceGroups?.get(nodeId)?.group : undefined;
+      group = this.localSurfaceGroups?.get(arena.hubId)?.group;
     } else group = this.remoteMaps?.get(arena.ownerId)?.surfaceGroups.get(arena.hubId);
     return group?.getObjectByName("surface-planet") as THREE.Mesh | null ?? null;
   }
@@ -745,6 +778,7 @@ export class ConstellationRenderer implements GraphRenderer {
   /** One presentation frame for the camera and every object belonging to an arena. */
   private resolveSurfaceDisplayFrames(): void {
     this.surfaceDisplayCenters ??= new Map();
+    this.lastTerrainMs = 0;
     const arenas = this.multiplayer ? [...this.roomSurfaceArenas.values()] : this.surfaceWorld.listArenas();
     const seen = new Set<string>();
     for (const arena of arenas) {
@@ -754,7 +788,7 @@ export class ConstellationRenderer implements GraphRenderer {
         const node = index === undefined || index < 0 ? undefined : this.worldNodes[index];
         if (node) {
           center = [node.x, node.y, node.z];
-          group = this.localSurfaceGroups.get(this.sim.nodes[index!]?.id)?.group;
+          group = this.localSurfaceGroupAt(index!);
         }
       } else {
         const map = this.remoteMaps.get(arena.ownerId), index = map?.nodeIds.indexOf(arena.hubId) ?? -1;
@@ -769,7 +803,9 @@ export class ConstellationRenderer implements GraphRenderer {
       if(group)updateSurfaceCoverVisual(group,arena.arena);
       const occupied = this.multiplayer ? this.roomSurfaceLocalView?.arenaKey === arena.key : this.surfaceWorld.getPlayer("solo")?.arenaKey === arena.key;
       if(group&&arena.arena.terrain){const state=occupied?(this.surfacePilot.surfacePosition):undefined;
+        const terrainStarted = this.performanceCapture ? performance.now() : 0;
         updateTerrainPresentation(group,arena.arena.terrain,state??undefined);
+        if (this.performanceCapture) this.lastTerrainMs += performance.now() - terrainStarted;
       }
       if (group && occupied) group.visible = true;
     }
@@ -1052,6 +1088,43 @@ export class ConstellationRenderer implements GraphRenderer {
 
   get inMultiplayer(): boolean { return this.multiplayer; }
 
+  startPerformanceCapture(scenario: PerformanceScenario, installedBundleSha256: string | null, complete: (report: object) => void): boolean {
+    if (this.performanceCapture) return false;
+    const active=this.multiplayer?this.roomSurfaceLocalArena?.arena:this.surfaceWorld.getArena(this.surfaceWorld.getPlayer("solo")?.arenaKey??"")?.arena;
+    let sceneVertices=0,sceneGeometries=0;
+    this.scene.traverseVisible(object=>{const mesh=object as THREE.Mesh;if(!mesh.geometry)return;sceneGeometries++;sceneVertices+=mesh.geometry.getAttribute("position")?.count??0;});
+    const activeArena=this.multiplayer?this.roomSurfaceLocalArena:this.surfaceWorld.getArena(this.surfaceWorld.getPlayer("solo")?.arenaKey??"");
+    const group=activeArena?(activeArena.ownerId==="solo"||activeArena.ownerId===this.localPlayerId
+      ?this.localSurfaceGroups.get(activeArena.hubId)?.group
+      :this.remoteMaps.get(activeArena.ownerId)?.surfaceGroups.get(activeArena.hubId)):undefined;
+    const terrainVertices=(group?.getObjectByName("surface-planet") as THREE.Mesh|undefined)?.geometry.getAttribute("position")?.count??0;
+    const radius=active?.radius??null;
+    const metadata:PerformanceMetadata={pluginVersion:CITIZEN_VERSION,installedBundleSha256,graphNodes:this.sim.nodes.length,graphLinks:this.sim.srcs.length,planetRadius:radius,
+      terrainVertices,sceneGeometries,sceneVertices,
+      viewport:{width:this.canvas.clientWidth,height:this.canvas.clientHeight,pixelRatio:this.renderer.getPixelRatio()},motion:this.settings.motion,bloom:this.settings.bloom,
+      gpuTimerAvailable:this.gpuTimer.available,lodEnabled:this.distantLodEnabled,cameraPosition:[...this.profilePosition()],cameraQuaternion:this.camera.quaternion.toArray(),fov:this.camera.fov,glow:this.bloom.strength,
+      effectiveBloom:!effectiveHighContrast(this.settings)&&this.bloom.strength>0&&(performanceOverrides(scenario).bloom==="on"||performanceOverrides(scenario).bloom!=="off"&&this.settings.bloom&&!this.degraded)};
+    this.capturePoseStable=true;
+    this.captureArenaKey=activeArena?.key??null;
+    const capture=new PerformanceCapture(scenario,metadata);this.performanceCapture=capture;this.performanceCaptureComplete=complete;
+    this.performanceCaptureTimer=window.setTimeout(()=>this.finishPerformanceCapture(),capture.durationMs);
+    return true;
+  }
+
+  private finishPerformanceCapture():void {
+    const capture=this.performanceCapture,complete=this.performanceCaptureComplete;this.performanceCapture=null;this.performanceCaptureComplete=null;this.performanceCaptureTimer=0;
+    this.gpuTimer.poll();this.labelLayer.hidden=false;this.indicatorLayer.hidden=false;
+    if(capture&&complete){const evidence:SkyCaptureEvidence={cpuMs:capture.p95("renderMs"),gpuMs:capture.p95("gpuMs"),pose:capture.metadata.cameraPosition??[],view:capture.metadata.cameraQuaternion??[],
+      key:JSON.stringify([capture.metadata.graphNodes,capture.metadata.graphLinks,capture.metadata.viewport,capture.metadata.motion,capture.metadata.effectiveBloom,capture.metadata.fov,capture.metadata.glow,this.captureArenaKey]),stable:this.capturePoseStable&&capture.frames.length>=120};
+      if(capture.scenario==="sky"&&!this.distantLodEnabled)this.skyBaseline=evidence;
+      if(capture.scenario==="sky-no-distant-details"&&this.skyBaseline&&skyDetailImproves(this.skyBaseline,evidence))this.distantLodEnabled=true;
+      complete({...capture.report(),distantLodEnabledAfterCapture:this.distantLodEnabled});}
+  }
+
+  private profilePosition():readonly number[]{return this.surfacePilot.active?this.surfacePilot.surfacePosition??this.camera.position.toArray():this.camera.position.toArray();}
+
+  private *surfaceRenderGroups():Generator<THREE.Group>{for(const entry of this.localSurfaceGroups.values())yield entry.group;for(const map of this.remoteMaps.values())yield* map.surfaceGroups.values();}
+
   setNavigationTarget(target: NavigationTarget | null): void {
     if (!this.multiplayer && target) return;
     this.navigationTarget = target;
@@ -1327,8 +1400,9 @@ export class ConstellationRenderer implements GraphRenderer {
     return moving;
   }
 
-  private refreshPilotObstacleGrid(now: number): void {
-    if (now - this.lastPilotObstacleRefresh < 100) return;
+  private refreshPilotObstacleGrid(now: number, force = false): void {
+    if (!force && (this.surfacePilot?.active || this.multiplayer && this.roomSurfaceLocalView?.mode === "surface")) return;
+    if (!force && now - this.lastPilotObstacleRefresh < 100) return;
     this.lastPilotObstacleRefresh = now;
     const sets: Float32Array[] = [], radii: ArrayLike<number>[] = [];
     if (this.worldNodes.length) {
@@ -1338,7 +1412,8 @@ export class ConstellationRenderer implements GraphRenderer {
         local[offset] = node.x; local[offset + 1] = node.y; local[offset + 2] = node.z;
       }
       sets.push(local);
-      radii.push(this.localTopology ? surfaceWorldRadii(this.localTopology, new Map([...this.localSurfaceGroups].map(([id, entry]) => [id, entry.group.userData.radius ?? 27]))) : []);
+      radii.push(this.localTopology ? surfaceWorldRadii(this.localTopology, new Map([...this.localSurfaceGroups].map(([id, entry]) => [id, entry.group.userData.radius ?? 27])))
+        : this.worldNodes.map((_node, index) => this.localSurfaceCollisionRadius(index) ?? SURFACE.worldRadius));
     }
     for (const remote of this.remoteMaps.values()) if (remote.initialized) {
       sets.push(remote.current); radii.push(surfaceWorldRadii(remote.topology, new Map([...remote.surfaceGroups].map(([id, group]) => [id, group.userData.radius ?? 27]))));
@@ -1368,6 +1443,8 @@ export class ConstellationRenderer implements GraphRenderer {
   }
 
   private updatePlayerIndicators(): void {
+    if(performanceOverrides(this.performanceCapture?.scenario).noLabels){this.indicatorLayer.hidden=true;return;}
+    this.indicatorLayer.hidden=false;
     const w = this.canvas.clientWidth, h = this.canvas.clientHeight;
     if (!this.multiplayer || !w || !h) { for (const p of this.remoteShips.values()) p.indicator.hidden = true; return; }
     this.camera.updateMatrixWorld();
@@ -1429,8 +1506,9 @@ export class ConstellationRenderer implements GraphRenderer {
   }
 
   private soloSurfaceTopology(): SurfaceTopology {
+    if(this.cachedSurfaceTopology&&this.cachedSurfaceTopologyRevision===this.surfaceTopologyRevision)return this.cachedSurfaceTopology;
     const nodes = this.sim.nodes;
-    return {
+    this.cachedSurfaceTopology={
       revision: this.surfaceTopologyRevision,
       nodes: nodes.map(node => ({ id: node.id, group: node.gi, degree: node.deg, dockable: this.localSurfaceGroups.has(node.id) })),
       links: this.sim.srcs.flatMap((source, i) => {
@@ -1438,6 +1516,8 @@ export class ConstellationRenderer implements GraphRenderer {
         return a && b ? [[a, b] as [string, string]] : [];
       }),
     };
+    this.cachedSurfaceTopologyRevision=this.surfaceTopologyRevision;
+    return this.cachedSurfaceTopology;
   }
 
   private soloSurfacePositions(): Float32Array {
@@ -1487,13 +1567,14 @@ export class ConstellationRenderer implements GraphRenderer {
   private requestSurfaceDock(_destination: NavigationTarget | null, _localIndex: number): void {
     if (this.surfacePilot.active || !this.pilot.active) return;
     const target = this.pickSurfaceDockTarget();
-    if (!target) { this.cb.onPilot?.(true, "Aim at a main node before docking."); return; }
+    if (!target) { this.pilot.showDockMessage("Aim at a main node before docking. Release F to retry."); return; }
     const { destination, localIndex } = target;
     if (this.multiplayer) {
-      if (!destination) { this.cb.onPilot?.(true, "Aim at a main node before docking."); return; }
+      if (!destination) { this.setSurfaceDockResult(false, "not-ready"); return; }
       const topology = destination.ownerId === this.localPlayerId ? this.localTopology : this.remoteMaps.get(destination.ownerId)?.topology;
-      if (!topology?.nodes.some(node => node.id === destination.starId && node.dockable)) { this.cb.onPilot?.(true, "Only main nodes accept docking."); return; }
-      this.cb.onSurfaceDock?.(destination);
+      if (!topology?.nodes.some(node => node.id === destination.starId && node.dockable)) { this.setSurfaceDockResult(false, "target"); return; }
+      if (!this.cb.onSurfaceDock) { this.setSurfaceDockResult(false, "not-ready"); return; }
+      this.cb.onSurfaceDock(destination);
       return;
     }
     const node = this.sim.nodes[localIndex];
@@ -1522,9 +1603,8 @@ export class ConstellationRenderer implements GraphRenderer {
     this.stale = true;
   }
 
-  setSurfaceDockResult(accepted: boolean, reason?: "preparation"): void {
-    if(reason==="preparation"){this.pilot.showDockMessage("Planet preparation failed: no accessible combat layout. Try a different main node.");return;}
-    if (!accepted) this.pilot.showDockMessage(`Dock rejected · wait 3s after damage, stay within ${PILOT_DOCK_RANGE_WORLD_UNITS}u and below speed 10; the arena may be full. Release F to retry.`);
+  setSurfaceDockResult(accepted: boolean, reason?: SurfaceDockReason): void {
+    if (!accepted) this.pilot.showDockMessage(surfaceDockFailureMessage(reason));
   }
 
   private createParkedSurfaceShip(): void {
@@ -1580,6 +1660,7 @@ export class ConstellationRenderer implements GraphRenderer {
   }
 
   private returnToSurfaceShip(ship: { position: [number, number, number]; rotation: [number, number, number, number]; velocity: [number, number, number] }, center: [number, number, number]): void {
+    this.refreshPilotObstacleGrid(performance.now(), true);
     const scale = SURFACE_WORLD_SCALE;
     const offset = new THREE.Vector3(...ship.position).sub(new THREE.Vector3(...center)).multiplyScalar(scale);
     const position = this.pilotCollisionGrid.clearPointOnRay(new THREE.Vector3(...center), offset, offset.length());
@@ -1602,6 +1683,7 @@ export class ConstellationRenderer implements GraphRenderer {
   }
 
   private updateSurfaceNameplates(): void {
+    if(performanceOverrides(this.performanceCapture?.scenario).noLabels){this.surfaceNameplates.clear();return;}
     const local=this.multiplayer ? this.roomSurfaceLocalView : this.surfaceWorld.getPlayer("solo");
     const arena=local?.arenaKey ? (this.multiplayer ? this.roomSurfaceArenas.get(local.arenaKey) : this.surfaceWorld.getArena(local.arenaKey)) : null;
     const targets: SurfaceNameplateTarget[]=[];
@@ -1616,7 +1698,7 @@ export class ConstellationRenderer implements GraphRenderer {
           health: bot.bot.health, arenaKey: arena.key, state: bot.displayed, labelPoint });
       }
     }
-    this.surfaceNameplates.update(this.camera,this.canvas.clientWidth,this.canvas.clientHeight,targets.length && arena ? arena : null,arena ? this.surfaceDisplayCenter(arena) : null,targets);
+    this.surfaceNameplates.update(this.camera,this.canvas.clientWidth,this.canvas.clientHeight,targets.length && arena ? arena : null,arena ? this.surfaceDisplayCenter(arena) : null,targets,this.performanceCapture?this.occlusionStats:undefined);
   }
 
   private createTrainingDummy(arena: ReturnType<SurfaceWorld["getArena"]>): void {
@@ -1949,6 +2031,8 @@ export class ConstellationRenderer implements GraphRenderer {
   destroy(): void {
     window.cancelAnimationFrame(this.raf);
     window.clearTimeout(this.resumeTimer);
+    window.clearTimeout(this.performanceCaptureTimer);this.performanceCapture=null;this.performanceCaptureComplete=null;
+    this.gpuTimer.dispose();this.skyPresentation.restore();
     this.ro.disconnect(); this.io.disconnect();
     this.controls.removeEventListener("start", this.onControlStart);
     this.controls.removeEventListener("end", this.onControlEnd);
@@ -2053,7 +2137,7 @@ export class ConstellationRenderer implements GraphRenderer {
   // ----------------------------------------------------------------- interaction
 
   private onContextLost = (e: Event) => { e.preventDefault(); this.contextLost = true; };
-  private onContextRestored = () => { this.contextLost = false; this.stale = true; this.resize(); };
+  private onContextRestored = () => { this.gpuTimer.dispose();this.gpuTimer=new GpuFrameTimer(this.renderer.getContext());this.contextLost = false; this.stale = true; this.resize(); };
 
   private onControlStart = () => { window.clearTimeout(this.resumeTimer); this.controls.autoRotate = false; this.tween = null; this.autoFrame = false; this.userActive = true; this.updateRotate(); };
   private onControlEnd = () => {
@@ -2069,7 +2153,7 @@ export class ConstellationRenderer implements GraphRenderer {
     this.pointer.x = e.clientX - r.left; this.pointer.y = e.clientY - r.top; this.pointer.inside = true;
   }
   private onPointerMove = (e: PointerEvent) => {
-    if (this.pilot.active) return;
+    if (this.pilot.active || this.surfacePilot.active) return;
     this.setPointer(e); this.pointer.moved = true;
     // the button went up without us seeing it (focus moved away, released outside the window): do not stay stuck in a drag
     if ((this.press || this.drag) && e.buttons === 0) { this.onPointerCancel(); return; }
@@ -2083,6 +2167,7 @@ export class ConstellationRenderer implements GraphRenderer {
   };
   private onPointerLeave = () => { this.pointer.inside = false; this.pointer.moved = true; };
   private onPointerDown = (e: PointerEvent) => {
+    if (this.surfacePilot.active) return;
     if (e.button === 2) { this.clearSelection(); return; }
     if (e.button !== 0 || this.pilot.active || this.surfacePilot.active) return; // active game modes own their fire input
     this.setPointer(e);
@@ -2100,9 +2185,9 @@ export class ConstellationRenderer implements GraphRenderer {
       try { this.canvas.setPointerCapture(e.pointerId); } catch { /* not fatal */ }
     }
   };
-  private onContextMenu = (e: MouseEvent) => { e.preventDefault(); this.clearSelection(); };
+  private onContextMenu = (e: MouseEvent) => { e.preventDefault(); if (!this.surfacePilot.active) this.clearSelection(); };
   private onPointerUp = (e: PointerEvent) => {
-    if (e.button !== 0 || this.pilot.active) return;
+    if (e.button !== 0 || this.pilot.active || this.surfacePilot.active) return;
     const p = this.press; this.press = null;
     if (this.drag) { this.dragEnd(); return; }
     this.endPress(p);
@@ -2131,7 +2216,8 @@ export class ConstellationRenderer implements GraphRenderer {
   };
 
   private endPress(p: { id: number } | null): void {
-    this.controls.enabled = true;
+    // Pointer-lock releases/cancellations must never hand a game camera back to OrbitControls.
+    this.controls.enabled = !this.pilot.active && !this.surfacePilot.active;
     if (p) { try { this.canvas.releasePointerCapture(p.id); } catch { /* already released */ } }
   }
 
@@ -2211,16 +2297,20 @@ export class ConstellationRenderer implements GraphRenderer {
   private frame = (now: number) => {
     this.raf = window.requestAnimationFrame(this.frame);
     if (!this.visible || document.hidden || this.contextLost) { this.last = now; return; }
+    const capture=this.performanceCapture,workStarted=capture?performance.now():0,rafMs=this.last?now-this.last:1000/60;
+    this.gpuTimer.poll();if(capture)this.occlusionStats=emptyOcclusionStats();
     const dt = Math.min(0.1, (now - this.last) / 1000 || 0.016);
     this.last = now; this.age += dt; this.frameNo++;
     if (!this.nodePoints) return;
 
+    const worldStarted=capture?performance.now():0;
     let moving = this.updateRemoteMaps(dt);
     if (!this.paused) { this.sim.step(dt); moving = this.sim.isActive() || moving; }
     this.refreshWorldNodes();
     this.updateSoloSurfaceWorld(dt);
     this.moveRoomCover(dt);
     this.refreshPilotObstacleGrid(now);
+    const worldMs=capture?performance.now()-worldStarted:0;
     if (!this.drag && !this.pilot.active && !this.surfacePilot.active && (this.pointer.moved || (this.pointer.inside && moving && this.frameNo % 8 === 0))) {
       this.pointer.moved = false;
       this.setHover(this.pointer.inside ? this.pick() : -1);
@@ -2229,7 +2319,10 @@ export class ConstellationRenderer implements GraphRenderer {
     this.updateShows(dt);
     if (this.dirty) this.recomputeTargets();
 
+    const graphStarted=capture?performance.now():0;
     const animating = this.updateBuffers(dt, moving || this.stale);
+    const graphMs=capture?performance.now()-graphStarted:0;
+    const surfaceStarted=capture?performance.now():0;
     this.resolveSurfaceDisplayFrames();
     let camMoved = false;
     if (this.surfacePilot.active) {
@@ -2259,21 +2352,50 @@ export class ConstellationRenderer implements GraphRenderer {
       const up = new THREE.Vector3(0, 1, 0).applyQuaternion(this.camera.quaternion).toArray();
       this.pilot.updateSurfaceNearbyAudio(remoteAudio, { position: this.camera.position.toArray(), forward, up }, this.settings.pilotNearbyAudio);
     } else this.pilot.updateNearbyAudio(remoteAudio, this.multiplayer && this.pilot.active && this.settings.pilotNearbyAudio);
-    if (!(moving || animating || camMoved || this.stale || this.tween || this.follow >= 0)) return; // fully at rest: draw nothing
+      const surfaceMs=capture?performance.now()-surfaceStarted:0,terrainMs=capture?this.lastTerrainMs:0;
+    if (!(moving || animating || camMoved || this.stale || this.tween || this.follow >= 0)) {
+      capture?.record({rafMs,workMs:performance.now()-workStarted,worldMs,graphMs,surfaceMs,terrainMs,labelsMs:0,renderMs:0,calls:0,triangles:0});
+      return; // fully at rest: draw nothing
+    }
     this.stale = false;
 
     this.stars.rotation.y += this.paused || this.still ? 0 : dt * 0.004;
+    const labelsStarted=capture?performance.now():0;
     this.updateLabels();
-    renderOccludedSurfaceWorld(this.scene, this.surfacePilot.active, () => {
-      if (this.settings.bloom && !this.degraded && !effectiveHighContrast(this.settings) && this.bloom.strength > 0) this.composer.render();
-      else this.renderer.render(this.scene, this.camera);
-    });
-    this.surfacePilot.renderViewmodel(this.renderer);
+    const labelsMs=capture?performance.now()-labelsStarted:0;
+    const renderStarted=capture?performance.now():0;
+    const overrides=performanceOverrides(capture?.scenario),hiddenGraph:Array<[THREE.Object3D,boolean]>=[];
+    if(overrides.noGraph){for(const object of [this.nodePoints,this.lines,...[...this.remoteMaps.values()].flatMap(map=>[map.points,map.links])])if(object){hiddenGraph.push([object,object.visible]);object.visible=false;}}
+    const activeArena=this.multiplayer?this.roomSurfaceLocalArena:this.surfaceWorld.getArena(this.surfaceWorld.getPlayer("solo")?.arenaKey??"");
+    const occupied=activeArena?this.surfacePlanetMesh(activeArena)?.parent??null:null;
+    const visiblePlanets=this.surfacePilot.active?this.skyPresentation.apply(this.surfaceRenderGroups(),this.camera,occupied,this.canvas.clientHeight,this.distantLodEnabled,overrides.noDistantDetails):0;
+    const autoReset=this.renderer.info.autoReset;this.renderer.info.autoReset=false;this.renderer.info.reset();
+    const frame:PerformanceFrame={rafMs,workMs:0,worldMs,graphMs,surfaceMs,terrainMs,labelsMs,renderMs:0,calls:0,triangles:0,gpuMs:null,visiblePlanets};
+    if(capture)this.gpuTimer.begin();
+    try {
+      renderOccludedSurfaceWorld(this.scene, this.surfacePilot.active, () => {
+        const bloom=overrides.bloom==="on"||overrides.bloom!=="off"&&this.settings.bloom&&!this.degraded;
+        if(bloom&&!effectiveHighContrast(this.settings)&&this.bloom.strength>0)this.composer.render();
+        else this.renderer.render(this.scene,this.camera);
+      });
+      frame.worldCalls=this.renderer.info.render.calls;frame.worldTriangles=this.renderer.info.render.triangles;
+      this.surfacePilot.renderViewmodel(this.renderer);
+      frame.calls=this.renderer.info.render.calls;frame.triangles=this.renderer.info.render.triangles;frame.points=this.renderer.info.render.points;frame.lines=this.renderer.info.render.lines;
+    } finally {
+      if(capture)this.gpuTimer.end(frame);this.renderer.info.autoReset=autoReset;
+      this.skyPresentation.restore();for(const [object,visible]of hiddenGraph)object.visible=visible;
+    }
+    if(capture){const stats=this.occlusionStats;Object.assign(frame,{workMs:performance.now()-workStarted,renderMs:performance.now()-renderStarted,labelQueryMs:stats.queryMs,terrainSamples:stats.terrainSamples,visitedCells:stats.visitedCells,occlusionQueries:stats.queries,geometryCount:this.renderer.info.memory.geometries});
+      const position=capture.metadata.cameraPosition??[],orientation=capture.metadata.cameraQuaternion??[];
+      this.capturePoseStable&&=Math.hypot(...this.profilePosition().map((v,k)=>v-position[k]))<.1&&Math.abs(this.camera.quaternion.toArray().reduce((sum,v,k)=>sum+v*orientation[k],0))>.9998;
+      this.capturePoseStable&&=(activeArena?.key??null)===this.captureArenaKey;
+      capture.record(frame);}
 
     // protect slow machines: drop the glow pass first, then lower resolution
     this.slow = dt > 0.04 ? this.slow + 1 : Math.max(0, this.slow - 1);
     if (this.slow > 90) {
       this.slow = 0;
+      if(capture)return; // Keep matched diagnostic captures at a fixed quality level.
       if (!this.degraded) this.degraded = true;
       else if (this.renderer.getPixelRatio() > 1) { this.renderer.setPixelRatio(1); this.resize(); }
     }
@@ -2454,14 +2576,15 @@ export class ConstellationRenderer implements GraphRenderer {
     if (!this.surfacePilot.active) return false;
     const arenas = this.multiplayer ? this.roomSurfaceArenas.values() : this.surfaceWorld.listArenas();
     for (const arena of arenas){const center=this.surfaceDisplayCenter(arena);
-      if(arena.arena.terrain){const a=worldToSurface(this.camera.position.toArray(),center),b=worldToSurface(point.toArray(),center);
-        if(traceSurfaceSegment(a,b,arena.arena.walls,[],"",arena.arena.radius??27))return true;
-      }else if(surfaceSphereOccludes(this.camera.position,point,center,(arena.arena.radius??27)*SURFACE_WORLD_SCALE))return true;
+      const radius=arena.arena.radius??27;
+      const a=worldToSurface(this.camera.position.toArray(),center),b=worldToSurface(point.toArray(),center);
+      if(isSurfaceSegmentOccluded(a,b,arena.arena.walls,radius,this.performanceCapture?this.occlusionStats:undefined))return true;
     }
     return false;
   }
 
   private updateLabels(): void {
+    this.labelLayer.hidden=performanceOverrides(this.performanceCapture?.scenario).noLabels;if(this.labelLayer.hidden)return;
     const s = this.settings, nodes = this.worldNodes, hc = effectiveHighContrast(s);
     if (this.multiplayer) { for (const label of this.labels) label.toggleClass("cg-hidden", true); return; }
     if (this.nova && this.nova.stage !== "trace") { for (const l of this.labels) l.toggleClass("cg-hidden", true); return; }
@@ -2488,10 +2611,10 @@ export class ConstellationRenderer implements GraphRenderer {
     for (const i of want) {
       const n = nodes[i];
       v.set(n.x, n.y, n.z);
-      if (this.isSurfacePointOccluded(v)) continue;
       v.project(this.camera);
       if (v.z > 1 || Math.abs(v.x) > 1.05 || Math.abs(v.y) > 1.05) continue;
       if (this.pilot.active && (n.x - cx0) * fx0 + (n.y - cy0) * fy0 + (n.z - cz0) * fz0 < 1) continue; // behind the ship
+      if (this.surfacePilot.active && this.isSurfacePointOccluded(this.tmp4.set(n.x,n.y,n.z))) continue;
       const sx = (v.x * 0.5 + 0.5) * w, rise = baseRadius(n.deg) * 2.2 + 6, sy = (-v.y * 0.5 + 0.5) * h - rise;
       const lw = Math.min(260, n.name.length * fs * 0.56 + 14), lh = fs + 8;
       const x = sx - lw / 2, y = sy - lh;

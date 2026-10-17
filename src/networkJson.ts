@@ -22,8 +22,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-// Protocol 14 JSON envelope, distinct from anonymous position-frame magics.
-const MAGIC = 0x43475a45; // CGZE (protocol 14)
+// Protocol 15 JSON envelope, distinct from anonymous position-frame magics.
+const MAGIC = 0x43475a46; // CGZF (protocol 15)
 const MAX_CHARS = 128_000, MAX_BYTES = MAX_CHARS * 4;
 const encoder = new TextEncoder(), decoder = new TextDecoder("utf-8", { fatal: true });
 

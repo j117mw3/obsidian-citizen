@@ -17,6 +17,10 @@ export class ConstellationView extends ItemView {
   getDisplayText(): string { return "Citizen"; }
   getIcon(): string { return "orbit"; }
 
+  capturePerformance(scenario: import("./performanceCapture").PerformanceScenario, installedBundleSha256: string | null): boolean {
+    return this.ca?.startPerformanceCapture(scenario,installedBundleSha256)??false;
+  }
+
   async onOpen(): Promise<void> {
     this.contentEl.empty();
     this.contentEl.addClass("cg-view");

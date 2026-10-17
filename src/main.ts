@@ -1,8 +1,9 @@
 import { isRecord } from "./validation";
-import { Plugin } from "obsidian";
+import { Notice, Plugin } from "obsidian";
 import { ConstellationSettings, DEFAULT_SETTINGS, sanitizeSettings } from "./settings";
 import { ConstellationSettingTab } from "./settingsTab";
 import { ConstellationView, VIEW_TYPE } from "./view";
+import { PERFORMANCE_SCENARIOS, type PerformanceScenario } from "./performanceCapture";
 
 const RESETS_COLOURS: (keyof ConstellationSettings)[] = ["palette", "groupBy", "folderDepth"];
 
@@ -19,6 +20,7 @@ export default class ConstellationPlugin extends Plugin {
     this.registerView(VIEW_TYPE, leaf => new ConstellationView(leaf, this));
     this.addRibbonIcon("orbit", "Open Citizen", () => void this.activate());
     this.addCommand({ id: "open", name: "Open graph", callback: () => void this.activate() });
+    for(const scenario of PERFORMANCE_SCENARIOS)this.addCommand({id:`performance-${scenario}`,name:`Capture ${scenario.replace(/-/g," ")} performance`,callback:()=>void this.capturePerformance(scenario)});
     this.addSettingTab(new ConstellationSettingTab(this.app, this));
     // wait until the workspace has been restored, otherwise the saved layout would open over it
     this.app.workspace.onLayoutReady(() => { if (this.settings.openOnStartup) void this.activate(); });
@@ -42,6 +44,14 @@ export default class ConstellationPlugin extends Plugin {
 
   private views(): ConstellationView[] {
     return this.app.workspace.getLeavesOfType(VIEW_TYPE).map(l => l.view as ConstellationView);
+  }
+
+  private async capturePerformance(scenario:PerformanceScenario):Promise<void> {
+    const view=this.views()[0];if(!view){new Notice("Open Citizen before capturing performance.");return;}
+    let hash:string|null=null;
+    try{const directory=this.manifest.dir??`${this.app.vault.configDir}/plugins/${this.manifest.id}`,bytes=await this.app.vault.adapter.readBinary(`${directory}/main.js`),digest=await window.crypto.subtle.digest("SHA-256",bytes);hash=[...new Uint8Array(digest)].map(value=>value.toString(16).padStart(2,"0")).join("");}catch{/* A bundle hash is optional when the adapter cannot read plugin files. */}
+    if(!view.capturePerformance(scenario,hash)){new Notice("A performance capture is already running, or WebGL is unavailable.");return;}
+    new Notice(`Capturing ${scenario} for 20 seconds: warm up for 5 seconds, then reproduce the action for 15 seconds. A local JSON profile will download when it finishes.`);
   }
 
   /**

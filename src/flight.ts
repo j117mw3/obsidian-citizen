@@ -71,6 +71,13 @@ export function stepBoostResources(state: BoostResources, input: BoostInput, dt:
 
 /** Shared spatial grid for the six-unit flight obstacle radius used in rooms. */
 type FlightObstacle = [number, number, number] & { radius?: number };
+/** An exact-center overlap has no radial normal; prefer the entry side, then a stable pole. */
+export function flightCollisionNormal(offset: THREE.Vector3, velocity: THREE.Vector3): THREE.Vector3 {
+  if (offset.lengthSq() > 1e-16) return offset.normalize();
+  const normal = velocity.clone().negate();
+  return normal.lengthSq() > 1e-16 ? normal.normalize() : normal.set(0, 1, 0);
+}
+
 export class StarCollisionGrid {
   private readonly cells = new Map<string, FlightObstacle[]>();
   constructor(private readonly cellSize = 80) {}
@@ -106,7 +113,8 @@ export class StarCollisionGrid {
         const ox = position.x - point[0], oy = position.y - point[1], oz = position.z - point[2];
         const distanceSq = ox * ox + oy * oy + oz * oz;
         if (distanceSq >= actualRadius * actualRadius) continue;
-        const distance = Math.sqrt(distanceSq) || 1e-3, nx = ox / distance, ny = oy / distance, nz = oz / distance;
+        const distance = Math.sqrt(distanceSq), normal = flightCollisionNormal(new THREE.Vector3(ox, oy, oz), velocity);
+        const { x: nx, y: ny, z: nz } = normal;
         position.x += nx * (actualRadius - distance); position.y += ny * (actualRadius - distance); position.z += nz * (actualRadius - distance);
         const normalSpeed = velocity.x * nx + velocity.y * ny + velocity.z * nz;
         if (normalSpeed < 0) { velocity.x += -1.35 * normalSpeed * nx; velocity.y += -1.35 * normalSpeed * ny; velocity.z += -1.35 * normalSpeed * nz; }
@@ -115,7 +123,7 @@ export class StarCollisionGrid {
   }
 
   /** Find the first clear position on an exit ray, including overlapping neighbouring node spheres. */
-  clearPointOnRay(origin: THREE.Vector3, direction: THREE.Vector3, minimumDistance: number, radius = SURFACE.worldRadius + 0.5): THREE.Vector3 {
+  clearPointOnRay(origin: THREE.Vector3, direction: THREE.Vector3, minimumDistance: number, radius = SURFACE.worldRadius + 0.75): THREE.Vector3 {
     const normal = direction.clone().normalize();
     if (normal.lengthSq() < 1e-8) normal.set(0, 1, 0);
     const intervals: Array<[number, number]> = [];

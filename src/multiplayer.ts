@@ -17,6 +17,7 @@ import { isApprovedSurfaceLaserColor, normalizeSurfaceLaserColor } from "./surfa
 import { copySurfaceControls, SURFACE_INPUT_RESEND, type SurfaceInputFrame } from "./surfaceInput";
 import { compressedNetworkJson, decodeNetworkJson, sendNetworkJson } from "./networkJson";
 import { SurfaceSnapshotWire } from "./surfaceSnapshotWire";
+import { isSurfaceDockReason, type SurfaceDockReason } from "./docking";
 
 export const MAX_SHARED_NODES = 20_000;
 export const MAX_SHARED_LINKS = 100_000;
@@ -119,7 +120,7 @@ export type GameMessage = { type: "input"; epoch: number; input: FlightInput }
   | { type: "checkpoint"; epoch: number; sentAt: number; state: unknown }
   | { type: "checkpoint-chunk"; epoch: number; sentAt: number; index: number; total: number; data: string }
   | { type: "surface-dock"; epoch: number; sequence: number; target: NavigationTarget }
-  | { type: "surface-dock-result"; epoch: number; sequence: number; accepted: boolean; reason?: "preparation" }
+  | { type: "surface-dock-result"; epoch: number; sequence: number; accepted: boolean; reason?: SurfaceDockReason }
   | { type: "surface-input"; epoch: number; frames: SurfaceInputFrame[] }
   | { type: "surface-fire"; epoch: number; sequence: number; viewTime: number; arenaKey: string; lifeId: number; direction: [number, number, number]; kind?: "normal" | "charged" }
   | { type: "surface-charge"; epoch: number; active: boolean; arenaKey: string; lifeId: number }
@@ -151,6 +152,8 @@ export interface MultiplayerCallbacks {
   status(text: string, error?: boolean): void;
   members(members: AnonymousPlayer[], selfId: string, hostId: string, epoch: number): void;
   topology(playerId: string, topology: AnonymousTopology): void;
+  /** Local publication notification; never sends private graph data. */
+  localTopology?(playerId: string, topology: AnonymousTopology): void;
   positions(playerId: string, positions: Float32Array): void;
   message(from: string, message: GameMessage): void;
   removed(playerId: string): void;
@@ -163,7 +166,7 @@ export interface MultiplayerCallbacks {
   elimination?(event: EliminationEvent): void;
   surfaceState?(snapshot: SurfaceNetworkSnapshot, estimatedHostTime: number, rttMs: number): void;
   surfaceFireResult?(sequence: number, accepted: boolean): void;
-  surfaceDockResult?(sequence: number, accepted: boolean, reason?: "preparation"): void;
+  surfaceDockResult?(sequence: number, accepted: boolean, reason?: SurfaceDockReason): void;
   surfaceColor?(sequence: number, accepted: boolean, color: string): void;
 }
 
@@ -288,6 +291,7 @@ export class MultiplayerSession {
   private surfaceSnapshotSequence = 0;
   private lastSurfaceSnapshotSequence = 0;
   private surfaceRequestSequence = 0;
+  private pendingSurfaceDock: { sequence: number; epoch: number; hostId: string; key: string; startedAt: number; accepted: boolean } | null = null;
   private surfaceInputSequence = 0;
   private surfaceInputFrames: SurfaceInputFrame[] = [];
   private surfaceColorSequence = 0;
@@ -662,7 +666,7 @@ export class MultiplayerSession {
         this.handleSurfaceDock(id, m.sequence as number, m.target); return;
       }
       if (m.type === "surface-dock-result" && id === this.hostId && m.epoch === this.epoch && Number.isSafeInteger(m.sequence) && typeof m.accepted === "boolean") {
-        this.callbacks.surfaceDockResult?.(m.sequence as number, m.accepted, m.reason==="preparation"?"preparation":undefined); return;
+        this.receiveSurfaceDockResult(m.sequence as number, m.accepted, isSurfaceDockReason(m.reason) ? m.reason : undefined); return;
       }
       if (this.handleSurfaceFireMessage(id, m)) return;
       if (m.type === "surface-color" && this.isHost && m.epoch === this.epoch && Number.isSafeInteger(m.sequence) && (m.sequence as number) > 0) {
@@ -1234,7 +1238,7 @@ export class MultiplayerSession {
     let messages = [JSON.stringify(message)];
     if (message.type === "checkpoint") {
       let data: string;
-      try { data = stringifySurfaceTransfer(message.state, MAX_CHECKPOINT_BYTES); } catch { this.callbacks.status("Room checkpoint exceeds the protocol 14 size limit.", true); return; }
+      try { data = stringifySurfaceTransfer(message.state, MAX_CHECKPOINT_BYTES); } catch { this.callbacks.status("Room checkpoint exceeds the protocol 15 size limit.", true); return; }
       if (data.length > 16_000) {
         const total = Math.ceil(data.length / 16_000);
         messages = Array.from({ length: total }, (_, index) => JSON.stringify({ type: "checkpoint-chunk", epoch: message.epoch, sentAt: message.sentAt, index, total, data: data.slice(index * 16_000, (index + 1) * 16_000) }));
@@ -1251,7 +1255,7 @@ export class MultiplayerSession {
     const now = Date.now(), age = this.surfaceClock.estimateHostTime(now) - sentAt;
     if (age < 0 || age > 15_000 || sentAt <= this.lastCheckpointWireAt || !state || typeof state !== "object") return;
     const checkpoint = state as RoomCheckpoint;
-    if (checkpoint.version !== 14) { this.callbacks.status("Incompatible room checkpoint. Everyone must update to the same Citizen build (protocol 14).", true); return; }
+    if (checkpoint.version !== 15) { this.callbacks.status("Incompatible room checkpoint. Everyone must update to the same Citizen build (protocol 15).", true); return; }
     if (!Number.isSafeInteger(checkpoint.epoch) || checkpoint.epoch !== this.epoch) return;
     const probe = new CombatWorld(checkpoint.epoch), surfaceProbe = new SurfaceAuthority({terrain:true});
     if (probe.restore(state, now, age) && surfaceProbe.restoreCheckpoint(checkpoint.surface, now, age)) {
@@ -1349,6 +1353,7 @@ export class MultiplayerSession {
   private pingSurfaceHost(): void {
     if (!this.active || !this.hostId) return;
     const now = Date.now();
+    this.expireSurfaceDock(now);
     this.retrySurfaceFire(now);
     if (now - this.lastSurfacePingAt < 500) return;
     this.lastSurfacePingAt = now;
@@ -1375,12 +1380,23 @@ export class MultiplayerSession {
 
   setLocalGraph(data: GraphData): void {
     if (!this.active) return;
+    const ids = new Map(this.ids);
+    let topology: AnonymousTopology;
     try {
-      this.topology = makeAnonymousTopology(data, this.ids, ++this.revision);
+      topology = makeAnonymousTopology(data, ids, this.revision + 1);
+    } catch (e) {
+      this.callbacks.status(e instanceof Error ? e.message : "Could not share this constellation.", true);
+      return;
+    }
+    this.topology = topology; this.revision = topology.revision;
+    this.ids.clear(); for (const [id, anonymous] of ids) this.ids.set(id, anonymous);
+    try {
+      this.callbacks.localTopology?.(this.selfId, topology);
       this.refreshSurfaceMap(this.selfId);
       for (const id of this.peers.keys()) this.queueTopology(id, this.topology);
     } catch (e) {
-      this.revision--;
+      // Publication is committed: later presentation/transport errors must not
+      // roll the session revision back behind the renderer's notification.
       this.callbacks.status(e instanceof Error ? e.message : "Could not share this constellation.", true);
     }
   }
@@ -1454,20 +1470,48 @@ export class MultiplayerSession {
   }
 
   requestSurfaceDock(target: NavigationTarget): void {
-    if (!this.active || !this.validNavigationTarget(target)) return;
     const sequence = ++this.surfaceRequestSequence;
+    this.pendingSurfaceDock = { sequence, epoch: this.epoch, hostId: this.hostId, key: `${target.ownerId}/${target.starId}`, startedAt: Date.now(), accepted: false };
+    if (!this.active || !this.authorityReady) { this.receiveSurfaceDockResult(sequence, false, "not-ready"); return; }
+    if (!this.validNavigationTarget(target)) { this.receiveSurfaceDockResult(sequence, false, "target"); return; }
     if (this.isHost) this.handleSurfaceDock(this.selfId, sequence, target);
-    else this.sendReliable(this.hostId, { type: "surface-dock", epoch: this.epoch, sequence, target });
+    else if (!this.sendReliable(this.hostId, { type: "surface-dock", epoch: this.epoch, sequence, target })) this.receiveSurfaceDockResult(sequence, false, "connection");
+  }
+
+  private receiveSurfaceDockResult(sequence: number, accepted: boolean, reason?: SurfaceDockReason): void {
+    const pending = this.pendingSurfaceDock;
+    if (!pending || pending.sequence !== sequence || pending.epoch !== this.epoch || pending.hostId !== this.hostId || pending.accepted) return;
+    if (Date.now() - pending.startedAt >= 5000) { this.cancelSurfaceDock("timeout"); return; }
+    if (accepted) pending.accepted = true;
+    else this.pendingSurfaceDock = null;
+    this.callbacks.surfaceDockResult?.(sequence, accepted, reason);
+  }
+
+  private cancelSurfaceDock(reason: SurfaceDockReason): void {
+    const pending = this.pendingSurfaceDock;
+    this.pendingSurfaceDock = null;
+    if (pending) this.callbacks.surfaceDockResult?.(pending.sequence, false, reason);
+  }
+
+  private expireSurfaceDock(now: number): void {
+    const pending = this.pendingSurfaceDock;
+    if (!pending) return;
+    if (pending.epoch !== this.epoch || pending.hostId !== this.hostId) this.cancelSurfaceDock("interrupted");
+    else if (now - pending.startedAt >= 5000) this.cancelSurfaceDock("timeout");
   }
 
   private acknowledgeSurfaceInputs(snapshot: SurfaceNetworkSnapshot): void {
     const local = snapshot.players.find(player => player.id === this.selfId);
+    const docking = this.pendingSurfaceDock;
+    if (docking && snapshot.epoch === docking.epoch && docking.hostId === this.hostId
+      && local?.mode === "surface" && local.arenaKey === docking.key && snapshot.arenas.some(arena => arena.key === docking.key)) this.pendingSurfaceDock = null;
     for (const [sequence, pending] of this.pendingSurfaceFire) if (!local || local.mode !== "surface" || local.arenaKey !== pending.message.arenaKey || local.lifeId !== pending.message.lifeId) this.pendingSurfaceFire.delete(sequence);
     if (!local) { this.surfaceInputFrames.length = 0; return; }
     this.surfaceInputFrames = this.surfaceInputFrames.filter(frame => frame.sequence > local.inputSequence && frame.arenaKey === local.arenaKey && frame.lifeId === local.lifeId);
   }
 
   private resetSurfaceTransport(): void {
+    this.cancelSurfaceDock("interrupted");
     this.liveLatest.clear();
     for (const wire of this.surfaceWire.values()) wire.clear();
     this.checkpointReceive = null;
@@ -1604,8 +1648,10 @@ export class MultiplayerSession {
     const topology = target.ownerId === this.selfId ? this.topology : this.peers.get(target.ownerId)?.topology;
     const node = topology?.nodes.find(item => item.id === target.starId);
     const player = this.world?.players.get(playerId), now = Date.now();
-    let accepted = !!this.isHost && !!this.world && !!this.surfaceAuthority && !!player && player.active && !player.docked
-      && this.world.roundPhase === "combat" && target.revision === topology?.revision && !!node?.dockable;
+    let reason: SurfaceDockReason | undefined;
+    if (!this.authorityReady || !this.world || !this.surfaceAuthority || this.world.roundPhase !== "combat") reason = "not-ready";
+    else if (target.revision !== topology?.revision || !node?.dockable) reason = "target";
+    let accepted = this.isHost && !reason && !!player && player.active && !player.docked;
     if (accepted) {
       accepted = this.surfaceAuthority!.dock(playerId, target.ownerId, target.starId, now);
       if (accepted && !this.world!.setSurfaceDocked(playerId, true, undefined, now)) accepted = false;
@@ -1614,15 +1660,15 @@ export class MultiplayerSession {
       // Keep the two authorities aligned if the ship state changed during the dock request.
       this.surfaceAuthority.forceUndock(playerId);
     }
-    const reason=this.surfaceAuthority?.world.getPreparationError(`${target.ownerId}/${target.starId}`)?"preparation" as const:undefined;
-    this.callbacks.surfaceDockResult?.(sequence, accepted, reason);
+    if (!accepted && !reason && this.surfaceAuthority?.world.getPreparationError(`${target.ownerId}/${target.starId}`)) reason = "preparation";
+    if (playerId === this.selfId) this.receiveSurfaceDockResult(sequence, accepted, reason);
     if (playerId !== this.selfId) this.sendReliable(playerId, { type: "surface-dock-result", epoch: this.epoch, sequence, accepted, ...(reason?{reason}:{}) });
   }
 
-  private sendReliable(id: string, message: GameMessage): void {
+  private sendReliable(id: string, message: GameMessage): boolean {
     const channel = this.peers.get(id)?.control;
-    if (!channel || channel.readyState !== "open" || channel.bufferedAmount > 128_000) { this.callbacks.status(`The reliable connection to ${this.memberName(id)} is not ready.`, true); return; }
-    try { sendNetworkJson(channel, JSON.stringify(message)); } catch { this.callbacks.status(`The reliable connection to ${this.memberName(id)} failed.`, true); }
+    if (!channel || channel.readyState !== "open" || channel.bufferedAmount > 128_000) { this.callbacks.status(`The reliable connection to ${this.memberName(id)} is not ready.`, true); return false; }
+    try { sendNetworkJson(channel, JSON.stringify(message)); return true; } catch { this.callbacks.status(`The reliable connection to ${this.memberName(id)} failed.`, true); return false; }
   }
   sendAll(message: GameMessage): void { for (const id of this.peers.keys()) this.sendTo(id, message); }
   private surfaceWireFor(id: string): SurfaceSnapshotWire {
@@ -1679,6 +1725,7 @@ export class MultiplayerSession {
   }
 
   leave(message = "Left the room."): void {
+    this.cancelSurfaceDock("interrupted");
     this.checkpointReceive = null;
     this.lastCheckpointWireAt = -Infinity;
     if (this.closed) return;

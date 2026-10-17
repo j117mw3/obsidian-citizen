@@ -5,6 +5,13 @@ const bundle=await build({stdin:{contents:`import * as THREE from 'three';export
 const {THREE,terrain:t,physics:p,layout,geometry,mesh,world,wire,cover,coverWire,combat,collision,authority,snapshotWire,visuals,patrol,presentation,operative,botPresentation,view,nameplates}=await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString('base64')}`);
 const idle={moveX:0,moveY:0,sprint:false,jump:false,crouch:false,yawDelta:0,pitchDelta:0,lean:0};
 const normalize=v=>{const r=Math.hypot(...v);return v.map(x=>x/r)};
+test('version 2 terrain remains valid while version 3 generates deterministic hills and crater bowls',()=>{
+ const legacy=t.createLegacyTerrainDefinition(42,27),first=t.createTerrainDefinition(42,27),again=t.createTerrainDefinition(42,27);
+ assert.equal(legacy.version,2);assert.ok(t.validTerrainDefinition(legacy,27));assert.equal(t.terrainHeight(legacy,[0,1,0]),0);
+ assert.equal(first.version,3);assert.ok(t.validTerrainDefinition(first,27));assert.equal(first.hash,again.hash);assert.deepEqual(first.chunkHashes,again.chunkHashes);
+ let low=Infinity,high=-Infinity;for(let i=0;i<4096;i++){const y=1-2*(i+.5)/4096,a=i*2.399963229728653,n=[Math.sqrt(1-y*y)*Math.cos(a),y,Math.sqrt(1-y*y)*Math.sin(a)],h=t.terrainHeight(first,n);low=Math.min(low,h);high=Math.max(high,h);}
+ assert.ok(low>=-1.5&&high<=3);assert.ok(high-low>=2.5,`terrain relief was only ${high-low}`);
+});
 test('terrain format hashes reject altered content and accept reordered fields',()=>{
  const d=t.createTerrainDefinition(42,27);assert.ok(t.validTerrainDefinition(d,27));assert.ok(t.validTerrainDefinition(Object.fromEntries(Object.entries(d).reverse()),27));
  for(const field of ['seed','radius','relief','routeAngle','profile'])assert.equal(t.validTerrainDefinition({...d,[field]:d[field]+1}),false);
@@ -18,7 +25,7 @@ test('1000 seeds retain flat poles, bounded elevation and walkable normals at al
   for(let i=0;i<32;i++){
    const y=1-2*(i+.5)/32,a=i*2.399963229728653,n=[Math.sqrt(1-y*y)*Math.cos(a),y,Math.sqrt(1-y*y)*Math.sin(a)];
    const h=q.height(n),normal=q.normal(n),dot=normal.reduce((s,x,k)=>s+x*n[k],0);
-   assert.ok(h>=-.8&&h<=1.6);assert.ok(Math.acos(Math.min(1,dot))<=25*Math.PI/180,`seed ${seed} slope`);
+   assert.ok(h>=-1.5&&h<=3);assert.ok(Math.acos(Math.min(1,dot))<=25*Math.PI/180,`seed ${seed} slope`);
   }
  }
 });
@@ -27,6 +34,20 @@ test('terrain rays and sweeps agree with radial ground, including shallow crater
   const d=t.createTerrainDefinition(seed,27),q=t.terrainQuery(d),n=normalize([1,.2,.5]),r=27+q.height(n),start=n.map(x=>x*(r+3)),end=n.map(x=>x*(r-2));
   const hit=q.ray(start,end);assert.ok(Math.abs(hit-.6)<.00005);const sweep=q.sweepGround(start,end);assert.ok(sweep.hit);assert.ok(Math.abs(Math.hypot(...sweep.position)-r)<1e-9);
  }
+});
+test('combat planet intersections use the same raised hills and crater bowls as terrain collision',()=>{
+ const def=t.createTerrainDefinition(7319,27),walls=[];t.bindSurfaceTerrain(walls,def);let peak=null,bowl=null;
+ for(let i=0;i<4096;i++){const y=1-2*(i+.5)/4096,a=i*2.399963229728653,n=[Math.sqrt(1-y*y)*Math.cos(a),y,Math.sqrt(1-y*y)*Math.sin(a)],height=t.terrainHeight(def,n);
+  if(!peak||height>peak.height)peak={normal:n,height};if(!bowl||height<bowl.height)bowl={normal:n,height};}
+ for(const sample of [peak,bowl]){const start=sample.normal.map(value=>value*(def.radius+8)),end=sample.normal.map(value=>value*(def.radius-4)),hit=combat.traceSurfaceSegment(start,end,walls,[]);
+  assert.equal(hit?.kind,'planet');assert.ok(Math.abs(Math.hypot(...hit.position)-def.radius-sample.height)<.01);}
+ assert.ok(peak.height-bowl.height>=2.5,'raised ridges and crater lows must have physical separation');
+});
+test('terrain generation yields during assembly, reuses cached patches and returns a sampleable mesh',()=>{
+ const def=t.createTerrainDefinition(7319,27),observer=[28,0,0],preparation=mesh.prepareTerrainMesh(def,observer);let yields=0,next;
+ do{next=preparation.next();if(!next.done)yields++;}while(!next.done);
+ assert.ok(yields>8,`mesh preparation yielded only ${yields} times`);assert.ok(mesh.sampleTerrainMeshSurface(next.value,[1,0,0]));next.value.dispose();
+ const repeated=mesh.buildTerrainMesh(def,observer);assert.ok(repeated.userData.terrainPatchCacheHits>0);assert.ok(mesh.sampleTerrainMeshSurface(repeated,[1,0,0]));repeated.dispose();
 });
 test('terrain grounded and jumping movement stays stable at 30,60,144 FPS and delayed display centers',()=>{
  const d=t.createTerrainDefinition(77,27),walls=[];t.bindSurfaceTerrain(walls,d);const q=t.terrainQuery(d);

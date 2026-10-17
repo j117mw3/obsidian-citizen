@@ -39,7 +39,13 @@ export type RendererFixture = Pick<ConstellationRenderer, keyof ConstellationRen
   surfacePilot: ConstellationRenderer["surfacePilot"];
   surfaceWorld: ConstellationRenderer["surfaceWorld"];
   camera: ConstellationRenderer["camera"];
+  controls: ConstellationRenderer["controls"];
   scene: ConstellationRenderer["scene"];
+  isSurfacePointOccluded: ConstellationRenderer["isSurfacePointOccluded"];
+  distantLodEnabled: ConstellationRenderer["distantLodEnabled"];
+  visible: ConstellationRenderer["visible"];
+  contextLost: ConstellationRenderer["contextLost"];
+  frameNo: ConstellationRenderer["frameNo"];
   localSurfaceGroups: ConstellationRenderer["localSurfaceGroups"];
 
   roomSurfaceArenas: ConstellationRenderer["roomSurfaceArenas"];
@@ -58,6 +64,8 @@ export type PilotFixture = Pick<SurfacePilot, keyof SurfacePilot> & {
   keys: SurfacePilot["keys"];
   fire: SurfacePilot["fire"];
   heldFire: SurfacePilot["heldFire"];
+  chargeStartedAt: SurfacePilot["chargeStartedAt"];
+  fireSequence: SurfacePilot["fireSequence"];
 
   hitMarkerUntil: SurfacePilot["hitMarkerUntil"];
   applyCombatEvents: SurfacePilot["applyCombatEvents"];

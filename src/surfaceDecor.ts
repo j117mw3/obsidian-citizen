@@ -43,16 +43,17 @@ export function createSurfacePanelMaterial(radius: number, seed: number, terrain
           vec3 rock=terrainProfile<.5?vec3(.12,.17,.20):terrainProfile<1.5?vec3(.29,.21,.12):vec3(.36,.35,.39);
           vec3 tech=terrainProfile<.5?vec3(.07,.45,.54):terrainProfile<1.5?vec3(.54,.30,.06):vec3(.38,.19,.53);
           float elevation=length(surfacePoint)-arenaRadius;
-          float strata=.5+.5*sin(elevation*14.0+sin(p.x*.17)*.8);
+          float strata=.5+.5*sin(elevation*3.4+sin(p.x*.055)*.6);
           float grain=hash21(floor(p*2.0));
-          color=rock*(.70+.12*strata+.06*grain)+tech*trace*.09;
+          float altitude=smoothstep(-1.2,2.8,elevation);
+          color=mix(rock*(.75+.11*strata+.05*grain),mix(rock,tech,.12)*( .82+.08*strata+.05*grain),altitude)+tech*trace*.09;
           float routeGap=min(abs(sin(longitude-routeAngle)),abs(cos(longitude-routeAngle)))*arenaRadius*cos(latitude);
           float path=1.0-smoothstep(.025,.08+fwidth(routeGap),abs(routeGap-1.55));
           color+=routeColor*(path*.36+ring*.65);
           // Buried circuitry follows stone seams; restrained contrast keeps silhouettes readable.
           color+=tech*trace*seam*.12;
           vec3 slopeNormal=normalize(cross(dFdx(surfacePoint),dFdy(surfacePoint)));
-          float light=.70+.30*abs(dot(slopeNormal,normalize(vec3(.4,.8,.25))));
+          float light=.58+.42*max(0.0,dot(slopeNormal,normalize(vec3(.4,.8,.25))));
           color*=light;
         }
         gl_FragColor=vec4(color,1.0);

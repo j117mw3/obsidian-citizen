@@ -26,6 +26,154 @@ const surfaceAuthority = await loadBundle("surfaceAuthority");
 const wire = await loadBundle("networkJson");
 const jsonPacket = packet => packet instanceof ArrayBuffer && wire.compressedNetworkJson(packet) ? wire.decodeNetworkJson(packet) : packet;
 
+const dockOwner = "11111111-1111-4111-8111-111111111111", dockGuest = "22222222-2222-4222-8222-222222222222";
+const dockHub = "n-33333333-3333-4333-8333-333333333333";
+const dockTarget = { ownerId: dockOwner, starId: dockHub, revision: 1 };
+
+test("local publications notify the renderer across graph refresh, layout republication and rejoin", () => {
+  const publications = [], rendered = { owner: "", topology: null };
+  const session = new network.MultiplayerSession(callbacks({
+    localTopology(owner, topology) { rendered.owner = owner; rendered.topology = topology; publications.push(topology); },
+    members(_members, owner) { if (!owner) { rendered.owner = ""; rendered.topology = null; } },
+  }), () => ({ data: fixture(), nodes: [] }));
+  Object.assign(session, { selfId: dockOwner, hostId: dockGuest });
+  session.setLocalGraph(fixture());
+  const hub = session.localTopology.nodes[0].id;
+  session.setLocalGraph(fixture()); session.republishLocalLayout();
+  assert.deepEqual(publications.map(topology => topology.revision), [1, 2, 3]);
+  assert.equal(rendered.topology, session.localTopology); assert.equal(rendered.owner, dockOwner);
+  assert.ok(publications.every(topology => topology.nodes[0].id === hub));
+  assert.ok(privateMarkers.every(marker => !JSON.stringify(publications).includes(marker)));
+  const previousWindow = globalThis.window; globalThis.window = globalThis;
+  try { session.leave(); } finally { if (previousWindow === undefined) delete globalThis.window; else globalThis.window = previousWindow; }
+  assert.equal(rendered.topology, null);
+  session.setLocalGraph(fixture()); assert.equal(publications.length, 3, "closed sessions do not publish");
+  Object.assign(session, { selfId: dockGuest, hostId: dockOwner, closed: false });
+  session.setLocalGraph(fixture());
+  assert.equal(rendered.owner, dockGuest); assert.equal(rendered.topology.revision, 1);
+  assert.notEqual(rendered.topology.nodes[0].id, hub, "rejoining does not revive the previous session IDs");
+});
+
+test("failed graph generation preserves publication state and later errors cannot roll its revision back", () => {
+  const publications = [], errors = [];
+  const session = new network.MultiplayerSession(callbacks({ localTopology: (_owner, topology) => publications.push(topology), status: text => errors.push(text) }), () => ({ data: fixture(), nodes: [] }));
+  Object.assign(session, { selfId: dockOwner, hostId: dockGuest });
+  session.setLocalGraph(fixture());
+  const previous = session.localTopology, ids = [...session.ids];
+  const broken = { nodes: [{ id: "new-private-file", group: "g", deg: 0 }], links: [], get groups() { throw new Error("generation failed"); } };
+  session.setLocalGraph(broken);
+  assert.equal(session.localTopology, previous); assert.equal(session.revision, 1);
+  assert.deepEqual([...session.ids], ids); assert.equal(publications.length, 1);
+  session.refreshSurfaceMap = () => { throw new Error("surface refresh failed"); };
+  session.setLocalGraph(fixture());
+  assert.equal(session.revision, 2); assert.equal(session.localTopology.revision, 2);
+  assert.equal(publications.at(-1), session.localTopology);
+  assert.deepEqual(errors, ["generation failed", "surface refresh failed"]);
+});
+
+function dockingHost(overrides = {}) {
+  const topology = { revision: 1, nodes: [{ id: dockHub, group: 0, degree: 0, dockable: true }], links: [] };
+  const host = new network.MultiplayerSession(callbacks(overrides), () => ({ data: fixture(), nodes: [{ x: 0, y: 0, z: 0 }] }));
+  const world = new combat.CombatWorld(1), authority = new surfaceAuthority.SurfaceAuthority();
+  Object.assign(host, { selfId: dockOwner, hostId: dockOwner, epoch: 1, authorityReady: true, topology, world, surfaceAuthority: authority,
+    surfaceRoundId: world.currentRoundId, roster: [{ id: dockOwner, name: "Host", slot: 0 }] });
+  world.add(host.roster[0]);
+  Object.assign(world.players.get(dockOwner), { active: true }); world.players.get(dockOwner).pos.set(0, 0, 12);
+  authority.addPlayer(dockOwner, { position: [0, 0, 12], rotation: [0, 0, 0, 1], velocity: [0, 0, 0] });
+  authority.setOwnerMap(dockOwner, topology, new Float32Array([0, 0, 0]));
+  return host;
+}
+
+test("host-only docking publishes the surface entry and synchronizes the return to its ship", () => {
+  const results = [], states = [], host = dockingHost({ surfaceDockResult: (...args) => results.push(args), surfaceState: state => states.push(state) });
+  host.requestSurfaceDock(dockTarget);
+  assert.deepEqual(results, [[1, true, undefined]]);
+  assert.equal(host.world.isSurfaceDocked(dockOwner), true);
+  assert.equal(host.pendingSurfaceDock.accepted, true, "acceptance still waits for surface state");
+  host.publishSurfaceState(Date.now());
+  assert.equal(host.pendingSurfaceDock, null);
+  assert.equal(states[0].players.find(player => player.id === dockOwner).mode, "surface");
+  assert.equal(states[0].players[0].arenaKey, `${dockOwner}/${dockHub}`);
+  assert.equal(host.surfaceAuthority.forceUndock(dockOwner), true);
+  host.stepSurfaceAuthority(1 / 60, Date.now()); host.publishSurfaceState(Date.now());
+  assert.equal(host.world.isSurfaceDocked(dockOwner), false);
+  assert.equal(states.at(-1).players.find(player => player.id === dockOwner).mode, "ship");
+});
+
+test("republishing keeps current docking valid while rejecting the previous revision", () => {
+  const results = [], host = dockingHost({ surfaceDockResult: (...args) => results.push(args) });
+  const data = { groups: [{ key: "g", color: "#123456", count: 1 }], nodes: [{ id: "Private/Main.md", group: "g", deg: 0 }], links: [] };
+  Object.assign(host, { revision: 1, ids: new Map([[data.nodes[0].id, dockHub]]), graph: () => ({ data, nodes: [{ x: 0, y: 0, z: 0 }] }) });
+  host.setLocalGraph(data);
+  assert.equal(host.localTopology.revision, 2);
+  host.requestSurfaceDock(dockTarget);
+  assert.deepEqual(results.at(-1), [1, false, "target"]);
+  host.requestSurfaceDock({ ...dockTarget, revision: 2 });
+  assert.deepEqual(results.at(-1), [2, true, undefined]);
+});
+
+function dockingClient(results) {
+  const client = new network.MultiplayerSession(callbacks({ surfaceDockResult: (...args) => results.push(args) }), () => ({ data: fixture(), nodes: [] }));
+  Object.assign(client, { selfId: dockGuest, hostId: dockOwner, epoch: 1, authorityReady: true, roster: [{ id: dockOwner }, { id: dockGuest }] });
+  client.peers.set(dockOwner, peerStub()); return client;
+}
+
+test("guest docking completes over the reliable control and surface state lanes without changing the host HUD", () => {
+  const results = [], hostResults = [], client = dockingClient(results), host = dockingHost({ surfaceDockResult: (...args) => hostResults.push(args) });
+  host.roster.push({ id: dockGuest, name: "Guest", slot: 1 }); host.world.add(host.roster[1]); host.world.players.get(dockGuest).pos.set(0, 0, 12); host.world.players.get(dockGuest).active = true;
+  host.surfaceAuthority.addPlayer(dockGuest, { position: [0, 0, 12], rotation: [0, 0, 0, 1], velocity: [0, 0, 0] });
+  host.peers.set(dockGuest, peerStub());
+  client.requestSurfaceDock(dockTarget);
+  host.onPeerMessage(dockGuest, client.peers.get(dockOwner).control.raw[0], "control");
+  for (const packet of host.peers.get(dockGuest).control.raw) client.onPeerMessage(dockOwner, packet, "control");
+  assert.deepEqual(results, [[1, true, undefined]]); assert.deepEqual(hostResults, []);
+  host.publishSurfaceState(Date.now());
+  for (const packet of host.peers.get(dockGuest).control.raw) client.onPeerMessage(dockOwner, packet, "control");
+  for (const packet of host.peers.get(dockGuest).live.raw) client.onPeerMessage(dockOwner, packet, "live");
+  assert.equal(client.pendingSurfaceDock, null, "decoded surface state completes the pending guest request");
+});
+
+test("docking reports stale topology, admission rejection, readiness, and failed reliable sends", () => {
+  const results = [], host = dockingHost({ surfaceDockResult: (...args) => results.push(args) });
+  host.requestSurfaceDock({ ...dockTarget, revision: 2 }); assert.deepEqual(results.at(-1), [1, false, "target"]);
+  host.world.players.get(dockOwner).active = false;
+  host.requestSurfaceDock(dockTarget); assert.deepEqual(results.at(-1), [2, false, undefined]);
+  host.authorityReady = false; host.requestSurfaceDock(dockTarget); assert.deepEqual(results.at(-1), [3, false, "not-ready"]);
+  host.authorityReady = true; host.requestSurfaceDock({ ...dockTarget, starId: "Private/Main.md" }); assert.deepEqual(results.at(-1), [4, false, "target"]);
+  assert.equal(host.pendingSurfaceDock, null);
+  for (const state of ["closed", "congested", "throwing"]) {
+    const client = dockingClient(results), channel = client.peers.get(dockOwner).control;
+    if (state === "closed") channel.readyState = "closed";
+    if (state === "congested") channel.bufferedAmount = 128001;
+    if (state === "throwing") channel.send = () => { throw new Error("connection lost"); };
+    client.requestSurfaceDock(dockTarget); assert.deepEqual(results.at(-1), [1, false, "connection"]); assert.equal(client.pendingSurfaceDock, null);
+  }
+});
+
+test("docking timeout covers missing results and missing entry; stale results cannot affect retries", () => {
+  for (const accepted of [false, true]) {
+    const results = [], client = dockingClient(results), sendResult = (sequence, accepted, epoch = 1) => client.onPeerMessage(dockOwner, JSON.stringify({ type: "surface-dock-result", epoch, sequence, accepted }), "control");
+    client.requestSurfaceDock(dockTarget);
+    const started = client.pendingSurfaceDock.startedAt;
+    if (accepted) sendResult(1, true);
+    client.expireSurfaceDock(started + 4999); assert.ok(client.pendingSurfaceDock);
+    client.expireSurfaceDock(started + 5000); assert.equal(client.pendingSurfaceDock, null); assert.deepEqual(results.at(-1), [1, false, "timeout"]);
+    const before = results.length; sendResult(1, true); assert.equal(results.length, before);
+    client.requestSurfaceDock(dockTarget); sendResult(1, false); sendResult(2, false, 0); assert.equal(results.length, before);
+    sendResult(2, false); assert.deepEqual(results.at(-1), [2, false, undefined]); assert.equal(client.pendingSurfaceDock, null);
+  }
+});
+
+test("pending docking is cleared on authority reset, host change, and room leave", () => {
+  const results = [], client = dockingClient(results);
+  client.requestSurfaceDock(dockTarget); client.resetSurfaceTransport(); assert.deepEqual(results.at(-1), [1, false, "interrupted"]);
+  client.requestSurfaceDock(dockTarget); client.hostId = dockGuest; client.epoch++; client.expireSurfaceDock(Date.now()); assert.deepEqual(results.at(-1), [2, false, "interrupted"]);
+  client.hostId = dockOwner; client.requestSurfaceDock(dockTarget);
+  const previousWindow = globalThis.window; globalThis.window = globalThis;
+  try { client.peers.clear(); client.leave(); } finally { if (previousWindow === undefined) delete globalThis.window; else globalThis.window = previousWindow; }
+  assert.deepEqual(results.at(-1), [3, false, "interrupted"]); assert.equal(client.pendingSurfaceDock, null);
+});
+
 const privateMarkers = ["PRIVATE_TITLE_CobaltVault", "PRIVATE_PATH_Secrets/Bluebird.md", "PRIVATE_TAG_Clinical", "PRIVATE_BODY_needle" ];
 function fixture() {
   return {
@@ -586,7 +734,7 @@ test("first-to-ten scores only confirmed lethal hits and checkpoints victory pro
   assert.equal(world.startTravel("attacker", [0, 0, -500], 1, now), false);
 
   const checkpoint = world.snapshot(now), transferred = new combat.CombatWorld(10);
-  assert.equal(checkpoint.version, 14);
+  assert.equal(checkpoint.version, 15);
   assert.equal(transferred.restore(checkpoint, now + 100, 1200), true);
   assert.equal(transferred.currentRoundId, 1);
   assert.equal(transferred.roundSnapshot(now + 100).phaseRemainingMs, checkpoint.round.phaseRemainingMs - 1200);
@@ -700,9 +848,9 @@ test("replicated thrust audio follows effective propulsion and goes quiet during
   assert.equal(pose.thrust, 0); assert.equal(pose.boosting, false);
 });
 
-test("new room sessions advertise protocol 14 without opening a connection on construction", () => {
+test("new room sessions advertise protocol 15 without opening a connection on construction", () => {
   const session = new network.MultiplayerSession(callbacks(), () => ({ data: fixture(), nodes: [] }));
-  assert.equal(network.ROOM_PROTOCOL, 14);
+  assert.equal(network.ROOM_PROTOCOL, 15);
   assert.equal(session.active, false);
   assert.equal(session.room, "");
 });

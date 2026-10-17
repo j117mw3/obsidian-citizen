@@ -75,10 +75,11 @@ export function updateSurfaceWallIndex(walls: readonly SurfaceWall[], oldWall: S
   index.grid.remove(oldWall, previous.center, Math.hypot(...previous.half)); index.order.delete(oldWall);
   index.grid.add(nextWall, next.center, Math.hypot(...next.half)); index.order.set(nextWall, order);
 }
-export function nearbySurfaceWalls(start: SurfaceVector, end: SurfaceVector, walls: readonly SurfaceWall[], arenaRadius: number = SURFACE.radius, padding = 0): readonly SurfaceWall[] {
+export function nearbySurfaceWalls(start: SurfaceVector, end: SurfaceVector, walls: readonly SurfaceWall[], arenaRadius: number = SURFACE.radius, padding = 0, segmentStats?: { visitedCells:number; terrainSamples:number }): readonly SurfaceWall[] {
   const terrain=terrainForWalls(walls),extras=new Map<string,SurfaceWall>();
   if(terrain){const length=Math.hypot(...start.map((v,k)=>end[k]-v)),steps=Math.max(1,Math.ceil(length/8));
     for(let i=0;i<=steps;i++){const point=start.map((v,k)=>v+(end[k]-v)*i/steps) as [number,number,number];
+      if(segmentStats)segmentStats.terrainSamples++;
       if(Math.abs(terrainQuery(terrain).signedDistance(point))>padding+5)continue;
       for(const wall of terrainQuery(terrain).staticNear(point,padding+8))extras.set(wall.id,wall);
     }
@@ -90,7 +91,7 @@ export function nearbySurfaceWalls(start: SurfaceVector, end: SurfaceVector, wal
     walls.forEach((wall, i) => { const box = surfaceWallBox(wall, arenaRadius); index!.grid.add(wall, box.center, Math.hypot(...box.half)); index!.order.set(wall, i); });
     wallIndices.set(walls, index);
   }
-  return index.grid.query(start.map((v, k) => Math.min(v, end[k]) - padding), start.map((v, k) => Math.max(v, end[k]) + padding))
+  return (segmentStats ? index.grid.querySegment(start,end,segmentStats) : index.grid.query(start.map((v, k) => Math.min(v, end[k]) - padding), start.map((v, k) => Math.max(v, end[k]) + padding)))
     .sort((a, b) => index.order.get(a)! - index.order.get(b)!).concat([...extras.values()]);
 }
 

@@ -20,6 +20,27 @@ export class SurfaceSpatialGrid<T> {
     return [...found];
   }
   near(center: SurfaceVector, radius: number): T[] { return this.query(center.map(v => v - radius), center.map(v => v + radius)); }
+  /** Conservative supercover DDA. Neighbour cells include rays on cell faces/edges/corners. */
+  querySegment(start: SurfaceVector, end: SurfaceVector, stats?: { visitedCells: number }): T[] {
+    const found = new Set<T>(), visited = new Set<string>();
+    const cell = start.map(v => Math.floor(v / this.size)), last = end.map(v => Math.floor(v / this.size));
+    const delta = end.map((v, k) => v - start[k]), step = delta.map(Math.sign);
+    const increment = delta.map(v => v === 0 ? Infinity : this.size / Math.abs(v));
+    const next = delta.map((v, k) => v === 0 ? Infinity : ((cell[k] + (v > 0 ? 1 : 0)) * this.size - start[k]) / v);
+    const limit = cell.reduce((sum, v, k) => sum + Math.abs(last[k] - v), 1);
+    for (let iteration = 0; iteration <= limit; iteration++) {
+      for (let x = -1; x <= 1; x++) for (let y = -1; y <= 1; y++) for (let z = -1; z <= 1; z++) {
+        const key = `${cell[0]+x},${cell[1]+y},${cell[2]+z}`;
+        if (visited.has(key)) continue;
+        visited.add(key); this.cells.get(key)?.forEach(value => found.add(value));
+      }
+      if (cell.every((v, k) => v === last[k])) break;
+      const crossing = Math.min(...next);
+      for (let axis = 0; axis < 3; axis++) if (next[axis] <= crossing + 1e-12) { cell[axis] += step[axis]; next[axis] += increment[axis]; }
+    }
+    if (stats) stats.visitedCells += visited.size;
+    return [...found];
+  }
   private visit(low: readonly number[], high: readonly number[], callback: (key: string) => void): void {
     for (let x = Math.floor(low[0] / this.size); x <= Math.floor(high[0] / this.size); x++)
       for (let y = Math.floor(low[1] / this.size); y <= Math.floor(high[1] / this.size); y++)

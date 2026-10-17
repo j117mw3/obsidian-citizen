@@ -6,6 +6,8 @@ import * as THREE from "three";
 import { SURFACE, type SurfaceArena, type SurfaceVector, type SurfaceBotDropView } from "./surface";
 import type { SurfacePickupView } from "./surfaceWorld";
 import { SURFACE_WORLD_SCALE } from "./surfaceView";
+import { createSurfaceSkyProxy } from "./surfaceSky";
+import { surfaceOcclusionRadius } from "./surfaceOcclusion";
 
 const vector = (value: SurfaceVector): THREE.Vector3 => new THREE.Vector3(value[0], value[1], value[2]);
 
@@ -67,7 +69,9 @@ export function createSurfaceArenaVisual(arena: SurfaceArena): THREE.Group {
   root.name = `surface:${arena.hubId}`;
   root.userData.hubId = arena.hubId;
   root.userData.arenaSeed = arena.seed;
+  root.userData.renderRadius=surfaceOcclusionRadius(arena.walls,radius);
   root.scale.setScalar(SURFACE_WORLD_SCALE);
+  root.add(createSurfaceSkyProxy(arena));
 
   const segments = Math.max(64, Math.ceil(Math.PI * Math.sqrt(radius / 0.04)));
   const sphere = arena.terrain ? buildTerrainMesh(arena.terrain) : new THREE.SphereGeometry(radius, segments, Math.ceil(segments / 2));

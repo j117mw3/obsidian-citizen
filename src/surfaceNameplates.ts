@@ -2,20 +2,20 @@ import * as THREE from "three";
 import type { SurfacePlayerState } from "./surfacePhysics";
 import type { SurfaceArenaView } from "./surfaceWorld";
 import { surfaceSphereOccludes } from "./surfaceVisuals";
-import { traceSurfaceSegment } from "./surfaceCombat";
+import { isSurfaceSegmentOccluded, type OcclusionStats } from "./surfaceOcclusion";
 import { SURFACE_WORLD_SCALE, surfaceViewPose, surfaceToWorld, worldToSurface } from "./surfaceView";
 
 export interface SurfaceNameplateTarget { id: string; name: string; health: number; arenaKey: string; state: SurfacePlayerState; labelPoint?: [number,number,number] }
 /** Visibility is evaluated against displayed head poses and immutable physical cover, not a label above cover. */
-export function projectSurfaceNameplate(camera: THREE.PerspectiveCamera, target: SurfaceNameplateTarget, arena: SurfaceArenaView, center: [number,number,number]): THREE.Vector3 | null {
+export function projectSurfaceNameplate(camera: THREE.PerspectiveCamera, target: SurfaceNameplateTarget, arena: SurfaceArenaView, center: [number,number,number], stats?:OcclusionStats): THREE.Vector3 | null {
   if (target.health<=0 || target.arenaKey!==arena.key) return null;
   const pose=surfaceViewPose(target.state), head=new THREE.Vector3(...surfaceToWorld(target.labelPoint??pose.eye,center));
   // Reject the far hemisphere before querying the static wall grid across a large planet.
-  if (surfaceSphereOccludes(camera.position,head,center,((arena.arena.radius??27)-(arena.arena.terrain?.8:0))*SURFACE_WORLD_SCALE)) return null;
+  if (surfaceSphereOccludes(camera.position,head,center,((arena.arena.radius??27)-(arena.arena.terrain?1.5:0))*SURFACE_WORLD_SCALE)) return null;
   const projectedHead=head.clone().project(camera);
   if (projectedHead.z < -1 || projectedHead.z > 1 || Math.abs(projectedHead.x)>1 || Math.abs(projectedHead.y)>1) return null;
   const eye=worldToSurface(camera.position.toArray(),center);
-  if (traceSurfaceSegment(eye,target.labelPoint??pose.eye,arena.arena.walls,[],"",arena.arena.radius??27)) return null;
+  if (isSurfaceSegmentOccluded(eye,target.labelPoint??pose.eye,arena.arena.walls,arena.arena.radius??27,stats)) return null;
   return target.labelPoint ? head.project(camera) : head.addScaledVector(new THREE.Vector3(...pose.up),.28*SURFACE_WORLD_SCALE).project(camera);
 }
 
@@ -25,10 +25,10 @@ export class SurfaceNameplates {
   constructor(container: HTMLElement) {
     this.layer=createDiv(); this.layer.className="cg-surface-nameplates"; container.appendChild(this.layer);
   }
-  update(camera: THREE.PerspectiveCamera, width: number, height: number, arena: SurfaceArenaView | null, center: [number,number,number] | null, targets: readonly SurfaceNameplateTarget[]): void {
+  update(camera: THREE.PerspectiveCamera, width: number, height: number, arena: SurfaceArenaView | null, center: [number,number,number] | null, targets: readonly SurfaceNameplateTarget[], stats?:OcclusionStats): void {
     camera.updateMatrixWorld(); const visible=new Set<string>();
     if (arena && center && width>0 && height>0) for (const target of targets) {
-      const point=projectSurfaceNameplate(camera,target,arena,center); if (!point) continue;
+      const point=projectSurfaceNameplate(camera,target,arena,center,stats); if (!point) continue;
       let entry=this.entries.get(target.id);
       if (!entry) {
         const root=createDiv(),name=createSpan(),bar=createDiv(),fill=createDiv();

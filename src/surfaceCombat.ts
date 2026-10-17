@@ -71,6 +71,12 @@ function segmentBox(start: SurfaceVector, delta: SurfaceVector, wall: SurfaceWal
   return near >= 0 && near <= 1 ? near : null;
 }
 
+/** Cheap obstacle-only variant for label occlusion after the planet ray was already tested. */
+export function traceSurfaceWallSegment(start: SurfaceVector, end: SurfaceVector, walls: readonly SurfaceWall[], arenaRadius: number, stats?: { visitedCells:number; terrainSamples:number }): boolean {
+  const delta = sub(end, start);
+  return nearbySurfaceWalls(start, end, walls, arenaRadius,0,stats).some(wall => segmentBox(start, delta, wall, arenaRadius) !== null);
+}
+
 function segmentSphere(start: SurfaceVector, delta: SurfaceVector, radius: number): number | null {
   const a = dot(delta, delta), b = 2 * dot(start, delta), c = dot(start, start) - radius * radius;
   if (c <= 0) return 0;

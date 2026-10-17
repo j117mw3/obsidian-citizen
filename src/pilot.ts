@@ -4,7 +4,7 @@ import type { SimNode } from "./types";
 import { PilotAudio } from "./sfx";
 import { buildShip, type Ship } from "./ship";
 import { buildCockpit, cockpitScreenLayout, type Cockpit } from "./cockpit";
-import { FLIGHT, stepBoostResources, stepFlightRotation, stepFlightVelocity } from "./flight";
+import { FLIGHT, flightCollisionNormal, stepBoostResources, stepFlightRotation, stepFlightVelocity } from "./flight";
 import { inSweetSpot, interceptPoint, weaponStats } from "./weapons";
 import type { FlightInput, FlightTick, NavigationTarget, Pose, ShotSnapshot } from "./multiplayer";
 import type { PilotProfile, ShipId } from "./pilotProfile";
@@ -930,8 +930,8 @@ export class PilotController {
 
   private updateDocking(dt: number, controlsEnabled: boolean): void {
     const held = controlsEnabled && this.health > 0 && this.keys.has("KeyF");
-    if (!held) { this.dockHeld = 0; this.dockTargetKey = ""; this.dockSent = false; }
-    if (this.clock < this.dockMessageUntil) { this.dockingPrompt.textContent = this.dockMessage; return; }
+    if (!held) { if (this.dockSent) this.dockMessageUntil = 0; this.dockHeld = 0; this.dockTargetKey = ""; this.dockSent = false; }
+    if (this.clock < this.dockMessageUntil || (held && this.dockSent && this.dockMessageUntil > 0)) { this.dockingPrompt.textContent = this.dockMessage; return; }
     if (held && this.dockSent) { this.dockingPrompt.textContent = "Docking requested · release the docking key before retrying"; return; }
     const target = this.host.dockingTarget?.(), speed = this.vel.length();
     let message = "Dock · Aim the ship at a main sphere";
@@ -946,6 +946,7 @@ export class PilotController {
       this.dockHeld = Math.min(1.5, this.dockHeld + Math.max(0, Math.min(0.1, dt)));
       message = `Docking · ${Math.round(this.dockHeld / 1.5 * 100)}% · keep holding F`;
       if (this.dockHeld >= 1.5 - 1e-6) {
+        this.dockMessageUntil = 0;
         this.dockSent = true;
         this.host.onDockRequest?.(this.aimDestination, this.aim);
       }
@@ -989,7 +990,7 @@ export class PilotController {
     }
   };
 
-  private onKeyUp = (e: KeyboardEvent) => { this.keys.delete(e.code); if (e.code === "KeyF") { this.dockHeld = 0; this.dockTargetKey = ""; this.dockSent = false; } this.lightKey(e.code, false); if (e.code === "Tab") this.host.showScores(false); };
+  private onKeyUp = (e: KeyboardEvent) => { this.keys.delete(e.code); if (e.code === "KeyF") { if (this.dockSent) this.dockMessageUntil = 0; this.dockHeld = 0; this.dockTargetKey = ""; this.dockSent = false; } this.lightKey(e.code, false); if (e.code === "Tab") this.host.showScores(false); };
   private onBlur = () => { this.keys.clear(); this.firing = false; this.host.showScores(false); if (this.active && this.opts.multiplayer) this.sendNetworkInput(); for (const list of this.keyCaps.values()) for (const el of list) el.classList.remove("cg-down"); };
 
   private toggleLock(): void {
@@ -1264,8 +1265,8 @@ export class PilotController {
       const dz = p.z - n.z; if (dz > rad || dz < -rad) continue;
       const d2 = dx * dx + dy * dy + dz * dz;
       if (d2 >= rad * rad || !this.host.solid(i)) continue;
-      const d = Math.sqrt(d2) || 1e-3;
-      const nx = dx / d, ny = dy / d, nz = dz / d;
+      const d = Math.sqrt(d2), normal = flightCollisionNormal(new THREE.Vector3(dx, dy, dz), this.vel);
+      const { x: nx, y: ny, z: nz } = normal;
       p.x += nx * (rad - d); p.y += ny * (rad - d); p.z += nz * (rad - d);
       const vn = this.vel.x * nx + this.vel.y * ny + this.vel.z * nz;
       if (vn < 0) {

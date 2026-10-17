@@ -25,7 +25,7 @@ export function compactSurfaceGeometry(arena: SurfaceArena): object {
   const numeric = { surfaceGeometry9: 1, hub: arena.hubId, seed: arena.seed, radius: arena.radius ?? 27, connections, ...(arena.terrain?{terrain:arena.terrain}:{}),
     walls: arena.walls.flatMap(wall => [...wall.normal.map(n => Math.round(n * 1e6) / 1e6), ...wall.tangent.map(n => Math.round(n * 1e6) / 1e6), wall.height, wall.length]), pickups: arena.pickups };
   const bytes = encoder.encode(JSON.stringify(numeric));
-  if (bytes.length > MAX_GEOMETRY_BYTES) throw new Error("Surface geometry exceeds protocol 14 size limit");
+  if (bytes.length > MAX_GEOMETRY_BYTES) throw new Error("Surface geometry exceeds protocol 15 size limit");
   // Independently compressed immutable arenas keep aggregate supported graphs inside checkpoint bounds.
   return bytes.length < 4096 ? numeric : { surfaceGeometry9: 2, size: bytes.length, data: base64(zlibSync(bytes, { level: 1 })) };
 }
@@ -65,11 +65,11 @@ export function stringifySurfaceTransfer(value: unknown, limit: number): string 
     const existing=definitions.get(item);if(existing)return {surfaceGeometryRef:existing};
     const id=++next;definitions.set(item,id);return {surfaceGeometryId:id,definition:compactSurfaceGeometry(item as unknown as SurfaceArena)};
   });
-  if (encoder.encode(text).byteLength > limit) throw new Error("Surface transfer exceeds protocol 14 size limit");
+  if (encoder.encode(text).byteLength > limit) throw new Error("Surface transfer exceeds protocol 15 size limit");
   return text;
 }
 export function parseSurfaceTransfer(text: string, limit: number): unknown {
-  if (encoder.encode(text).byteLength > limit) throw new Error("Surface transfer exceeds protocol 14 size limit");
+  if (encoder.encode(text).byteLength > limit) throw new Error("Surface transfer exceeds protocol 15 size limit");
   const definitions=new Map<number,SurfaceArena>();
   return JSON.parse(text, (_key: string, item: unknown): unknown => {
     if(isRecord(item)&&(item.surfaceGeometry9===1||item.surfaceGeometry9===2))return expandSurfaceGeometry(item);

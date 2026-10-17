@@ -12,6 +12,19 @@ const built = await build({
 });
 const flight = await import(`data:text/javascript;base64,${Buffer.from(built.outputFiles[0].text).toString("base64")}`);
 
+test("node collision recovery escapes an exact center instead of waiting for pilot input", () => {
+  for (const velocity of [new flight.THREE.Vector3(), new flight.THREE.Vector3(0, -2, 0)]) {
+    const grid = new flight.StarCollisionGrid(); grid.rebuild([new Float32Array([0, 0, 0])], [[10]]);
+    const position = new flight.THREE.Vector3(); grid.resolve(position, velocity);
+    assert.ok(position.length() >= 10 - 1e-8); assert.ok(position.toArray().every(Number.isFinite));
+    const pilot = Object.create(flight.PilotController.prototype);
+    Object.assign(pilot, { pos: new flight.THREE.Vector3(), vel: velocity.clone(), host: {
+      nodes: () => [{ x: 0, y: 0, z: 0 }], nodeCollisionRadius: () => 10, solid: () => true,
+    } });
+    pilot.collide(); assert.ok(pilot.pos.length() >= 10.7 - 1e-8);
+  }
+});
+
 test("docking requires a continuous 1.5-second ready hold and sends only one request until release", () => {
   for (const multiplayer of [false, true]) {
     const pilot = Object.create(flight.PilotController.prototype), requests = [];
@@ -36,6 +49,11 @@ test("docking requires a continuous 1.5-second ready hold and sends only one req
     assert.equal(requests.length, 1);
     pilot.showDockMessage("Host rejected docking"); pilot.updateDocking(0.1, true);
     assert.equal(pilot.dockingPrompt.textContent, "Host rejected docking");
+    pilot.dockSent = true; pilot.clock = 6000; pilot.updateDocking(0.1, true);
+    assert.equal(pilot.dockingPrompt.textContent, "Host rejected docking", "a held key never replaces a terminal failure with a pending message");
+    pilot.keys.clear(); pilot.updateDocking(0.1, true); pilot.keys.add("KeyF"); pilot.vel.set(0, 0, 0);
+    for (let tick = 0; tick < 15; tick++) pilot.updateDocking(0.1, true);
+    assert.equal(requests.length, 2, "releasing F permits a new continuous hold after failure");
   }
 });
 
@@ -54,7 +72,7 @@ test("pole departure skips the union of overlapping node obstacles without chang
   const position = grid.clearPointOnRay(new flight.THREE.Vector3(), new flight.THREE.Vector3(0, 1, 0), 35 * 6 / 27);
   assert.ok(nodes.every(node => position.distanceTo(new flight.THREE.Vector3(...node)) > 6.5));
   assert.equal(position.x, 0); assert.equal(position.z, 0);
-  assert.ok(Math.abs(position.y - 22.55) < 1e-8);
+  assert.ok(Math.abs(position.y - 22.8) < 1e-8, "departure includes ship-sized clearance");
 });
 
 test("surface resume restores the ship pose directly and preserves ship resources and cooldown", () => {
